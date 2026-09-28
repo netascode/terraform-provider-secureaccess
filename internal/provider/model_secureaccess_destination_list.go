@@ -188,7 +188,7 @@ func (data *DestinationList) fromBodyPartial(ctx context.Context, res gjson.Resu
 
 			continue
 		}
-		if value := res.Get("id"); value.Exists() && !data.Id.IsNull() {
+		if value := res.Get("id"); value.Exists() {
 			data.Id = types.Int64Value(value.Int())
 		} else {
 			data.Id = types.Int64Null()

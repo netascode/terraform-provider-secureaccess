@@ -34,6 +34,7 @@ attributes:
         type: Int64
         description: Unique identifier for the destination.
         computed: true
+        computed_refresh_value: true
         exclude_example: true
         exclude_test: true
       - model_name: destination
