@@ -55,7 +55,7 @@ attributes:
     tf_name: literals
     type: List
     description: Literal (non-reusable) values of the Network Objects.
-    minimum_test_value: true
+    minimum_test_value: "'true'"
     attributes:
     - model_name: type
       type: String
