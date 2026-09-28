@@ -1,0 +1,31 @@
+# Manual resource
+# -> BUG: API returns 200 on delete, before the object is actually deleted -> add manual sleep to Delete()
+---
+name: Network Object
+rest_endpoint: /policies/v2/objects/networkObjects
+doc_category: Resources
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Network Object.
+    example: my_network_object
+    data_source_query: true
+  - model_name: description
+    type: String
+    description: Description of the Network Object.
+    example: This is my network object.
+  - model_name: type
+    data_path: ["value"]
+    type: String
+    mandatory: true
+    enum_values: ["network", "host", "range", "fqdn"]
+    description: Type of the Network Object.
+    example: network
+  - model_name: "0"
+    data_path: ["value", "addresses"]
+    tf_name: value
+    type: String
+    mandatory: true
+    description: Address of the Network Object.
+    example: 192.168.1.0/24

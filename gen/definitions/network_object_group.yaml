@@ -1,0 +1,89 @@
+# Manual resource
+# -> APIBEHAVIOUR: Network Object & Network Object Group req & resp JSON do not match
+# -> ENH: Implement nested `computed` attributes
+# -> BUG: API returns 200 on delete, before the object is actually deleted -> add manual sleep to Delete()
+# -> ENH: Templatize above bug, as it is more common across resources
+# -> adjust_body
+# -> ConfigValidators()
+---
+name: Network Object Group
+rest_endpoint: /policies/v2/objects/networkObjectGroups
+adjust_body: true
+doc_category: Resources
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Network Object Group.
+    example: my_network_object
+    data_source_query: true
+  - model_name: description
+    type: String
+    description: Description of the Network Object Group.
+    example: This is my network object group.
+  - model_name: groups
+    tf_name: network_object_groups
+    type: List
+    description: Network Object Groups to be included in this Network Object Group.
+    attributes:
+      - model_name: id
+        type: Int64
+        description: ID of the Network Object Group.
+        example: 123456
+        test_value: secureaccess_network_object_group.test_prereq.id
+        id: true
+      # - model_name: name
+      #   type: String
+      #   description: Name of the Network Object Group.
+      #   computed: true
+  - model_name: objects
+    tf_name: network_objects
+    type: List
+    description: Network Objects to be included in this Network Object Group.
+    attributes:
+      - model_name: id
+        type: Int64
+        description: ID of the Network Object.
+        example: 123456
+        test_value: secureaccess_network_object.test.id
+        id: true
+      # - model_name: name
+      #   type: String
+      #   description: Name of the Network Object.
+      #   computed: true
+  - model_name: values
+    tf_name: literals
+    type: List
+    description: Literal (non-reusable) values of the Network Objects.
+    minimum_test_value: true
+    attributes:
+    - model_name: type
+      type: String
+      enum_values: ["network", "host", "range", "fqdn"]
+      description: Type of the Network Object.
+      example: network
+      minimum_test_value: '"host"'
+    - model_name: "0"
+      data_path: ["addresses"]
+      tf_name: value
+      type: String
+      description: Address of the Network Object.
+      example: 192.168.2.0/24
+      minimum_test_value: '"192.168.1.10"'
+
+test_prerequisites: |-
+  resource "secureaccess_network_object" test {
+    name = "my_network_object_group"
+    type = "network"
+    value = "192.168.1.0/24"
+  }
+
+  resource "secureaccess_network_object_group" test_prereq {
+    name = "my_network_object_group"
+    literals = [
+      {
+        type = "network"
+        value = "192.168.10.0/24"
+      }
+    ]
+  }

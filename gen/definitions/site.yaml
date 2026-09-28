@@ -1,0 +1,44 @@
+# Manual resource
+# Enh: Variable resource ID (Id of this resource is model_name: siteId)
+# APIBEHAVIOUR: pages/limit instead of offset/limit -> broken DS implementation
+---
+name: Site
+rest_endpoint: /deployments/v2/sites
+doc_category: Deployments
+skip_minimum_test: true
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Network.
+    example: my_site
+    # data_source_query: true
+  # RO
+  - model_name: internalNetworkCount
+    type: Int64
+    description: The number of internal networks that are associated with the Site.
+    computed: true
+    exclude_test: true
+  - model_name: originId
+    type: Int64
+    description: The origin ID of the Site.
+    computed: true
+  - model_name: siteId
+    type: Int64
+    description: The ID of the Site.
+    computed: true
+  - model_name: vaCount
+    tf_name: virtual_appliances_count
+    type: Int64
+    description: The number of virtual appliances that are associated with the Site.
+    computed: true
+    exclude_test: true
+  - model_name: type
+    type: String
+    description: The type of the Site.
+    computed: true
+    exclude_test: true
+  - model_name: isDefault
+    type: String
+    description: Specifies whether the Site is the default Site.
+    computed: true

@@ -1,0 +1,36 @@
+# Not tested
+---
+name: Network
+rest_endpoint: /deployments/v2/networks
+doc_category: Resources
+test_tags: ["TF_VAR_NETWORKS"]
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Network.
+    example: my_network
+    data_source_query: true
+  - model_name: status
+    type: String
+    mandatory: true
+    description: Status of the Network.
+    example: OPEN
+    enum_values: ["OPEN", "CLOSED"]
+  - model_name: isDynamic
+    type: Bool
+    mandatory: true
+    description: Specifies whether the IP is dynamic.
+    example: true
+  - model_name: prefixLength
+    type: Int64
+    min_int: 29
+    max_int: 32
+    mandatory: true
+    description: Prefix length of the Network.
+    example: 30
+  - model_name: ipAddress
+    type: String
+    tf_name: prefix
+    description: IP address of the Network.
+    example: 192.168.1.0

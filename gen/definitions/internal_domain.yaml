@@ -1,0 +1,28 @@
+---
+name: Internal Domain
+rest_endpoint: /deployments/v2/internaldomains
+doc_category: Resources
+attributes:
+  - model_name: domain
+    type: String
+    description: Domain name of the Internal Domain.
+    mandatory: true
+    example: mydomain.local
+  - model_name: description
+    type: String
+    description: Description of the Internal Domain.
+    example: My Internal Domain
+  - model_name: includeAllMobileDevices
+    type: Bool
+    description: Whether to include all mobile devices.
+    example: false
+  - model_name: includeAllVAs
+    tf_name: include_all_virtual_appliances
+    type: Bool
+    description: Whether to include all virtual appliances.
+    example: false
+  - model_name: siteIds
+    type: List
+    element_type: Int64
+    description: The list of site IDs associated with the domain.
+    example: "123"

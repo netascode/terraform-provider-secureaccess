@@ -1,0 +1,51 @@
+# Manual resource
+# APIBEHAVIOUR: pages/limit instead of offset/limit -> broken DS implementation
+# -> ConfigValidators()
+# Switching between site_id / network_id / tunnel_id should trigger required_replace
+---
+name: Internal Network
+rest_endpoint: /deployments/v2/internalnetworks
+doc_category: Resources
+skip_minimum_test: true
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Internal Network.
+    example: my_internal_network
+    # data_source_query: true
+  - model_name: ipAddress
+    tf_name: prefix
+    type: String
+    description: IP address of the Internal Network.
+    mandatory: true
+    example: 10.1.1.0
+  - model_name: prefixLength
+    tf_name: prefix_length
+    type: Int64
+    description: Prefix length of the Internal Network.
+    mandatory: true
+    min_int: 8
+    max_int: 32
+    example: 24
+  - model_name: networkId
+    type: Int64
+    description: Network ID of the Internal Network.
+    exclude_example: true
+    exclude_test: true
+  - model_name: siteId
+    type: Int64
+    description: Site ID of the Internal Network.
+    example: 1819818
+    test_value: secureaccess_site.test.id
+    minimum_test_value: secureaccess_site.test.id
+  - model_name: tunnelId
+    type: Int64
+    description: Tunnel ID of the Internal Network.
+    exclude_example: true
+    exclude_test: true
+
+test_prerequisites: |-
+  resource "secureaccess_site" "test" {
+    name = "my_internal_network"
+  }

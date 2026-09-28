@@ -1,0 +1,54 @@
+# Manual resource
+# APIBEHAVIOUR: req JSON does not match resp JSON ("data")
+# APIBEHAVIOUR: PATCH instead of PUT
+# APIBEHAVIOUR: destinations can be created by common POST, but later on need to be managed separately (no PUT/PATCH)
+# TODO: Add pagination for destinations retrieval / creation
+# APIBEHAVIOUR: DELETE has body for removing destinations !!!
+# TODO: Automated tests are failing
+---
+name: Destination List
+rest_endpoint: /policies/v2/destinationlists
+doc_category: Resources
+attributes:
+  # API fixed values
+  - model_name: access
+    type: String
+    value: none
+  - model_name: bundleTypeId
+    type: Int64
+    value: 2
+  - model_name: isGlobal
+    type: Bool
+    value: false
+  # Parameters
+  - model_name: name
+    type: String
+    description: Name of the Destination List.
+    example: my_destination_list
+    mandatory: true
+  - model_name: destinations
+    type: Set
+    description: List of destinations in the Destination List
+    attributes:
+      - model_name: id
+        type: Int64
+        description: Unique identifier for the destination.
+        computed: true
+        exclude_example: true
+        exclude_test: true
+      - model_name: destination
+        type: String
+        description: The destination value (domain name, URL, or IPv4 address).
+        example: example.com
+        string_max_length: 253
+        id: true
+        mandatory: true
+      - model_name: comment
+        type: String
+        description: Comment for the destination.
+        example: This is a comment for the destination.
+      - model_name: type
+        type: String
+        description: Type of the destination.
+        enum_values: ["domain", "url", "ipv4"]
+        example: domain
