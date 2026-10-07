@@ -59,16 +59,6 @@ type SecureAccessProviderData struct {
 	Client *secureaccess.Client
 }
 
-// Define provider constants
-const (
-	// maximum elements in single create bulk request
-	bulkSizeCreate int = 1000
-	// maximum payload size in bytes
-	maxPayloadSize int = 2048000
-	// maximum URL Param length. This is a rough estimate and does not account for the entire URL length.
-	maxUrlParamLength int = 7000
-)
-
 // Metadata returns the provider type name.
 func (p *SecureAccessProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "secureaccess"

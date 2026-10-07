@@ -24,14 +24,17 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework-validators/datasourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
+	"github.com/tidwall/gjson"
 )
 
 // End of section. //template:end imports
@@ -72,12 +75,10 @@ func (d *{{camelCase .Name}}DataSource) Schema(ctx context.Context, req datasour
 			{{- if not .NoId}}
 			"id": schema.StringAttribute{
 				MarkdownDescription: "Id of the object",
-				{{- if and (not (hasDataSourceQuery .Attributes)) (not .IsBulk) }}
+				{{- if not (hasDataSourceQuery .Attributes) }}
 				Required:            true,
 				{{- else}}
-				{{- if not .IsBulk}}
 				Optional:            true,
-				{{- end}}
 				Computed:            true,
 				{{- end}}
 			},
@@ -114,7 +115,7 @@ func (d *{{camelCase .Name}}DataSource) Schema(ctx context.Context, req datasour
 							{{- if isListSet .}}
 							ElementType:         types.{{.ElementType}}Type,
 							{{- end}}
-							{{- if and .ResourceId $parentNestedMap (not $.IsBulk)}}
+							{{- if and .ResourceId $parentNestedMap }}
 							Required:            true,
 							{{- else}}
 							Computed:            true,
@@ -175,7 +176,7 @@ func (d *{{camelCase .Name}}DataSource) Schema(ctx context.Context, req datasour
 	}
 }
 {{- $dataSourceAttributes := getDataSourceQueryAttributes .}}
-{{- if and (hasDataSourceQuery .Attributes) (not .IsBulk)}}
+{{- if hasDataSourceQuery .Attributes }}
 func (d *{{camelCase .Name}}DataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
     return []datasource.ConfigValidator{
         datasourcevalidator.ExactlyOneOf(
@@ -215,7 +216,7 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", {{if .NoId}}"{{.Name}}"{{else}}config.Id.String(){{end}}))
 
-	{{- if and (hasDataSourceQuery .Attributes) (not .IsBulk)}}
+	{{- if hasDataSourceQuery .Attributes }}
 	{{- range $index, $dataSourceAttribute := $dataSourceAttributes }}
 	if config.Id.IsNull() && !config.{{toGoName $dataSourceAttribute.TfName}}.IsNull() {
 		offset := 0
@@ -275,11 +276,7 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 	{{- end}}
 	{{- end}}
 
-	{{- if .IsBulk}}
-	
-	// Get all objects
-	urlPath := config.getPath() + "?expanded=true"
-	{{- else if .NoId}}
+	{{if .NoId}}
 	urlPath := config.getPath()
 	{{- else}}
 	urlPath := config.getPath()+"/"+url.QueryEscape(config.Id.ValueString())
@@ -289,22 +286,6 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
 		return
 	}
-
-	{{- if .IsBulk}}
-
-	// Read all items if user did not provide any specific item names in the config
-	if len(config.Items) == 0 {
-		if config.Items == nil {
-			config.Items = map[string]{{camelCase .Name}}Items{}
-		}
-		res.Get("items").ForEach(func(_, v gjson.Result) bool {
-			if name := v.Get("name").String(); name != "" {
-				config.Items[name] = {{camelCase .Name}}Items{}
-			}
-			return true
-		})
-	}
-	{{- end}}
 
 	config.fromBody(ctx, res)
 

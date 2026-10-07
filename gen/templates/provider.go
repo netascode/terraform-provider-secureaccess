@@ -29,8 +29,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -59,16 +61,6 @@ type SecureAccessProviderModel struct {
 type SecureAccessProviderData struct {
 	Client      *secureaccess.Client
 }
-
-// Define provider constants
-const (
-	// maximum elements in single create bulk request
-	bulkSizeCreate int = 1000
-	// maximum payload size in bytes
-	maxPayloadSize int = 2048000
-	// maximum URL Param length. This is a rough estimate and does not account for the entire URL length.
-	maxUrlParamLength int = 7000
-)
 
 // Metadata returns the provider type name.
 func (p *SecureAccessProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {

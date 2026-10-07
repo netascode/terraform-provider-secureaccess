@@ -20,6 +20,7 @@ package provider
 
 // Section below is generated&owned by "gen/generator.go". //template:begin imports
 import (
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -154,7 +155,7 @@ func TestAccDataSourceSecureAccess{{camelCase .Name}}(t *testing.T) {
 				Config: {{if .TestPrerequisites}}testAccDataSourceSecureAccess{{camelCase .Name}}PrerequisitesConfig+{{end}}testAccDataSourceSecureAccess{{camelCase .Name}}Config(),
 				Check: resource.ComposeTestCheckFunc(checks...),
 			},
-			{{- if and (hasDataSourceQuery .Attributes) (not .IsBulk)}}
+			{{- if hasDataSourceQuery .Attributes}}
 			{{- range $index, $dataSourceAttribute := $dataSourceAttributes}}
 			{
 				Config: {{if $.TestPrerequisites}}testAccDataSourceSecureAccess{{camelCase $.Name}}PrerequisitesConfig+{{end}}testAccNamed{{- if not (eq $dataSourceAttribute.TfName "name") }}By{{toGoName $dataSourceAttribute.TfName}}{{end}}DataSourceSecureAccess{{camelCase $.Name}}Config(),
@@ -275,7 +276,7 @@ func testAccDataSourceSecureAccess{{camelCase .Name}}Config() string {
 
 	config += `
 		data "secureaccess_{{snakeCase .Name}}" "test" {
-			{{if not .IsBulk}}id = secureaccess_{{snakeCase $name}}.test.id{{else}}depends_on = [secureaccess_{{snakeCase $name}}.test]{{end}}
+			id = secureaccess_{{snakeCase $name}}.test.id
 			{{- range  .Attributes}}
 			{{- if or .Reference .DataSourceOptionalParameter}}
 			{{.TfName}} = {{if .TestValue}}{{.TestValue}}{{else}}{{if eq .Type "String"}}"{{.Example}}"{{else if isStringListSet .}}["{{.Example}}"]{{else if isInt64ListSet .}}[{{.Example}}]{{else}}{{.Example}}{{end}}{{end}}
@@ -288,7 +289,7 @@ func testAccDataSourceSecureAccess{{camelCase .Name}}Config() string {
 			{{.TfName}} = {
 				{{if .TestValue}}{{.TestValue}}{{else}}"{{.MapKeyExample}}"{{end}} = {
 					{{- range  .Attributes}}
-					{{- if and .ResourceId (not $.IsBulk)}}
+					{{- if .ResourceId }}
 					{{.TfName}} = secureaccess_{{snakeCase $name}}.test.{{$map}}["{{$mapkey}}"].{{.TfName}}
 					{{- end}}
 					{{- end}}
@@ -301,7 +302,7 @@ func testAccDataSourceSecureAccess{{camelCase .Name}}Config() string {
 	return config
 }
 
-{{if and (hasDataSourceQuery .Attributes) (not .IsBulk) -}}
+{{if hasDataSourceQuery .Attributes -}}
 {{- range $index, $dataSourceAttribute := $dataSourceAttributes}}
 func testAccNamed{{- if not (eq $dataSourceAttribute.TfName "name") }}By{{toGoName $dataSourceAttribute.TfName}}{{end}}DataSourceSecureAccess{{camelCase $.Name}}Config() string {
 	config := `resource "secureaccess_{{snakeCase $name}}" "test" {` + "\n"

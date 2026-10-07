@@ -114,6 +114,7 @@ func (d *InternalDomainDataSource) Read(ctx context.Context, req datasource.Read
 	reqMods := [](func(*secureaccess.Req)){}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", config.Id.String()))
+
 	urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
 	res, err := d.client.Get(ctx, urlPath, reqMods...)
 	if err != nil {

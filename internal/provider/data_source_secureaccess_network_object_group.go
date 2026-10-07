@@ -205,6 +205,7 @@ func (d *NetworkObjectGroupDataSource) Read(ctx context.Context, req datasource.
 			return
 		}
 	}
+
 	urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
 	res, err := d.client.Get(ctx, urlPath, reqMods...)
 	if err != nil {

@@ -20,6 +20,7 @@ package provider
 
 // Section below is generated&owned by "gen/generator.go". //template:begin imports
 import (
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -146,7 +147,7 @@ func TestAccSecureAccess{{camelCase .Name}}(t *testing.T) {
 		Config: {{if .TestPrerequisites}}testAccSecureAccess{{camelCase .Name}}PrerequisitesConfig+{{end}}testAccSecureAccess{{camelCase .Name}}Config_all(),
 		Check: resource.ComposeTestCheckFunc(checks...),
 	})
-	{{- if and (not (or .NoImport (hasReference .Attributes))) (not .IsBulk)}}
+	{{- if not (or .NoImport (hasReference .Attributes))}}
 	steps = append(steps, resource.TestStep{
 		ResourceName:  "secureaccess_{{snakeCase $name}}.test",
 		ImportState:   true,

@@ -173,6 +173,7 @@ func (d *NetworkObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 			return
 		}
 	}
+
 	urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
 	res, err := d.client.Get(ctx, urlPath, reqMods...)
 	if err != nil {

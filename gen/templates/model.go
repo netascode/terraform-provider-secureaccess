@@ -23,7 +23,9 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -282,11 +284,7 @@ func (data {{camelCase .Name}}) toBody(ctx context.Context, state {{camelCase .N
 	{{- end}}
 	{{- end}}
 	{{- end}}
-	{{- if .IsBulk}}
-	return gjson.Get(body, "items").String()
-	{{- else}}
 	return body
-	{{- end}}
 }
 {{end}}
 // End of section. //template:end toBody
@@ -332,7 +330,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	}
 	{{- else if isNestedMap .}}
 	// Build lookup map for O(1) access
-	{{- if or $.ImportNameQuery $.IsBulk}}
+	{{- if $.ImportNameQuery }}
 	itemsByName := make(map[string]gjson.Result)
 	res.{{if .ModelName}}Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}").{{end}}ForEach(func(_, v gjson.Result) bool {
 		if name := v.Get("name").String(); name != "" {
@@ -352,14 +350,14 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	for k := range data.{{toGoName .TfName}} {
 		parent := &data
 		data := (*parent).{{toGoName .TfName}}[k]
-		{{- if or $.ImportNameQuery $.IsBulk}}
+		{{- if $.ImportNameQuery}}
 		res, found := itemsByName[k]
 		if !found {
 		{{- else}}
 		res, found := itemsById[data.Id.ValueString()]
 		if !found || data.Id.ValueString() == "" {
 		{{- end}}
-			{{- if or $.ImportNameQuery $.IsBulk -}}
+			{{- if $.ImportNameQuery -}}
 			tflog.Debug(ctx, fmt.Sprintf("subresource not found, removing: name=%v", k))
 			{{- else -}}
 			tflog.Debug(ctx, fmt.Sprintf("subresource not found, removing: uuid=%s, key=%v", data.Id, k))
@@ -595,96 +593,6 @@ func (data *{{camelCase .Name}}) fromBodyUnknowns(ctx context.Context, res gjson
 {{end}}
 // End of section. //template:end fromBodyUnknowns
 
-// Section below is generated&owned by "gen/generator.go". //template:begin Clone
-
-{{if and .IsBulk (not .NoResource)}}
-func (data *{{camelCase .Name}}) Clone() {{camelCase .Name}} {
-	ret := *data
-	ret.Items = maps.Clone(data.Items)
-
-	return ret
-}
-{{- end}}
-
-// End of section. //template:end Clone
-
-// Section below is generated&owned by "gen/generator.go". //template:begin toBodyNonBulk
-
-{{if and .IsBulk (not .NoResource) }}
-// Updates done one-by-one require different API body
-func (data {{camelCase .Name}}) toBodyNonBulk(ctx context.Context, state {{camelCase .Name}}) string {
-	// This is one-by-one update, so only one element to update is expected
-	if len(data.Items) > 1 {
-		tflog.Error(ctx, "Found more than one element to change. Only one will be changed.")
-	}
-
-	// Utilize existing toBody function
-	body := data.toBody(ctx, state)
-
-	// Get first element only
-	return gjson.Get(body, "0").String()
-}
-{{- end}}
-
-// End of section. //template:end toBodyNonBulk
-
-// Section below is generated&owned by "gen/generator.go". //template:begin findObjectsToBeReplaced
-
-{{if and .IsBulk (hasRequiresReplace .Attributes) }}
-// Check if single object within bulk requires replace due to `requires_replace`
-// Since here we assume object has changed, it must be present in both state and plan (data)
-func (data {{camelCase .Name}}) findObjectsToBeReplaced(ctx context.Context, state {{camelCase .Name}}) {{camelCase .Name}} {
-	// Prepare empty object to be filled in with objects that require replace
-	var toBeReplaced {{camelCase .Name}}
-	toBeReplaced.Items = make(map[string]{{camelCase .Name}}Items)
-
-	// Iterate over all objects in plan
-	for key, item := range data.Items {
-		// Check if object is present in state
-		if _, ok := state.Items[key]; !ok {
-			// Object is not present in state, hence it's not a candidate for replace
-			continue
-		}
-
-		// Check if any field marked as `requires_replace` has changed
-		{{- range .Attributes}}
-			{{- if eq .TfName "items"}}
-			{{- range .Attributes}}
-			{{- if .RequiresReplace }}
-				{{- if (eq .Type "String")}}
-					if item.{{toGoName .TfName}} != state.Items[key].{{toGoName .TfName}} {
-						toBeReplaced.Items[key] = item
-						continue
-					}
-				{{- else}}
-					{{- errorf "requires_replace is not supported for %v" .Type }}
-				{{- end}}
-			{{- end}}
-			{{- end}}
-			{{- end}}
-		{{- end}}
-	}
-
-	return toBeReplaced
-}
-{{- end}}
-
-// End of section. //template:end findObjectsToBeReplaced
-
-// Section below is generated&owned by "gen/generator.go". //template:begin clearItemIds
-
-{{if and .IsBulk (hasRequiresReplace .Attributes) (not .NoResource) }}
-func (data *{{camelCase .Name}}) clearItemsIds(ctx context.Context) {
-	for key, value := range data.Items {
-		tmp := value
-		tmp.Id = types.StringNull()
-		data.Items[key] = tmp
-	}
-}
-{{- end}}
-
-// End of section. //template:end clearItemIds
-
 // Section below is generated&owned by "gen/generator.go". //template:begin toBodyPutDelete
 
 {{if .PutDelete}}
@@ -713,15 +621,6 @@ func (data {{camelCase .Name}}) adjustBody(ctx context.Context, req string) stri
 
 // End of section. //template:end adjustBody
 
-// Section below is generated&owned by "gen/generator.go". //template:begin adjustBodyBulk
-
-{{if and .AdjustBody .IsBulk}}
-func (data {{camelCase .Name}}) adjustBodyBulk(ctx context.Context, req string) string {
-	return req
-}
-{{- end}}
-
-// End of section. //template:end adjustBodyBulk
 
 {{- range .Attributes}}
 	{{- if isNestedMap .}}
@@ -753,9 +652,6 @@ func (data {{camelCase .Name}}) adjustBodyBulk(ctx context.Context, req string) 
 			{{- if hasResourceId .Attributes}}
 				{{- errorf "resource_id not yet implemented at this depth"}}
 			{{- end}}
-			{{- if and $.IsBulk .RequiresReplace}}
-				{{- errorf "requires_replace is not supported for nested objects in bulk operations" }}
-			{{- end}}
 
 			{{- range .Attributes}}
 				{{- if isNestedMap .}}
@@ -769,9 +665,6 @@ func (data {{camelCase .Name}}) adjustBodyBulk(ctx context.Context, req string) 
 				{{- end}}
 				{{- range .Attributes}}
 					{{- errorf "attributes not yet implemented at this depth"}}
-				{{- end}}
-				{{- if and $.IsBulk .RequiresReplace}}
-					{{- errorf "requires_replace is not supported for nested objects in bulk operations" }}
 				{{- end}}
 			{{- end}}
 		{{- end}}
