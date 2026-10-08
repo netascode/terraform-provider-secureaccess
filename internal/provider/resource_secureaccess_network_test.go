@@ -37,8 +37,8 @@ func TestAccSecureAccessNetwork(t *testing.T) {
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_network.test", "name", "my_network"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_network.test", "status", "OPEN"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_network.test", "is_dynamic", "true"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_network.test", "prefix_length", "30"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_network.test", "prefix", "192.168.1.0"))
+	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_network.test", "prefix_length", "30"))
 
 	var steps []resource.TestStep
 	if os.Getenv("SKIP_MINIMUM_TEST") == "" {
@@ -88,8 +88,8 @@ func testAccSecureAccessNetworkConfig_all() string {
 	config += `	name = "my_network"` + "\n"
 	config += `	status = "OPEN"` + "\n"
 	config += `	is_dynamic = true` + "\n"
-	config += `	prefix_length = 30` + "\n"
 	config += `	prefix = "192.168.1.0"` + "\n"
+	config += `	prefix_length = 30` + "\n"
 	config += `}` + "\n"
 	return config
 }

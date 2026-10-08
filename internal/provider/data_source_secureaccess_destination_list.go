@@ -104,8 +104,6 @@ func (d *DestinationListDataSource) Configure(_ context.Context, req datasource.
 
 // End of section. //template:end model
 
-// Section below is generated&owned by "gen/generator.go". //template:begin read
-
 func (d *DestinationListDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var config DestinationList
 
@@ -127,6 +125,13 @@ func (d *DestinationListDataSource) Read(ctx context.Context, req datasource.Rea
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
 		return
 	}
+	res = res.Get("data")
+
+	res, err = destinationListReadDestinations(ctx, d.client, config.Id.ValueString(), res, reqMods...)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+		return
+	}
 
 	config.fromBody(ctx, res)
 
@@ -135,5 +140,3 @@ func (d *DestinationListDataSource) Read(ctx context.Context, req datasource.Rea
 	diags = resp.State.Set(ctx, &config)
 	resp.Diagnostics.Append(diags...)
 }
-
-// End of section. //template:end read

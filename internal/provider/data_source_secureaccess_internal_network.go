@@ -67,23 +67,23 @@ func (d *InternalNetworkDataSource) Schema(ctx context.Context, req datasource.S
 				Computed:            true,
 			},
 			"prefix": schema.StringAttribute{
-				MarkdownDescription: "IP address of the Internal Network.",
+				MarkdownDescription: "Subnet prefix.",
 				Computed:            true,
 			},
 			"prefix_length": schema.Int64Attribute{
-				MarkdownDescription: "Prefix length of the Internal Network.",
+				MarkdownDescription: "Subnet prefix length.",
 				Computed:            true,
 			},
 			"network_id": schema.Int64Attribute{
-				MarkdownDescription: "Network ID of the Internal Network.",
+				MarkdownDescription: "Network ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.",
 				Computed:            true,
 			},
 			"site_id": schema.Int64Attribute{
-				MarkdownDescription: "Site ID of the Internal Network.",
+				MarkdownDescription: "Site ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.",
 				Computed:            true,
 			},
-			"tunnel_id": schema.Int64Attribute{
-				MarkdownDescription: "Tunnel ID of the Internal Network.",
+			"network_tunnel_group_id": schema.Int64Attribute{
+				MarkdownDescription: "Network Tunnel Group ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.",
 				Computed:            true,
 			},
 		},

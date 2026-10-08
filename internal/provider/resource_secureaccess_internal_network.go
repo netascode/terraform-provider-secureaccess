@@ -37,7 +37,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
-	"github.com/tidwall/sjson"
 )
 
 // End of section. //template:end imports
@@ -80,26 +79,26 @@ func (r *InternalNetworkResource) Schema(ctx context.Context, req resource.Schem
 				Required:            true,
 			},
 			"prefix": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("IP address of the Internal Network.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Subnet prefix.").String,
 				Required:            true,
 			},
 			"prefix_length": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Prefix length of the Internal Network.").AddIntegerRangeDescription(8, 32).String,
+				MarkdownDescription: helpers.NewAttributeDescription("Subnet prefix length.").AddIntegerRangeDescription(8, 32).String,
 				Required:            true,
 				Validators: []validator.Int64{
 					int64validator.Between(8, 32),
 				},
 			},
 			"network_id": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Network ID of the Internal Network.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Network ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.").String,
 				Optional:            true,
 			},
 			"site_id": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Site ID of the Internal Network.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Site ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.").String,
 				Optional:            true,
 			},
-			"tunnel_id": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Tunnel ID of the Internal Network.").String,
+			"network_tunnel_group_id": schema.Int64Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Network Tunnel Group ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.").String,
 				Optional:            true,
 			},
 		},
@@ -121,10 +120,46 @@ func (r *InternalNetworkResource) ConfigValidators(ctx context.Context) []resour
 		resourcevalidator.ExactlyOneOf(
 			path.MatchRoot("site_id"),
 			path.MatchRoot("network_id"),
-			path.MatchRoot("tunnel_id"),
+			path.MatchRoot("network_tunnel_group_id"),
 		),
 	}
 }
+
+var _ resource.ResourceWithModifyPlan = &InternalNetworkResource{}
+
+// ModifyPlan requires replacement when switching between network_id, site_id and tunnel_id.
+// Changing the value of the attribute already in use is an in-place update.
+func (r *InternalNetworkResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// Skip on create and destroy
+	if req.State.Raw.IsNull() || req.Plan.Raw.IsNull() {
+		return
+	}
+
+	var plan, state InternalNetwork
+
+	diags := req.Plan.Get(ctx, &plan)
+	if resp.Diagnostics.Append(diags...); resp.Diagnostics.HasError() {
+		return
+	}
+
+	diags = req.State.Get(ctx, &state)
+	if resp.Diagnostics.Append(diags...); resp.Diagnostics.HasError() {
+		return
+	}
+
+	attrs := map[string][2]types.Int64{
+		"network_id":              {state.NetworkId, plan.NetworkId},
+		"site_id":                 {state.SiteId, plan.SiteId},
+		"network_tunnel_group_id": {state.NetworkTunnelGroupId, plan.NetworkTunnelGroupId},
+	}
+	for name, v := range attrs {
+		if v[0].IsNull() != v[1].IsNull() {
+			resp.RequiresReplace = append(resp.RequiresReplace, path.Root(name))
+		}
+	}
+}
+
+// Section below is generated&owned by "gen/generator.go". //template:begin create
 
 func (r *InternalNetworkResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan InternalNetwork
@@ -142,6 +177,7 @@ func (r *InternalNetworkResource) Create(ctx context.Context, req resource.Creat
 
 	// Create object
 	body := plan.toBody(ctx, InternalNetwork{})
+	body = plan.adjustBody(ctx, body)
 	res, err := r.client.Post(ctx, plan.getPath(), body, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST/PUT), got error: %s, %s", err, res.String()))
@@ -157,6 +193,10 @@ func (r *InternalNetworkResource) Create(ctx context.Context, req resource.Creat
 
 	helpers.SetFlagImporting(ctx, false, resp.Private, &resp.Diagnostics)
 }
+
+// End of section. //template:end create
+
+// Section below is generated&owned by "gen/generator.go". //template:begin read
 
 func (r *InternalNetworkResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state InternalNetwork
@@ -174,7 +214,6 @@ func (r *InternalNetworkResource) Read(ctx context.Context, req resource.ReadReq
 
 	urlPath := state.getPath() + "/" + url.QueryEscape(state.Id.ValueString())
 	res, err := r.client.Get(ctx, urlPath, reqMods...)
-
 	if err != nil && strings.Contains(err.Error(), "StatusCode 404") {
 		resp.State.RemoveResource(ctx)
 		return
@@ -195,8 +234,6 @@ func (r *InternalNetworkResource) Read(ctx context.Context, req resource.ReadReq
 		state.fromBodyPartial(ctx, res)
 	}
 
-	state.Id = types.StringValue(res.Get("originId").String())
-
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))
 
 	diags = resp.State.Set(ctx, &state)
@@ -204,6 +241,10 @@ func (r *InternalNetworkResource) Read(ctx context.Context, req resource.ReadReq
 
 	helpers.SetFlagImporting(ctx, false, resp.Private, &resp.Diagnostics)
 }
+
+// End of section. //template:end read
+
+// Section below is generated&owned by "gen/generator.go". //template:begin update
 
 func (r *InternalNetworkResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state InternalNetwork
@@ -226,7 +267,7 @@ func (r *InternalNetworkResource) Update(ctx context.Context, req resource.Updat
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Update", plan.Id.ValueString()))
 
 	body := plan.toBody(ctx, state)
-	body, _ = sjson.Delete(body, "id")
+	body = plan.adjustBody(ctx, body)
 	res, err := r.client.Put(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PUT), got error: %s, %s", err, res.String()))
@@ -238,6 +279,8 @@ func (r *InternalNetworkResource) Update(ctx context.Context, req resource.Updat
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 }
+
+// End of section. //template:end update
 
 // Section below is generated&owned by "gen/generator.go". //template:begin delete
 

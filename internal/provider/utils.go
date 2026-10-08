@@ -19,13 +19,9 @@ package provider
 
 import (
 	"strings"
-	"sync"
 
 	"github.com/tidwall/gjson"
 )
-
-// Mutex to protect deployments
-var deploymentMu sync.Mutex
 
 func init() {
 	gjson.AddModifier("case", func(json, arg string) string {

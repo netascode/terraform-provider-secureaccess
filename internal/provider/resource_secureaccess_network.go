@@ -24,7 +24,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -90,16 +89,16 @@ func (r *NetworkResource) Schema(ctx context.Context, req resource.SchemaRequest
 				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the IP is dynamic.").String,
 				Required:            true,
 			},
+			"prefix": schema.StringAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Subnet prefix.").String,
+				Optional:            true,
+			},
 			"prefix_length": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Prefix length of the Network.").AddIntegerRangeDescription(29, 32).String,
+				MarkdownDescription: helpers.NewAttributeDescription("Subnet prefix length.").AddIntegerRangeDescription(29, 32).String,
 				Required:            true,
 				Validators: []validator.Int64{
 					int64validator.Between(29, 32),
 				},
-			},
-			"prefix": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("IP address of the Network.").String,
-				Optional:            true,
 			},
 		},
 	}
@@ -236,6 +235,8 @@ func (r *NetworkResource) Update(ctx context.Context, req resource.UpdateRequest
 
 // End of section. //template:end update
 
+// Section below is generated&owned by "gen/generator.go". //template:begin delete
+
 func (r *NetworkResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state Network
 
@@ -255,12 +256,12 @@ func (r *NetworkResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	time.Sleep(4 * time.Second)
-
 	tflog.Debug(ctx, fmt.Sprintf("%s: Delete finished successfully", state.Id.ValueString()))
 
 	resp.State.RemoveResource(ctx)
 }
+
+// End of section. //template:end delete
 
 // Section below is generated&owned by "gen/generator.go". //template:begin import
 func (r *NetworkResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

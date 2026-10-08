@@ -64,11 +64,11 @@ func (d *InternalDomainDataSource) Schema(ctx context.Context, req datasource.Sc
 				Required:            true,
 			},
 			"domain": schema.StringAttribute{
-				MarkdownDescription: "Domain name of the Internal Domain.",
+				MarkdownDescription: "Domain name.",
 				Computed:            true,
 			},
 			"description": schema.StringAttribute{
-				MarkdownDescription: "Description of the Internal Domain.",
+				MarkdownDescription: "Description.",
 				Computed:            true,
 			},
 			"include_all_mobile_devices": schema.BoolAttribute{

@@ -35,16 +35,15 @@ func TestAccSecureAccessInternalDomain(t *testing.T) {
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_internal_domain.test", "description", "My Internal Domain"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_internal_domain.test", "include_all_mobile_devices", "false"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_internal_domain.test", "include_all_virtual_appliances", "false"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_internal_domain.test", "site_ids.0", "123"))
 
 	var steps []resource.TestStep
 	if os.Getenv("SKIP_MINIMUM_TEST") == "" {
 		steps = append(steps, resource.TestStep{
-			Config: testAccSecureAccessInternalDomainConfig_minimum(),
+			Config: testAccSecureAccessInternalDomainPrerequisitesConfig + testAccSecureAccessInternalDomainConfig_minimum(),
 		})
 	}
 	steps = append(steps, resource.TestStep{
-		Config: testAccSecureAccessInternalDomainConfig_all(),
+		Config: testAccSecureAccessInternalDomainPrerequisitesConfig + testAccSecureAccessInternalDomainConfig_all(),
 		Check:  resource.ComposeTestCheckFunc(checks...),
 	})
 	steps = append(steps, resource.TestStep{
@@ -62,6 +61,13 @@ func TestAccSecureAccessInternalDomain(t *testing.T) {
 // End of section. //template:end testAcc
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testPrerequisites
+
+const testAccSecureAccessInternalDomainPrerequisitesConfig = `
+resource "secureaccess_site" "test" {
+  name = "my_internal_domain"
+}
+`
+
 // End of section. //template:end testPrerequisites
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testAccConfigMinimal
@@ -83,7 +89,7 @@ func testAccSecureAccessInternalDomainConfig_all() string {
 	config += `	description = "My Internal Domain"` + "\n"
 	config += `	include_all_mobile_devices = false` + "\n"
 	config += `	include_all_virtual_appliances = false` + "\n"
-	config += `	site_ids = [123]` + "\n"
+	config += `	site_ids = [secureaccess_site.test.id]` + "\n"
 	config += `}` + "\n"
 	return config
 }

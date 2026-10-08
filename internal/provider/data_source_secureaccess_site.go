@@ -25,7 +25,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
@@ -64,7 +63,7 @@ func (d *SiteDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 				Required:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Network.",
+				MarkdownDescription: "Name of the Site.",
 				Computed:            true,
 			},
 			"internal_network_count": schema.Int64Attribute{
@@ -73,10 +72,6 @@ func (d *SiteDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 			},
 			"origin_id": schema.Int64Attribute{
 				MarkdownDescription: "The origin ID of the Site.",
-				Computed:            true,
-			},
-			"site_id": schema.Int64Attribute{
-				MarkdownDescription: "The ID of the Site.",
 				Computed:            true,
 			},
 			"virtual_appliances_count": schema.Int64Attribute{
@@ -105,6 +100,8 @@ func (d *SiteDataSource) Configure(_ context.Context, req datasource.ConfigureRe
 
 // End of section. //template:end model
 
+// Section below is generated&owned by "gen/generator.go". //template:begin read
+
 func (d *SiteDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var config Site
 
@@ -119,6 +116,7 @@ func (d *SiteDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	reqMods := [](func(*secureaccess.Req)){}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", config.Id.String()))
+
 	urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
 	res, err := d.client.Get(ctx, urlPath, reqMods...)
 	if err != nil {
@@ -127,10 +125,11 @@ func (d *SiteDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	config.fromBody(ctx, res)
-	config.Id = types.StringValue(res.Get("siteId").String())
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", config.Id.ValueString()))
 
 	diags = resp.State.Set(ctx, &config)
 	resp.Diagnostics.Append(diags...)
 }
+
+// End of section. //template:end read

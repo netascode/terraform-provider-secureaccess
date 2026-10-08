@@ -94,29 +94,31 @@ var templates = []t{
 }
 
 type YamlConfig struct {
-	Name               string                `yaml:"name"`
-	NoDataSource       bool                  `yaml:"no_data_source"`
-	NoResource         bool                  `yaml:"no_resource"`
-	NoImport           bool                  `yaml:"no_import"`
-	TfName             string                `yaml:"tf_name"`
-	RestEndpoint       string                `yaml:"rest_endpoint"`
-	PutCreate          bool                  `yaml:"put_create"`
-	PutDelete          bool                  `yaml:"put_delete"`
-	NoUpdate           bool                  `yaml:"no_update"`
-	NoDelete           bool                  `yaml:"no_delete"`
-	DsDescription      string                `yaml:"ds_description"`
-	ResDescription     string                `yaml:"res_description"`
-	DocCategory        string                `yaml:"doc_category"`
-	ExcludeTest        bool                  `yaml:"exclude_test"`
-	SkipTest           bool                  `yaml:"skip_test"`
-	SkipMinimumTest    bool                  `yaml:"skip_minimum_test"`
-	Attributes         []YamlConfigAttribute `yaml:"attributes"`
-	TestTags           []string              `yaml:"test_tags"`
-	TestPrerequisites  string                `yaml:"test_prerequisites"`
-	ImportNameQuery    bool                  `yaml:"import_name_query"`
-	AdjustBody         bool                  `yaml:"adjust_body"`
-	DeprecationMessage string                `yaml:"deprecation_message"`
-	NoId               bool                  `yaml:"no_id"`
+	Name                string                `yaml:"name"`
+	NoDataSource        bool                  `yaml:"no_data_source"`
+	NoResource          bool                  `yaml:"no_resource"`
+	NoImport            bool                  `yaml:"no_import"`
+	TfName              string                `yaml:"tf_name"`
+	RestEndpoint        string                `yaml:"rest_endpoint"`
+	PutCreate           bool                  `yaml:"put_create"`
+	PutDelete           bool                  `yaml:"put_delete"`
+	NoUpdate            bool                  `yaml:"no_update"`
+	NoDelete            bool                  `yaml:"no_delete"`
+	DsDescription       string                `yaml:"ds_description"`
+	ResDescription      string                `yaml:"res_description"`
+	DocCategory         string                `yaml:"doc_category"`
+	ExcludeTest         bool                  `yaml:"exclude_test"`
+	SkipTest            bool                  `yaml:"skip_test"`
+	SkipMinimumTest     bool                  `yaml:"skip_minimum_test"`
+	Attributes          []YamlConfigAttribute `yaml:"attributes"`
+	TestTags            []string              `yaml:"test_tags"`
+	TestPrerequisites   string                `yaml:"test_prerequisites"`
+	ImportNameQuery     bool                  `yaml:"import_name_query"`
+	AdjustBody          bool                  `yaml:"adjust_body"`
+	DeprecationMessage  string                `yaml:"deprecation_message"`
+	NoId                bool                  `yaml:"no_id"`
+	DelayOnDelete       int                   `yaml:"delay_on_delete"`
+	ResourceIdModelName string                `yaml:"resource_id_model_name"`
 }
 
 type YamlConfigAttribute struct {
@@ -583,6 +585,9 @@ func NewYamlConfig(bytes []byte) (YamlConfig, error) {
 	}
 	if config.TfName == "" {
 		config.TfName = strings.ReplaceAll(config.Name, " ", "_")
+	}
+	if config.ResourceIdModelName == "" {
+		config.ResourceIdModelName = "id"
 	}
 
 	return config, nil

@@ -1,10 +1,7 @@
 # Manual resource
-# APIBEHAVIOUR: req JSON does not match resp JSON ("data")
-# APIBEHAVIOUR: PATCH instead of PUT
-# APIBEHAVIOUR: destinations can be created by common POST, but later on need to be managed separately (no PUT/PATCH)
-# TODO: Add pagination for destinations retrieval / creation
-# APIBEHAVIOUR: DELETE has body for removing destinations !!!
-# TODO: Automated tests are failing
+# -> multiple functions
+# APIBEHAVIOUR: response JSON embeded into additional key ("data")
+# APIBEHAVIOUR: destinations need to be managed separately
 ---
 name: Destination List
 rest_endpoint: /policies/v2/destinationlists
@@ -48,6 +45,7 @@ attributes:
         type: String
         description: Comment for the destination.
         example: This is a comment for the destination.
+        string_max_length: 256
       - model_name: type
         type: String
         description: Type of the destination.

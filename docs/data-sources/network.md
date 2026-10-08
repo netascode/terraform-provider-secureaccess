@@ -29,6 +29,6 @@ data "secureaccess_network" "example" {
 ### Read-Only
 
 - `is_dynamic` (Boolean) Specifies whether the IP is dynamic.
-- `prefix` (String) IP address of the Network.
-- `prefix_length` (Number) Prefix length of the Network.
+- `prefix` (String) Subnet prefix.
+- `prefix_length` (Number) Subnet prefix length.
 - `status` (String) Status of the Network.

@@ -22,15 +22,15 @@ attributes:
     mandatory: true
     description: Specifies whether the IP is dynamic.
     example: true
+  - model_name: ipAddress
+    type: String
+    tf_name: prefix
+    description: Subnet prefix.
+    example: 192.168.1.0
   - model_name: prefixLength
     type: Int64
     min_int: 29
     max_int: 32
     mandatory: true
-    description: Prefix length of the Network.
+    description: Subnet prefix length.
     example: 30
-  - model_name: ipAddress
-    type: String
-    tf_name: prefix
-    description: IP address of the Network.
-    example: 192.168.1.0

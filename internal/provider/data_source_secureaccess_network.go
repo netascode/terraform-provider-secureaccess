@@ -80,12 +80,12 @@ func (d *NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 				MarkdownDescription: "Specifies whether the IP is dynamic.",
 				Computed:            true,
 			},
-			"prefix_length": schema.Int64Attribute{
-				MarkdownDescription: "Prefix length of the Network.",
+			"prefix": schema.StringAttribute{
+				MarkdownDescription: "Subnet prefix.",
 				Computed:            true,
 			},
-			"prefix": schema.StringAttribute{
-				MarkdownDescription: "IP address of the Network.",
+			"prefix_length": schema.Int64Attribute{
+				MarkdownDescription: "Subnet prefix length.",
 				Computed:            true,
 			},
 		},

@@ -70,6 +70,10 @@ Optional:
 
 - `id` (Number) ID of the Network Object Group.
 
+Read-Only:
+
+- `name` (String) Name of the Network Object Group.
+
 
 <a id="nestedatt--network_objects"></a>
 ### Nested Schema for `network_objects`
@@ -77,6 +81,10 @@ Optional:
 Optional:
 
 - `id` (Number) ID of the Network Object.
+
+Read-Only:
+
+- `name` (String) Name of the Network Object.
 
 ## Import
 

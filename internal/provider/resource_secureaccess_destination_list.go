@@ -99,6 +99,9 @@ func (r *DestinationListResource) Schema(ctx context.Context, req resource.Schem
 						"comment": schema.StringAttribute{
 							MarkdownDescription: helpers.NewAttributeDescription("Comment for the destination.").String,
 							Optional:            true,
+							Validators: []validator.String{
+								stringvalidator.LengthBetween(0, 256),
+							},
 						},
 						"type": schema.StringAttribute{
 							MarkdownDescription: helpers.NewAttributeDescription("Type of the destination.").AddStringEnumDescription("domain", "url", "ipv4").String,
@@ -138,23 +141,31 @@ func (r *DestinationListResource) Create(ctx context.Context, req resource.Creat
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Create", plan.Id.ValueString()))
 
-	// Create object
+	// Create object without destinations, those are added separately due to the per-request limit
 	body := plan.toBody(ctx, DestinationList{})
+	body, _ = sjson.Delete(body, "destinations")
 	res, err := r.client.Post(ctx, plan.getPath(), body, reqMods...)
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST/PUT), got error: %s, %s", err, res.String()))
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST), got error: %s, %s", err, res.String()))
 		return
 	}
 
 	res = res.Get("data")
 	plan.Id = types.StringValue(res.Get("id").String())
 
-	// get destinations // TODO error handling
-	resDest, _ := r.client.Get(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString())+"/destinations", reqMods...)
-	resDest = resDest.Get("data")
-	s := res.String()
-	s, _ = sjson.SetRaw(s, "destinations", resDest.String())
-	res = gjson.Parse(s)
+	if err := r.createDestinations(ctx, plan.Id.ValueString(), plan.Destinations, reqMods...); err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+		// Persist the id so the object is tracked (and tainted) rather than orphaned
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), plan.Id)...)
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), plan.Name)...)
+		return
+	}
+
+	res, err = destinationListReadDestinations(ctx, r.client, plan.Id.ValueString(), res, reqMods...)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+		return
+	}
 
 	plan.fromBodyUnknowns(ctx, res)
 
@@ -190,21 +201,18 @@ func (r *DestinationListResource) Read(ctx context.Context, req resource.ReadReq
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object (GET), got error: %s, %s", err, res.String()))
 		return
 	}
+	res = res.Get("data")
+
+	res, err = destinationListReadDestinations(ctx, r.client, state.Id.ValueString(), res, reqMods...)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+		return
+	}
 
 	imp, diags := helpers.IsFlagImporting(ctx, req)
 	if resp.Diagnostics.Append(diags...); resp.Diagnostics.HasError() {
 		return
 	}
-
-	res = res.Get("data")
-
-	// get destinations
-	resDest, _ := r.client.Get(ctx, state.getPath()+"/"+url.QueryEscape(state.Id.ValueString())+"/destinations", reqMods...)
-	resDest = resDest.Get("data")
-
-	s := res.String()
-	s, _ = sjson.SetRaw(s, "destinations", resDest.String())
-	res = gjson.Parse(s)
 
 	// After `terraform import` we switch to a full read.
 	if imp {
@@ -289,39 +297,23 @@ func (r *DestinationListResource) Update(ctx context.Context, req resource.Updat
 		}
 	}
 
-	// Delete destinations
-	if len(toDelete) > 0 {
-		tflog.Debug(ctx, fmt.Sprintf("%s: Deleting destinations: %v", plan.Id.ValueString(), toDelete))
-		json, _ := json.Marshal(toDelete)
-		body := string(json)
-		res, err := r.client.DeleteWithBody(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString())+"/destinations/remove", body)
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to delete destinations, got error: %s, %s", err, res.String()))
-			return
-		}
+	if err := r.deleteDestinations(ctx, plan.Id.ValueString(), toDelete, reqMods...); err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+		return
 	}
 
-	// Create destinations
 	if len(toCreate) > 0 {
-		tflog.Debug(ctx, fmt.Sprintf("%s: Creating destinations: %v", plan.Id.ValueString(), toCreate))
-		tmp := DestinationList{
-			Destinations: toCreate,
-		}
-		body := tmp.toBody(ctx, DestinationList{})
-		body = gjson.Get(body, "destinations").String()
-		res, err := r.client.Post(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString())+"/destinations", body)
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to create destinations, got error: %s, %s", err, res.String()))
+		if err := r.createDestinations(ctx, plan.Id.ValueString(), toCreate, reqMods...); err != nil {
+			resp.Diagnostics.AddError("Client Error", err.Error())
 			return
 		}
 
-		// Retrieve ID of the newly created destinations
-		resDest, _ := r.client.Get(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString())+"/destinations", reqMods...)
-		resDest = resDest.Get("data")
-		s := res.String()
-		s, _ = sjson.SetRaw(s, "destinations", resDest.String())
-		res = gjson.Parse(s)
-
+		// Retrieve IDs of the newly created destinations
+		res, err := destinationListReadDestinations(ctx, r.client, plan.Id.ValueString(), gjson.Parse("{}"), reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", err.Error())
+			return
+		}
 		plan.fromBodyUnknowns(ctx, res)
 	}
 
@@ -376,3 +368,34 @@ func (r *DestinationListResource) ImportState(ctx context.Context, req resource.
 }
 
 // End of section. //template:end import
+
+// createDestinations adds destinations to an existing list, in chunks of destinationListMaxDestinationsPerRequest
+func (r *DestinationListResource) createDestinations(ctx context.Context, id string, destinations []DestinationListDestinations, reqMods ...func(*secureaccess.Req)) error {
+	for i := 0; i < len(destinations); i += destinationListMaxDestinationsPerRequest {
+		end := min(i+destinationListMaxDestinationsPerRequest, len(destinations))
+		tflog.Debug(ctx, fmt.Sprintf("%s: Creating destinations %d-%d of %d", id, i, end, len(destinations)))
+
+		tmp := DestinationList{Destinations: destinations[i:end]}
+		body := gjson.Get(tmp.toBody(ctx, DestinationList{}), "destinations").String()
+		res, err := r.client.Post(ctx, destinationListDestinationsPath(id), body, reqMods...)
+		if err != nil {
+			return fmt.Errorf("failed to create destinations %d-%d: %w, %s", i, end, err, res.String())
+		}
+	}
+	return nil
+}
+
+// deleteDestinations removes destinations by id, in chunks of destinationListMaxDestinationsPerRequest
+func (r *DestinationListResource) deleteDestinations(ctx context.Context, id string, ids []int64, reqMods ...func(*secureaccess.Req)) error {
+	for i := 0; i < len(ids); i += destinationListMaxDestinationsPerRequest {
+		end := min(i+destinationListMaxDestinationsPerRequest, len(ids))
+		tflog.Debug(ctx, fmt.Sprintf("%s: Deleting destinations %d-%d of %d: %v", id, i, end, len(ids), ids[i:end]))
+
+		body, _ := json.Marshal(ids[i:end])
+		res, err := r.client.DeleteWithBody(ctx, destinationListDestinationsPath(id)+"/remove", string(body), reqMods...)
+		if err != nil {
+			return fmt.Errorf("failed to delete destinations %d-%d: %w, %s", i, end, err, res.String())
+		}
+	}
+	return nil
+}

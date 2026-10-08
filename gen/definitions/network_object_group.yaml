@@ -1,15 +1,12 @@
 # Manual resource
-# -> APIBEHAVIOUR: Network Object & Network Object Group req & resp JSON do not match
-# -> ENH: Implement nested `computed` attributes
-# -> BUG: API returns 200 on delete, before the object is actually deleted -> add manual sleep to Delete()
-# -> ENH: Templatize above bug, as it is more common across resources
-# -> adjust_body
-# -> ConfigValidators()
+# -> adjustBody() APIBEHAVIOUR: Network Object & Network Object Group req & resp JSON do not match
+# -> ConfigValidators() (At least one of `network_objects`, `network_object_groups`, `literals` needs to be specified)
 ---
 name: Network Object Group
 rest_endpoint: /policies/v2/objects/networkObjectGroups
 adjust_body: true
 doc_category: Resources
+delay_on_delete: 4
 attributes:
   - model_name: name
     type: String
@@ -32,10 +29,11 @@ attributes:
         example: 123456
         test_value: secureaccess_network_object_group.test_prereq.id
         id: true
-      # - model_name: name
-      #   type: String
-      #   description: Name of the Network Object Group.
-      #   computed: true
+      - model_name: name
+        type: String
+        description: Name of the Network Object Group.
+        computed: true
+        computed_refresh_value: true
   - model_name: objects
     tf_name: network_objects
     type: List
@@ -47,10 +45,11 @@ attributes:
         example: 123456
         test_value: secureaccess_network_object.test.id
         id: true
-      # - model_name: name
-      #   type: String
-      #   description: Name of the Network Object.
-      #   computed: true
+      - model_name: name
+        type: String
+        description: Name of the Network Object.
+        computed: true
+        computed_refresh_value: true
   - model_name: values
     tf_name: literals
     type: List

@@ -579,7 +579,7 @@ func (r *{{camelCase .Name}}Resource) Create(ctx context.Context, req resource.C
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST/PUT), got error: %s, %s", err, res.String()))
 		return
 	}
-	plan.Id = types.StringValue(res.Get("id").String())
+	plan.Id = types.StringValue(res.Get("{{.ResourceIdModelName}}").String())
 	plan.fromBodyUnknowns(ctx, res)
 
 	{{- if hasResourceId .Attributes}}
@@ -729,6 +729,10 @@ func (r *{{camelCase .Name}}Resource) Delete(ctx context.Context, req resource.D
 	}
 	{{- end}}
 	{{- end}}
+
+	{{if .DelayOnDelete}}
+	time.Sleep({{.DelayOnDelete}} * time.Second)
+	{{end}}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Delete finished successfully", state.Id.ValueString()))
 

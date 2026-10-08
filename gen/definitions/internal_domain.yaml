@@ -1,16 +1,19 @@
+# Manual resource
+# -> adjustBody() - drop `id`
 ---
 name: Internal Domain
 rest_endpoint: /deployments/v2/internaldomains
 doc_category: Resources
+adjust_body: true
 attributes:
   - model_name: domain
     type: String
-    description: Domain name of the Internal Domain.
+    description: Domain name.
     mandatory: true
     example: mydomain.local
   - model_name: description
     type: String
-    description: Description of the Internal Domain.
+    description: Description.
     example: My Internal Domain
   - model_name: includeAllMobileDevices
     type: Bool
@@ -26,3 +29,9 @@ attributes:
     element_type: Int64
     description: The list of site IDs associated with the domain.
     example: "123"
+    test_value: "[secureaccess_site.test.id]"
+
+test_prerequisites: |-
+  resource "secureaccess_site" "test" {
+    name = "my_internal_domain"
+  }

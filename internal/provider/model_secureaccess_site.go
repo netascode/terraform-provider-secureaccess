@@ -35,7 +35,6 @@ type Site struct {
 	Name                   types.String `tfsdk:"name"`
 	InternalNetworkCount   types.Int64  `tfsdk:"internal_network_count"`
 	OriginId               types.Int64  `tfsdk:"origin_id"`
-	SiteId                 types.Int64  `tfsdk:"site_id"`
 	VirtualAppliancesCount types.Int64  `tfsdk:"virtual_appliances_count"`
 	Type                   types.String `tfsdk:"type"`
 	IsDefault              types.String `tfsdk:"is_default"`
@@ -56,7 +55,7 @@ func (data Site) getPath() string {
 func (data Site) toBody(ctx context.Context, state Site) string {
 	body := ""
 	if data.Id.ValueString() != "" {
-		body, _ = sjson.Set(body, "id", data.Id.ValueString())
+		body, _ = sjson.Set(body, "siteId", data.Id.ValueString())
 	}
 	if !data.Name.IsNull() {
 		body, _ = sjson.Set(body, "name", data.Name.ValueString())
@@ -83,11 +82,6 @@ func (data *Site) fromBody(ctx context.Context, res gjson.Result) {
 		data.OriginId = types.Int64Value(value.Int())
 	} else {
 		data.OriginId = types.Int64Null()
-	}
-	if value := res.Get("siteId"); value.Exists() {
-		data.SiteId = types.Int64Value(value.Int())
-	} else {
-		data.SiteId = types.Int64Null()
 	}
 	if value := res.Get("vaCount"); value.Exists() {
 		data.VirtualAppliancesCount = types.Int64Value(value.Int())
@@ -130,11 +124,6 @@ func (data *Site) fromBodyPartial(ctx context.Context, res gjson.Result) {
 	} else {
 		data.OriginId = types.Int64Null()
 	}
-	if value := res.Get("siteId"); value.Exists() && !data.SiteId.IsNull() {
-		data.SiteId = types.Int64Value(value.Int())
-	} else {
-		data.SiteId = types.Int64Null()
-	}
 	if value := res.Get("vaCount"); value.Exists() && !data.VirtualAppliancesCount.IsNull() {
 		data.VirtualAppliancesCount = types.Int64Value(value.Int())
 	} else {
@@ -173,13 +162,6 @@ func (data *Site) fromBodyUnknowns(ctx context.Context, res gjson.Result) {
 			data.OriginId = types.Int64Null()
 		}
 	}
-	if data.SiteId.IsUnknown() {
-		if value := res.Get("siteId"); value.Exists() {
-			data.SiteId = types.Int64Value(value.Int())
-		} else {
-			data.SiteId = types.Int64Null()
-		}
-	}
 	if data.VirtualAppliancesCount.IsUnknown() {
 		if value := res.Get("vaCount"); value.Exists() {
 			data.VirtualAppliancesCount = types.Int64Value(value.Int())
@@ -209,6 +191,9 @@ func (data *Site) fromBodyUnknowns(ctx context.Context, res gjson.Result) {
 
 // End of section. //template:end toBodyPutDelete
 
-// Section below is generated&owned by "gen/generator.go". //template:begin adjustBody
+func (data Site) adjustBody(_ context.Context, req string) string {
 
-// End of section. //template:end adjustBody
+	req, _ = sjson.Delete(req, "siteId")
+
+	return req
+}

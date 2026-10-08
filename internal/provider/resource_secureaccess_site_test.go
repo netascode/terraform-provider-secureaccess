@@ -32,7 +32,6 @@ func TestAccSecureAccessSite(t *testing.T) {
 	var checks []resource.TestCheckFunc
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_site.test", "name", "my_site"))
 	checks = append(checks, resource.TestCheckResourceAttrSet("secureaccess_site.test", "origin_id"))
-	checks = append(checks, resource.TestCheckResourceAttrSet("secureaccess_site.test", "site_id"))
 	checks = append(checks, resource.TestCheckResourceAttrSet("secureaccess_site.test", "is_default"))
 
 	var steps []resource.TestStep
@@ -70,3 +69,26 @@ func testAccSecureAccessSiteConfig_all() string {
 }
 
 // End of section. //template:end testAccConfigAll
+
+func TestAccSecureAccessSite_Sequential(t *testing.T) {
+
+	step_01 := `resource "secureaccess_site" "test" {` + "\n" +
+		`	name = "my_site_seq"` + "\n" +
+		`}` + "\n"
+
+	step_02 := `resource "secureaccess_site" "test" {` + "\n" +
+		`	name = "my_site_seq_rename"` + "\n" +
+		`}` + "\n"
+
+	steps := []resource.TestStep{{
+		Config: step_01,
+	}, {
+		Config: step_02,
+	}}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps:                    steps,
+	})
+}

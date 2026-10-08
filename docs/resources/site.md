@@ -23,7 +23,7 @@ resource "secureaccess_site" "example" {
 
 ### Required
 
-- `name` (String) Name of the Network.
+- `name` (String) Name of the Site.
 
 ### Read-Only
 
@@ -31,7 +31,6 @@ resource "secureaccess_site" "example" {
 - `internal_network_count` (Number) The number of internal networks that are associated with the Site.
 - `is_default` (String) Specifies whether the Site is the default Site.
 - `origin_id` (Number) The origin ID of the Site.
-- `site_id` (Number) The ID of the Site.
 - `type` (String) The type of the Site.
 - `virtual_appliances_count` (Number) The number of virtual appliances that are associated with the Site.
 

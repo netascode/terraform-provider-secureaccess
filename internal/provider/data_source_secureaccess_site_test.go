@@ -32,7 +32,6 @@ func TestAccDataSourceSecureAccessSite(t *testing.T) {
 	var checks []resource.TestCheckFunc
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_site.test", "name", "my_site"))
 	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_site.test", "origin_id"))
-	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_site.test", "site_id"))
 	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_site.test", "is_default"))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },

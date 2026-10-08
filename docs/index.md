@@ -15,9 +15,8 @@ The Secure Access provider provides resources to interact with a Cisco Secure Ac
 
 ```terraform
 provider "secureaccess" {
-  apikey       = "XXXX"
-  apikeysecret = "XXXX"
-  url          = "https://api.sse.cisco.com"
+  api_key        = "XXXX"
+  api_key_secret = "XXXX"
 }
 ```
 
@@ -26,9 +25,9 @@ provider "secureaccess" {
 
 ### Optional
 
-- `api_key` (String) API key for the SecureAccess instance. This can also be set as the SECUREACCESS_API_KEY environment variable.
-- `api_key_secret` (String, Sensitive) API Key Secret for the SecureAccess instance. This can also be set as the SECUREACCESS_API_KEY_SECRET environment variable.
+- `api_key` (String) API key for the Cisco Secure Access instance. This can also be set as the SECUREACCESS_API_KEY environment variable.
+- `api_key_secret` (String, Sensitive) API Key Secret for the Cisco Secure Access instance. This can also be set as the SECUREACCESS_API_KEY_SECRET environment variable.
 - `insecure` (Boolean) Allow insecure HTTPS client. This can also be set as the SECUREACCESS_INSECURE environment variable. Defaults to `false`.
-- `req_timeout` (String) Timeout for a single HTTPS request made to REST API before it is retried. This can also be set as the SECUREACCESS_REQTIMEOUT environment variable. A string like `"1s"` means one second. Defaults to unlimited.
+- `req_timeout` (String) Timeout for a single HTTPS request made to REST API before it is retried. This can also be set as the SECUREACCESS_REQTIMEOUT environment variable. A string like `"1s"` means one second. Defaults to `60s`.
 - `retries` (Number) Number of retries for REST API calls. This can also be set as the SECUREACCESS_RETRIES environment variable. Defaults to `3`.
-- `url` (String) URL of the Cisco Secure Access instance (https://api.sse.cisco.com). This can also be set as the SECUREACCESS_URL environment variable.
+- `url` (String) URL of the Cisco Secure Access instance. This can also be set as the SECUREACCESS_URL environment variable. Defaults to `https://api.sse.cisco.com`.

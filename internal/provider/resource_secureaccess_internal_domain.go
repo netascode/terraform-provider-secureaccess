@@ -34,7 +34,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
-	"github.com/tidwall/sjson"
 )
 
 // End of section. //template:end imports
@@ -73,11 +72,11 @@ func (r *InternalDomainResource) Schema(ctx context.Context, req resource.Schema
 				},
 			},
 			"domain": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Domain name of the Internal Domain.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Domain name.").String,
 				Required:            true,
 			},
 			"description": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Description of the Internal Domain.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Description.").String,
 				Optional:            true,
 			},
 			"include_all_mobile_devices": schema.BoolAttribute{
@@ -125,6 +124,7 @@ func (r *InternalDomainResource) Create(ctx context.Context, req resource.Create
 
 	// Create object
 	body := plan.toBody(ctx, InternalDomain{})
+	body = plan.adjustBody(ctx, body)
 	res, err := r.client.Post(ctx, plan.getPath(), body, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST/PUT), got error: %s, %s", err, res.String()))
@@ -191,6 +191,8 @@ func (r *InternalDomainResource) Read(ctx context.Context, req resource.ReadRequ
 
 // End of section. //template:end read
 
+// Section below is generated&owned by "gen/generator.go". //template:begin update
+
 func (r *InternalDomainResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state InternalDomain
 
@@ -212,7 +214,7 @@ func (r *InternalDomainResource) Update(ctx context.Context, req resource.Update
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Update", plan.Id.ValueString()))
 
 	body := plan.toBody(ctx, state)
-	body, _ = sjson.Delete(body, "id")
+	body = plan.adjustBody(ctx, body)
 	res, err := r.client.Put(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PUT), got error: %s, %s", err, res.String()))
@@ -224,6 +226,8 @@ func (r *InternalDomainResource) Update(ctx context.Context, req resource.Update
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 }
+
+// End of section. //template:end update
 
 // Section below is generated&owned by "gen/generator.go". //template:begin delete
 

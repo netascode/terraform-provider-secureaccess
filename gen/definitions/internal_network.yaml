@@ -1,12 +1,14 @@
 # Manual resource
-# APIBEHAVIOUR: pages/limit instead of offset/limit -> broken DS implementation
-# -> ConfigValidators()
-# Switching between site_id / network_id / tunnel_id should trigger required_replace
+# APIBEHAVIOUR: pages/limit pagination
+# -> ConfigValidators() (Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.)
+# -> ModifyPlan() (Switching between site_id / network_id / tunnel_id should trigger required_replace)
 ---
 name: Internal Network
 rest_endpoint: /deployments/v2/internalnetworks
 doc_category: Resources
 skip_minimum_test: true
+resource_id_model_name: originId
+adjust_body: true
 attributes:
   - model_name: name
     type: String
@@ -17,31 +19,32 @@ attributes:
   - model_name: ipAddress
     tf_name: prefix
     type: String
-    description: IP address of the Internal Network.
+    description: Subnet prefix.
     mandatory: true
     example: 10.1.1.0
   - model_name: prefixLength
     tf_name: prefix_length
     type: Int64
-    description: Prefix length of the Internal Network.
+    description: Subnet prefix length.
     mandatory: true
     min_int: 8
     max_int: 32
     example: 24
   - model_name: networkId
     type: Int64
-    description: Network ID of the Internal Network.
+    description: Network ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.
     exclude_example: true
     exclude_test: true
   - model_name: siteId
     type: Int64
-    description: Site ID of the Internal Network.
+    description: Site ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.
     example: 1819818
     test_value: secureaccess_site.test.id
     minimum_test_value: secureaccess_site.test.id
   - model_name: tunnelId
     type: Int64
-    description: Tunnel ID of the Internal Network.
+    tf_name: network_tunnel_group_id
+    description: Network Tunnel Group ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.
     exclude_example: true
     exclude_test: true
 

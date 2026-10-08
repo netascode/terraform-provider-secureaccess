@@ -79,3 +79,32 @@ func testAccSecureAccessInternalNetworkConfig_all() string {
 }
 
 // End of section. //template:end testAccConfigAll
+
+func TestAccSecureAccessInternalNetwork_Sequential(t *testing.T) {
+
+	step_01 := `resource "secureaccess_internal_network" "test" {` + "\n" +
+		`	name = "my_internal_network_seq"` + "\n" +
+		`	prefix = "10.1.1.0"` + "\n" +
+		`	prefix_length = 24` + "\n" +
+		`	site_id = secureaccess_site.test.id` + "\n" +
+		`}` + "\n"
+
+	step_02 := `resource "secureaccess_internal_network" "test" {` + "\n" +
+		`	name = "my_internal_network_seq_rename"` + "\n" +
+		`	prefix = "10.1.2.0"` + "\n" +
+		`	prefix_length = 24` + "\n" +
+		`	site_id = secureaccess_site.test.id` + "\n" +
+		`}` + "\n"
+
+	steps := []resource.TestStep{{
+		Config: testAccSecureAccessInternalNetworkPrerequisitesConfig + step_01,
+	}, {
+		Config: testAccSecureAccessInternalNetworkPrerequisitesConfig + step_02,
+	}}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps:                    steps,
+	})
+}

@@ -35,7 +35,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
-	"github.com/tidwall/sjson"
 )
 
 // End of section. //template:end imports
@@ -74,7 +73,7 @@ func (r *SiteResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 				},
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Name of the Network.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Site.").String,
 				Required:            true,
 			},
 			"internal_network_count": schema.Int64Attribute{
@@ -86,13 +85,6 @@ func (r *SiteResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 			},
 			"origin_id": schema.Int64Attribute{
 				MarkdownDescription: helpers.NewAttributeDescription("The origin ID of the Site.").String,
-				Computed:            true,
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.UseStateForUnknown(),
-				},
-			},
-			"site_id": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("The ID of the Site.").String,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
@@ -133,6 +125,8 @@ func (r *SiteResource) Configure(_ context.Context, req resource.ConfigureReques
 
 // End of section. //template:end model
 
+// Section below is generated&owned by "gen/generator.go". //template:begin create
+
 func (r *SiteResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan Site
 
@@ -149,6 +143,7 @@ func (r *SiteResource) Create(ctx context.Context, req resource.CreateRequest, r
 
 	// Create object
 	body := plan.toBody(ctx, Site{})
+	body = plan.adjustBody(ctx, body)
 	res, err := r.client.Post(ctx, plan.getPath(), body, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST/PUT), got error: %s, %s", err, res.String()))
@@ -164,6 +159,10 @@ func (r *SiteResource) Create(ctx context.Context, req resource.CreateRequest, r
 
 	helpers.SetFlagImporting(ctx, false, resp.Private, &resp.Diagnostics)
 }
+
+// End of section. //template:end create
+
+// Section below is generated&owned by "gen/generator.go". //template:begin read
 
 func (r *SiteResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state Site
@@ -181,7 +180,6 @@ func (r *SiteResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	urlPath := state.getPath() + "/" + url.QueryEscape(state.Id.ValueString())
 	res, err := r.client.Get(ctx, urlPath, reqMods...)
-
 	if err != nil && strings.Contains(err.Error(), "StatusCode 404") {
 		resp.State.RemoveResource(ctx)
 		return
@@ -202,8 +200,6 @@ func (r *SiteResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		state.fromBodyPartial(ctx, res)
 	}
 
-	state.Id = types.StringValue(res.Get("siteId").String())
-
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))
 
 	diags = resp.State.Set(ctx, &state)
@@ -211,6 +207,10 @@ func (r *SiteResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	helpers.SetFlagImporting(ctx, false, resp.Private, &resp.Diagnostics)
 }
+
+// End of section. //template:end read
+
+// Section below is generated&owned by "gen/generator.go". //template:begin update
 
 func (r *SiteResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state Site
@@ -233,7 +233,7 @@ func (r *SiteResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Update", plan.Id.ValueString()))
 
 	body := plan.toBody(ctx, state)
-	body, _ = sjson.Delete(body, "id")
+	body = plan.adjustBody(ctx, body)
 	res, err := r.client.Put(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PUT), got error: %s, %s", err, res.String()))
@@ -245,6 +245,8 @@ func (r *SiteResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 }
+
+// End of section. //template:end update
 
 // Section below is generated&owned by "gen/generator.go". //template:begin delete
 

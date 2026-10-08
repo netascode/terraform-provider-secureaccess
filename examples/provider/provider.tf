@@ -1,5 +1,4 @@
 provider "secureaccess" {
-  apikey       = "XXXX"
-  apikeysecret = "XXXX"
-  url          = "https://api.sse.cisco.com"
+  api_key        = "XXXX"
+  api_key_secret = "XXXX"
 }

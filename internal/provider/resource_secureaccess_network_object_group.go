@@ -92,6 +92,10 @@ func (r *NetworkObjectGroupResource) Schema(ctx context.Context, req resource.Sc
 							MarkdownDescription: helpers.NewAttributeDescription("ID of the Network Object Group.").String,
 							Optional:            true,
 						},
+						"name": schema.StringAttribute{
+							MarkdownDescription: helpers.NewAttributeDescription("Name of the Network Object Group.").String,
+							Computed:            true,
+						},
 					},
 				},
 			},
@@ -103,6 +107,10 @@ func (r *NetworkObjectGroupResource) Schema(ctx context.Context, req resource.Sc
 						"id": schema.Int64Attribute{
 							MarkdownDescription: helpers.NewAttributeDescription("ID of the Network Object.").String,
 							Optional:            true,
+						},
+						"name": schema.StringAttribute{
+							MarkdownDescription: helpers.NewAttributeDescription("Name of the Network Object.").String,
+							Computed:            true,
 						},
 					},
 				},
@@ -264,6 +272,7 @@ func (r *NetworkObjectGroupResource) Update(ctx context.Context, req resource.Up
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PUT), got error: %s, %s", err, res.String()))
 		return
 	}
+	plan.fromBodyUnknowns(ctx, res)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
 
@@ -272,6 +281,8 @@ func (r *NetworkObjectGroupResource) Update(ctx context.Context, req resource.Up
 }
 
 // End of section. //template:end update
+
+// Section below is generated&owned by "gen/generator.go". //template:begin delete
 
 func (r *NetworkObjectGroupResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state NetworkObjectGroup
@@ -292,12 +303,14 @@ func (r *NetworkObjectGroupResource) Delete(ctx context.Context, req resource.De
 		return
 	}
 
-	time.Sleep(4 * time.Second) // Manual sleep to ensure the object is actually deleted
+	time.Sleep(4 * time.Second)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Delete finished successfully", state.Id.ValueString()))
 
 	resp.State.RemoveResource(ctx)
 }
+
+// End of section. //template:end delete
 
 // Section below is generated&owned by "gen/generator.go". //template:begin import
 func (r *NetworkObjectGroupResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

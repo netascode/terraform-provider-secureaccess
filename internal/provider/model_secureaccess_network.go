@@ -35,8 +35,8 @@ type Network struct {
 	Name         types.String `tfsdk:"name"`
 	Status       types.String `tfsdk:"status"`
 	IsDynamic    types.Bool   `tfsdk:"is_dynamic"`
-	PrefixLength types.Int64  `tfsdk:"prefix_length"`
 	Prefix       types.String `tfsdk:"prefix"`
+	PrefixLength types.Int64  `tfsdk:"prefix_length"`
 }
 
 // End of section. //template:end types
@@ -65,11 +65,11 @@ func (data Network) toBody(ctx context.Context, state Network) string {
 	if !data.IsDynamic.IsNull() {
 		body, _ = sjson.Set(body, "isDynamic", data.IsDynamic.ValueBool())
 	}
-	if !data.PrefixLength.IsNull() {
-		body, _ = sjson.Set(body, "prefixLength", data.PrefixLength.ValueInt64())
-	}
 	if !data.Prefix.IsNull() {
 		body, _ = sjson.Set(body, "ipAddress", data.Prefix.ValueString())
+	}
+	if !data.PrefixLength.IsNull() {
+		body, _ = sjson.Set(body, "prefixLength", data.PrefixLength.ValueInt64())
 	}
 	return body
 }
@@ -94,15 +94,15 @@ func (data *Network) fromBody(ctx context.Context, res gjson.Result) {
 	} else {
 		data.IsDynamic = types.BoolNull()
 	}
-	if value := res.Get("prefixLength"); value.Exists() {
-		data.PrefixLength = types.Int64Value(value.Int())
-	} else {
-		data.PrefixLength = types.Int64Null()
-	}
 	if value := res.Get("ipAddress"); value.Exists() {
 		data.Prefix = types.StringValue(value.String())
 	} else {
 		data.Prefix = types.StringNull()
+	}
+	if value := res.Get("prefixLength"); value.Exists() {
+		data.PrefixLength = types.Int64Value(value.Int())
+	} else {
+		data.PrefixLength = types.Int64Null()
 	}
 }
 
@@ -130,15 +130,15 @@ func (data *Network) fromBodyPartial(ctx context.Context, res gjson.Result) {
 	} else {
 		data.IsDynamic = types.BoolNull()
 	}
-	if value := res.Get("prefixLength"); value.Exists() && !data.PrefixLength.IsNull() {
-		data.PrefixLength = types.Int64Value(value.Int())
-	} else {
-		data.PrefixLength = types.Int64Null()
-	}
 	if value := res.Get("ipAddress"); value.Exists() && !data.Prefix.IsNull() {
 		data.Prefix = types.StringValue(value.String())
 	} else {
 		data.Prefix = types.StringNull()
+	}
+	if value := res.Get("prefixLength"); value.Exists() && !data.PrefixLength.IsNull() {
+		data.PrefixLength = types.Int64Value(value.Int())
+	} else {
+		data.PrefixLength = types.Int64Null()
 	}
 }
 

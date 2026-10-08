@@ -143,6 +143,14 @@ resource "secureaccess_network_object" test_fqdn {
   type = "fqdn"
   value = "example.com"
 }
+
+resource "secureaccess_network_object_group" test_group {
+  name = "my_network_object_group_5_seq"
+  literals = [{
+    type = "fqdn"
+    value = "example.com"
+  }]
+}
 `
 
 func TestAccSecureAccessNetworkObjectGroup_Sequential(t *testing.T) {
@@ -166,6 +174,9 @@ func TestAccSecureAccessNetworkObjectGroup_Sequential(t *testing.T) {
 			`		{ id = secureaccess_network_object.test_range.id },` + "\n" +
 			`		{ id = secureaccess_network_object.test_fqdn.id }` + "\n" +
 			`	]` + "\n" +
+			`	network_object_groups = [` + "\n" +
+			`		{ id = secureaccess_network_object_group.test_group.id }` + "\n" +
+			`	]` + "\n" +
 			`}`,
 	}, {
 		// step 3
@@ -173,7 +184,7 @@ func TestAccSecureAccessNetworkObjectGroup_Sequential(t *testing.T) {
 			`resource secureaccess_network_object_group test {` + "\n" +
 			`	name = "my_network_object_group_seq"` + "\n" +
 			`	network_objects = [` + "\n" +
-			`		{ id = secureaccess_network_object.test_network.id }` + "\n" +
+			`		{ id = secureaccess_network_object.test_range.id }` + "\n" +
 			`	]` + "\n" +
 			`}`,
 	}}

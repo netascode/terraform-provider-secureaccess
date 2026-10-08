@@ -48,6 +48,7 @@ Read-Only:
 Read-Only:
 
 - `id` (Number) ID of the Network Object Group.
+- `name` (String) Name of the Network Object Group.
 
 
 <a id="nestedatt--network_objects"></a>
@@ -56,3 +57,4 @@ Read-Only:
 Read-Only:
 
 - `id` (Number) ID of the Network Object.
+- `name` (String) Name of the Network Object.

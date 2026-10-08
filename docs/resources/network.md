@@ -17,8 +17,8 @@ resource "secureaccess_network" "example" {
   name          = "my_network"
   status        = "OPEN"
   is_dynamic    = true
-  prefix_length = 30
   prefix        = "192.168.1.0"
+  prefix_length = 30
 }
 ```
 
@@ -29,14 +29,14 @@ resource "secureaccess_network" "example" {
 
 - `is_dynamic` (Boolean) Specifies whether the IP is dynamic.
 - `name` (String) Name of the Network.
-- `prefix_length` (Number) Prefix length of the Network.
+- `prefix_length` (Number) Subnet prefix length.
   - Range: `29`-`32`
 - `status` (String) Status of the Network.
   - Choices: `OPEN`, `CLOSED`
 
 ### Optional
 
-- `prefix` (String) IP address of the Network.
+- `prefix` (String) Subnet prefix.
 
 ### Read-Only
 

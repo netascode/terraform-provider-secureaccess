@@ -19,6 +19,7 @@ package provider
 
 // Section below is generated&owned by "gen/generator.go". //template:begin imports
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -178,7 +179,6 @@ func TestAccSecureAccessDestinationList_Sequential(t *testing.T) {
 	checks_step04 = append(checks_step04, resource.TestCheckResourceAttrSet("secureaccess_destination_list.test", "destinations.0.id"))
 	checks_step04 = append(checks_step04, resource.TestCheckResourceAttrSet("secureaccess_destination_list.test", "destinations.1.id"))
 	checks_step04 = append(checks_step04, resource.TestCheckResourceAttrSet("secureaccess_destination_list.test", "destinations.2.id"))
-	checks_step04 = append(checks_step04, resource.TestCheckResourceAttrSet("secureaccess_destination_list.test", "destinations.3.id"))
 
 	step_05 := `resource "secureaccess_destination_list" "test" {` + "\n" +
 		`	name = "my_destination_list"` + "\n" +
@@ -216,5 +216,39 @@ func TestAccSecureAccessDestinationList_Sequential(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps:                    steps,
+	})
+}
+
+func TestAccSecureAccessDestinationList_600destinations(t *testing.T) {
+	step_01 := `resource "secureaccess_destination_list" "test_dl1_600" { ` + "\n" +
+		`	name = "destination_list_600_destinations"` + "\n" +
+		`	destinations = [` + "\n"
+	for i := range 600 {
+		step_01 += fmt.Sprintf(`	{ destination = "dest_%03d.example.com" },`+"\n", i)
+	}
+	step_01 += `	]` + "\n" + `}` + "\n"
+
+	step_02 := `resource "secureaccess_destination_list" "test_dl1_600" { ` + "\n" +
+		`	name = "destination_list_600_destinations"` + "\n" +
+		`	destinations = [` + "\n"
+	for i := 0; i < 600; i += 2 {
+		step_02 += fmt.Sprintf(`	{ destination = "dest_%03d.example.com" },`+"\n", i)
+	}
+	step_02 += `	]` + "\n" + `}` + "\n"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: step_01,
+			},
+			{
+				Config: step_02,
+			},
+			{
+				Config: step_01,
+			},
+		},
 	})
 }

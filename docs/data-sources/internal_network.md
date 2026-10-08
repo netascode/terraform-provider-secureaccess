@@ -28,8 +28,8 @@ data "secureaccess_internal_network" "example" {
 ### Read-Only
 
 - `name` (String) Name of the Internal Network.
-- `network_id` (Number) Network ID of the Internal Network.
-- `prefix` (String) IP address of the Internal Network.
-- `prefix_length` (Number) Prefix length of the Internal Network.
-- `site_id` (Number) Site ID of the Internal Network.
-- `tunnel_id` (Number) Tunnel ID of the Internal Network.
+- `network_id` (Number) Network ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.
+- `network_tunnel_group_id` (Number) Network Tunnel Group ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.
+- `prefix` (String) Subnet prefix.
+- `prefix_length` (Number) Subnet prefix length.
+- `site_id` (Number) Site ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.

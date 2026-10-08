@@ -228,6 +228,8 @@ func (r *NetworkObjectResource) Update(ctx context.Context, req resource.UpdateR
 
 // End of section. //template:end update
 
+// Section below is generated&owned by "gen/generator.go". //template:begin delete
+
 func (r *NetworkObjectResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state NetworkObject
 
@@ -253,6 +255,8 @@ func (r *NetworkObjectResource) Delete(ctx context.Context, req resource.DeleteR
 
 	resp.State.RemoveResource(ctx)
 }
+
+// End of section. //template:end delete
 
 // Section below is generated&owned by "gen/generator.go". //template:begin import
 func (r *NetworkObjectResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

@@ -160,6 +160,7 @@ func (data *InternalDomain) fromBodyUnknowns(ctx context.Context, res gjson.Resu
 
 // End of section. //template:end toBodyPutDelete
 
-// Section below is generated&owned by "gen/generator.go". //template:begin adjustBody
-
-// End of section. //template:end adjustBody
+func (data InternalDomain) adjustBody(ctx context.Context, req string) string {
+	req, _ = sjson.Delete(req, "id")
+	return req
+}

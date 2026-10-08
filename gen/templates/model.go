@@ -29,6 +29,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -146,7 +147,7 @@ func (data {{camelCase .Name}}) getPath() string {
 func (data {{camelCase .Name}}) toBody(ctx context.Context, state {{camelCase .Name}}) string {
 	body := ""
 	if data.Id.ValueString() != "" {
-		body, _ = sjson.Set(body, "id", data.Id.ValueString())
+		body, _ = sjson.Set(body, "{{.ResourceIdModelName}}", data.Id.ValueString())
 	}
 	{{- range .Attributes}}
 	{{- if and .Computed (not .ComputedBodyParam)}}{{- continue}}{{- end}}

@@ -1,9 +1,8 @@
-# Manual resource
-# -> BUG: API returns 200 on delete, before the object is actually deleted -> add manual sleep to Delete()
 ---
 name: Network Object
 rest_endpoint: /policies/v2/objects/networkObjects
 doc_category: Resources
+delay_on_delete: 4
 attributes:
   - model_name: name
     type: String

@@ -21,6 +21,8 @@ bulk_size_create: int(required=False) # Number of resources to create in a singl
 adjust_body: bool(required=False) # Includes adjustBody funtion before Create/Update operations. This function gets defined in model.go template, however its body needs to be defined manually.
 deprecation_message: str(required=False) # Message to be displayed in the documentation and acceptance tests if the resource is deprecated
 no_id: bool(required=False) # Set to true if the resource does not have an ID.
+delay_on_delete: int(required=False) # Number of seconds to wait after a DELETE request before considering the resource deleted
+resource_id_model_name: str(required=False) # Name of the model attribute that represents the resource ID
 ---
 attribute:
   model_name: str(required=False) # Name of the attribute in the model (payload)

@@ -27,8 +27,8 @@ data "secureaccess_internal_domain" "example" {
 
 ### Read-Only
 
-- `description` (String) Description of the Internal Domain.
-- `domain` (String) Domain name of the Internal Domain.
+- `description` (String) Description.
+- `domain` (String) Domain name.
 - `include_all_mobile_devices` (Boolean) Whether to include all mobile devices.
 - `include_all_virtual_appliances` (Boolean) Whether to include all virtual appliances.
 - `site_ids` (List of Number) The list of site IDs associated with the domain.

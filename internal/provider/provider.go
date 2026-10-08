@@ -69,16 +69,16 @@ func (p *SecureAccessProvider) Schema(ctx context.Context, req provider.SchemaRe
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"api_key": schema.StringAttribute{
-				MarkdownDescription: "API key for the SecureAccess instance. This can also be set as the SECUREACCESS_API_KEY environment variable.",
+				MarkdownDescription: "API key for the Cisco Secure Access instance. This can also be set as the SECUREACCESS_API_KEY environment variable.",
 				Optional:            true,
 			},
 			"api_key_secret": schema.StringAttribute{
-				MarkdownDescription: "API Key Secret for the SecureAccess instance. This can also be set as the SECUREACCESS_API_KEY_SECRET environment variable.",
+				MarkdownDescription: "API Key Secret for the Cisco Secure Access instance. This can also be set as the SECUREACCESS_API_KEY_SECRET environment variable.",
 				Optional:            true,
 				Sensitive:           true,
 			},
 			"url": schema.StringAttribute{
-				MarkdownDescription: "URL of the Cisco Secure Access instance (https://api.sse.cisco.com). This can also be set as the SECUREACCESS_URL environment variable.",
+				MarkdownDescription: "URL of the Cisco Secure Access instance. This can also be set as the SECUREACCESS_URL environment variable. Defaults to `https://api.sse.cisco.com`.",
 				Optional:            true,
 			},
 			"insecure": schema.BoolAttribute{
@@ -86,7 +86,7 @@ func (p *SecureAccessProvider) Schema(ctx context.Context, req provider.SchemaRe
 				Optional:            true,
 			},
 			"req_timeout": schema.StringAttribute{
-				MarkdownDescription: "Timeout for a single HTTPS request made to REST API before it is retried. This can also be set as the SECUREACCESS_REQTIMEOUT environment variable. A string like `\"1s\"` means one second. Defaults to unlimited.",
+				MarkdownDescription: "Timeout for a single HTTPS request made to REST API before it is retried. This can also be set as the SECUREACCESS_REQTIMEOUT environment variable. A string like `\"1s\"` means one second. Defaults to `60s`.",
 				Optional:            true,
 			},
 			"retries": schema.Int64Attribute{
@@ -113,7 +113,14 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 
 	// Get API Key
 	var apiKey string
-	if config.ApiKey.IsNull() || config.ApiKey.IsUnknown() {
+	if config.ApiKey.IsUnknown() {
+		resp.Diagnostics.AddWarning(
+			"Unable to create client",
+			"Cannot use unknown value as API key",
+		)
+		return
+	}
+	if config.ApiKey.IsNull() {
 		apiKey = os.Getenv("SECUREACCESS_API_KEY")
 	} else {
 		apiKey = config.ApiKey.ValueString()
@@ -121,13 +128,20 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 
 	// Get API Key Secret
 	var apiKeySecret string
-	if config.ApiKeySecret.IsNull() || config.ApiKeySecret.IsUnknown() {
+	if config.ApiKeySecret.IsUnknown() {
+		resp.Diagnostics.AddWarning(
+			"Unable to create client",
+			"Cannot use unknown value as API key secret",
+		)
+		return
+	}
+	if config.ApiKeySecret.IsNull() {
 		apiKeySecret = os.Getenv("SECUREACCESS_API_KEY_SECRET")
 	} else {
 		apiKeySecret = config.ApiKeySecret.ValueString()
 	}
 
-	// Fail if the user didn't provider any credentials
+	// Fail if the user didn't provide credentials
 	if apiKey == "" || apiKeySecret == "" {
 		resp.Diagnostics.AddError(
 			"Unable to create client",
@@ -136,43 +150,52 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 		return
 	}
 
+	// Get URL
 	var url string
+	if config.URL.IsUnknown() {
+		resp.Diagnostics.AddWarning(
+			"Unable to create client",
+			"Cannot use unknown value as URL",
+		)
+		return
+	}
 	if config.URL.IsNull() {
 		url = os.Getenv("SECUREACCESS_URL")
+		if url == "" {
+			url = "https://api.sse.cisco.com"
+		}
 	} else {
 		url = config.URL.ValueString()
 	}
 
-	if url == "" {
-		// Error vs warning - empty value must stop execution
-		resp.Diagnostics.AddError(
-			"Unable to find url",
-			"URL cannot be an empty string",
-		)
-		return
-	}
-
+	// Set Insecure flag
 	var insecure bool
 	if config.Insecure.IsUnknown() {
-		// Cannot connect to client with an unknown value
 		resp.Diagnostics.AddWarning(
 			"Unable to create client",
-			"Cannot use unknown value as insecure",
+			"Cannot use unknown value as Insecure flag",
 		)
 		return
 	}
-
 	if config.Insecure.IsNull() {
 		insecureStr := os.Getenv("SECUREACCESS_INSECURE")
 		if insecureStr == "" {
 			insecure = false
 		} else {
-			insecure, _ = strconv.ParseBool(insecureStr)
+			insecure, err = strconv.ParseBool(insecureStr)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Unable to create client",
+					fmt.Sprintf("Cannot parse the insecure flag: %v", err),
+				)
+				return
+			}
 		}
 	} else {
 		insecure = config.Insecure.ValueBool()
 	}
 
+	// Set request timeout
 	var reqTimeout time.Duration
 	if config.ReqTimeout.IsUnknown() {
 		// Cannot connect to client with an unknown value
@@ -187,7 +210,7 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 	if config.ReqTimeout.IsNull() {
 		reqTimeoutStr = os.Getenv("SECUREACCESS_REQTIMEOUT")
 		if reqTimeoutStr == "" {
-			reqTimeoutStr = "0s"
+			reqTimeoutStr = "60s"
 		}
 	} else {
 		reqTimeoutStr = config.ReqTimeout.ValueString()
@@ -201,6 +224,7 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 		return
 	}
 
+	// Set retries
 	var retries int64
 	if config.Retries.IsUnknown() {
 		// Cannot connect to client with an unknown value
@@ -216,7 +240,14 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 		if retriesStr == "" {
 			retries = 3
 		} else {
-			retries, _ = strconv.ParseInt(retriesStr, 0, 64)
+			retries, err = strconv.ParseInt(retriesStr, 10, 64)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Unable to create client",
+					fmt.Sprintf("Cannot parse the retries value: %v", err),
+				)
+				return
+			}
 		}
 	} else {
 		retries = config.Retries.ValueInt64()
@@ -232,7 +263,15 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 	// Create a new Secure Access client and set it to the provider client
 	var c secureaccess.Client
 
-	c, err = secureaccess.NewClient(url, apiKey, apiKeySecret, secureaccess.Insecure(insecure), secureaccess.MaxRetries(int(retries)), secureaccess.RequestTimeout(reqTimeout))
+	c, err = secureaccess.NewClient(
+		url,
+		apiKey,
+		apiKeySecret,
+		secureaccess.Insecure(insecure),
+		secureaccess.MaxRetries(int(retries)),
+		secureaccess.RequestTimeout(reqTimeout),
+		secureaccess.UserAgent("terraform-provider-secureaccess/"+p.version),
+	)
 
 	if err != nil {
 		resp.Diagnostics.AddError(

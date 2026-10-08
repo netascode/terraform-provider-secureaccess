@@ -45,11 +45,13 @@ type NetworkObjectGroup struct {
 }
 
 type NetworkObjectGroupNetworkObjectGroups struct {
-	Id types.Int64 `tfsdk:"id"`
+	Id   types.Int64  `tfsdk:"id"`
+	Name types.String `tfsdk:"name"`
 }
 
 type NetworkObjectGroupNetworkObjects struct {
-	Id types.Int64 `tfsdk:"id"`
+	Id   types.Int64  `tfsdk:"id"`
+	Name types.String `tfsdk:"name"`
 }
 
 type NetworkObjectGroupLiterals struct {
@@ -165,6 +167,11 @@ func (data *NetworkObjectGroup) fromBody(ctx context.Context, res gjson.Result) 
 			} else {
 				data.Id = types.Int64Null()
 			}
+			if value := res.Get("name"); value.Exists() {
+				data.Name = types.StringValue(value.String())
+			} else {
+				data.Name = types.StringNull()
+			}
 			(*parent).NetworkObjectGroups = append((*parent).NetworkObjectGroups, data)
 			return true
 		})
@@ -178,6 +185,11 @@ func (data *NetworkObjectGroup) fromBody(ctx context.Context, res gjson.Result) 
 				data.Id = types.Int64Value(value.Int())
 			} else {
 				data.Id = types.Int64Null()
+			}
+			if value := res.Get("name"); value.Exists() {
+				data.Name = types.StringValue(value.String())
+			} else {
+				data.Name = types.StringNull()
 			}
 			(*parent).NetworkObjects = append((*parent).NetworkObjects, data)
 			return true
@@ -264,6 +276,11 @@ func (data *NetworkObjectGroup) fromBodyPartial(ctx context.Context, res gjson.R
 		} else {
 			data.Id = types.Int64Null()
 		}
+		if value := res.Get("name"); value.Exists() {
+			data.Name = types.StringValue(value.String())
+		} else {
+			data.Name = types.StringNull()
+		}
 		(*parent).NetworkObjectGroups[i] = data
 	}
 	networkObjectsArray := res.Get("objects")
@@ -306,6 +323,11 @@ func (data *NetworkObjectGroup) fromBodyPartial(ctx context.Context, res gjson.R
 			data.Id = types.Int64Value(value.Int())
 		} else {
 			data.Id = types.Int64Null()
+		}
+		if value := res.Get("name"); value.Exists() {
+			data.Name = types.StringValue(value.String())
+		} else {
+			data.Name = types.StringNull()
 		}
 		(*parent).NetworkObjects[i] = data
 	}
@@ -366,6 +388,70 @@ func (data *NetworkObjectGroup) fromBodyPartial(ctx context.Context, res gjson.R
 // fromBodyUnknowns updates the Unknown Computed tfstate values from a JSON.
 // Known values are not changed (usual for Computed attributes with UseStateForUnknown or with Default).
 func (data *NetworkObjectGroup) fromBodyUnknowns(ctx context.Context, res gjson.Result) {
+	networkObjectGroupsArray := res.Get("groups")
+	for i := range data.NetworkObjectGroups {
+		keys := [...]string{"id"}
+		keyValues := [...]string{strconv.FormatInt(data.NetworkObjectGroups[i].Id.ValueInt64(), 10)}
+
+		var r gjson.Result
+		networkObjectGroupsArray.ForEach(
+			func(_, v gjson.Result) bool {
+				found := false
+				for ik := range keys {
+					if v.Get(keys[ik]).String() != keyValues[ik] {
+						found = false
+						break
+					}
+					found = true
+				}
+				if found {
+					r = v
+					return false
+				}
+				return true
+			},
+		)
+		if v := data.NetworkObjectGroups[i]; v.Name.IsUnknown() {
+			if value := r.Get("name"); value.Exists() {
+				v.Name = types.StringValue(value.String())
+			} else {
+				v.Name = types.StringNull()
+			}
+			data.NetworkObjectGroups[i] = v
+		}
+	}
+	networkObjectsArray := res.Get("objects")
+	for i := range data.NetworkObjects {
+		keys := [...]string{"id"}
+		keyValues := [...]string{strconv.FormatInt(data.NetworkObjects[i].Id.ValueInt64(), 10)}
+
+		var r gjson.Result
+		networkObjectsArray.ForEach(
+			func(_, v gjson.Result) bool {
+				found := false
+				for ik := range keys {
+					if v.Get(keys[ik]).String() != keyValues[ik] {
+						found = false
+						break
+					}
+					found = true
+				}
+				if found {
+					r = v
+					return false
+				}
+				return true
+			},
+		)
+		if v := data.NetworkObjects[i]; v.Name.IsUnknown() {
+			if value := r.Get("name"); value.Exists() {
+				v.Name = types.StringValue(value.String())
+			} else {
+				v.Name = types.StringNull()
+			}
+			data.NetworkObjects[i] = v
+		}
+	}
 }
 
 // End of section. //template:end fromBodyUnknowns
@@ -383,7 +469,7 @@ func (data NetworkObjectGroup) adjustBody(_ context.Context, req string) string 
 	}
 	req, _ = sjson.Set(req, "objectIds", objectIds)
 
-	req, _ = sjson.Set(req, "groups", objectIds)
+	req, _ = sjson.Delete(req, "groups")
 	var groupIds []int64
 	for _, group := range data.NetworkObjectGroups {
 		groupIds = append(groupIds, group.Id.ValueInt64())

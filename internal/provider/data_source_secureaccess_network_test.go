@@ -37,8 +37,8 @@ func TestAccDataSourceSecureAccessNetwork(t *testing.T) {
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network.test", "name", "my_network"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network.test", "status", "OPEN"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network.test", "is_dynamic", "true"))
-	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network.test", "prefix_length", "30"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network.test", "prefix", "192.168.1.0"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network.test", "prefix_length", "30"))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -67,8 +67,8 @@ func testAccDataSourceSecureAccessNetworkConfig() string {
 	config += `	name = "my_network"` + "\n"
 	config += `	status = "OPEN"` + "\n"
 	config += `	is_dynamic = true` + "\n"
-	config += `	prefix_length = 30` + "\n"
 	config += `	prefix = "192.168.1.0"` + "\n"
+	config += `	prefix_length = 30` + "\n"
 	config += `}` + "\n"
 
 	config += `
@@ -84,8 +84,8 @@ func testAccNamedDataSourceSecureAccessNetworkConfig() string {
 	config += `	name = "my_network"` + "\n"
 	config += `	status = "OPEN"` + "\n"
 	config += `	is_dynamic = true` + "\n"
-	config += `	prefix_length = 30` + "\n"
 	config += `	prefix = "192.168.1.0"` + "\n"
+	config += `	prefix_length = 30` + "\n"
 	config += `}` + "\n"
 
 	config += `

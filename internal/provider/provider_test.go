@@ -45,8 +45,4 @@ func testAccPreCheck(t *testing.T) {
 	if v := os.Getenv("SECUREACCESS_API_KEY_SECRET"); v == "" {
 		t.Fatal("SECUREACCESS_API_KEY_SECRET env variable must be set for acceptance tests")
 	}
-
-	if v := os.Getenv("SECUREACCESS_URL"); v == "" {
-		t.Fatal("SECUREACCESS_URL env variable must be set for acceptance tests")
-	}
 }

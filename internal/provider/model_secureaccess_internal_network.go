@@ -31,13 +31,13 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
 type InternalNetwork struct {
-	Id           types.String `tfsdk:"id"`
-	Name         types.String `tfsdk:"name"`
-	Prefix       types.String `tfsdk:"prefix"`
-	PrefixLength types.Int64  `tfsdk:"prefix_length"`
-	NetworkId    types.Int64  `tfsdk:"network_id"`
-	SiteId       types.Int64  `tfsdk:"site_id"`
-	TunnelId     types.Int64  `tfsdk:"tunnel_id"`
+	Id                   types.String `tfsdk:"id"`
+	Name                 types.String `tfsdk:"name"`
+	Prefix               types.String `tfsdk:"prefix"`
+	PrefixLength         types.Int64  `tfsdk:"prefix_length"`
+	NetworkId            types.Int64  `tfsdk:"network_id"`
+	SiteId               types.Int64  `tfsdk:"site_id"`
+	NetworkTunnelGroupId types.Int64  `tfsdk:"network_tunnel_group_id"`
 }
 
 // End of section. //template:end types
@@ -55,7 +55,7 @@ func (data InternalNetwork) getPath() string {
 func (data InternalNetwork) toBody(ctx context.Context, state InternalNetwork) string {
 	body := ""
 	if data.Id.ValueString() != "" {
-		body, _ = sjson.Set(body, "id", data.Id.ValueString())
+		body, _ = sjson.Set(body, "originId", data.Id.ValueString())
 	}
 	if !data.Name.IsNull() {
 		body, _ = sjson.Set(body, "name", data.Name.ValueString())
@@ -72,8 +72,8 @@ func (data InternalNetwork) toBody(ctx context.Context, state InternalNetwork) s
 	if !data.SiteId.IsNull() {
 		body, _ = sjson.Set(body, "siteId", data.SiteId.ValueInt64())
 	}
-	if !data.TunnelId.IsNull() {
-		body, _ = sjson.Set(body, "tunnelId", data.TunnelId.ValueInt64())
+	if !data.NetworkTunnelGroupId.IsNull() {
+		body, _ = sjson.Set(body, "tunnelId", data.NetworkTunnelGroupId.ValueInt64())
 	}
 	return body
 }
@@ -109,9 +109,9 @@ func (data *InternalNetwork) fromBody(ctx context.Context, res gjson.Result) {
 		data.SiteId = types.Int64Null()
 	}
 	if value := res.Get("tunnelId"); value.Exists() {
-		data.TunnelId = types.Int64Value(value.Int())
+		data.NetworkTunnelGroupId = types.Int64Value(value.Int())
 	} else {
-		data.TunnelId = types.Int64Null()
+		data.NetworkTunnelGroupId = types.Int64Null()
 	}
 }
 
@@ -149,10 +149,10 @@ func (data *InternalNetwork) fromBodyPartial(ctx context.Context, res gjson.Resu
 	} else {
 		data.SiteId = types.Int64Null()
 	}
-	if value := res.Get("tunnelId"); value.Exists() && !data.TunnelId.IsNull() {
-		data.TunnelId = types.Int64Value(value.Int())
+	if value := res.Get("tunnelId"); value.Exists() && !data.NetworkTunnelGroupId.IsNull() {
+		data.NetworkTunnelGroupId = types.Int64Value(value.Int())
 	} else {
-		data.TunnelId = types.Int64Null()
+		data.NetworkTunnelGroupId = types.Int64Null()
 	}
 }
 
@@ -171,6 +171,7 @@ func (data *InternalNetwork) fromBodyUnknowns(ctx context.Context, res gjson.Res
 
 // End of section. //template:end toBodyPutDelete
 
-// Section below is generated&owned by "gen/generator.go". //template:begin adjustBody
-
-// End of section. //template:end adjustBody
+func (data InternalNetwork) adjustBody(_ context.Context, req string) string {
+	req, _ = sjson.Delete(req, "originId")
+	return req
+}
