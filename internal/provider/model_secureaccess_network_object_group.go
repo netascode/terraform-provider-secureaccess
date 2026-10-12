@@ -27,6 +27,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -248,7 +249,7 @@ func (data *NetworkObjectGroup) fromBodyPartial(ctx context.Context, res gjson.R
 			func(_, v gjson.Result) bool {
 				found := false
 				for ik := range keys {
-					if v.Get(keys[ik]).String() != keyValues[ik] {
+					if helpers.GetKeyValue(v.Get(keys[ik])) != keyValues[ik] {
 						found = false
 						break
 					}
@@ -296,7 +297,7 @@ func (data *NetworkObjectGroup) fromBodyPartial(ctx context.Context, res gjson.R
 			func(_, v gjson.Result) bool {
 				found := false
 				for ik := range keys {
-					if v.Get(keys[ik]).String() != keyValues[ik] {
+					if helpers.GetKeyValue(v.Get(keys[ik])) != keyValues[ik] {
 						found = false
 						break
 					}
@@ -344,7 +345,7 @@ func (data *NetworkObjectGroup) fromBodyPartial(ctx context.Context, res gjson.R
 			func(_, v gjson.Result) bool {
 				found := false
 				for ik := range keys {
-					if v.Get(keys[ik]).String() != keyValues[ik] {
+					if helpers.GetKeyValue(v.Get(keys[ik])) != keyValues[ik] {
 						found = false
 						break
 					}
@@ -398,7 +399,7 @@ func (data *NetworkObjectGroup) fromBodyUnknowns(ctx context.Context, res gjson.
 			func(_, v gjson.Result) bool {
 				found := false
 				for ik := range keys {
-					if v.Get(keys[ik]).String() != keyValues[ik] {
+					if helpers.GetKeyValue(v.Get(keys[ik])) != keyValues[ik] {
 						found = false
 						break
 					}
@@ -430,7 +431,7 @@ func (data *NetworkObjectGroup) fromBodyUnknowns(ctx context.Context, res gjson.
 			func(_, v gjson.Result) bool {
 				found := false
 				for ik := range keys {
-					if v.Get(keys[ik]).String() != keyValues[ik] {
+					if helpers.GetKeyValue(v.Get(keys[ik])) != keyValues[ik] {
 						found = false
 						break
 					}

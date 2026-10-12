@@ -49,6 +49,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
+	"github.com/netascode/terraform-provider-secureaccess/internal/provider/planmodifiers"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -161,6 +162,15 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 				Validators: []validator.Float64{
 					float64validator.Between({{.MinFloat}}, {{.MaxFloat}}),
 				},
+				{{- else if or (ne .MinList 0) (ne .MaxList 0)}}
+				Validators: []validator.List{
+					{{- if ne .MinList 0}}
+					listvalidator.SizeAtLeast({{.MinList}}),
+					{{- end}}
+					{{- if ne .MaxList 0}}
+					listvalidator.SizeAtMost({{.MaxList}}),
+					{{- end}}
+				},
 				{{- end}}
 				{{- if and (len .DefaultValue) (eq .Type "Int64")}}
 				Default:             int64default.StaticInt64({{.DefaultValue}}),
@@ -174,13 +184,16 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 					{{- if or .Id .Reference (and .RequiresReplace )}}
 					{{snakeCase .Type}}planmodifier.RequiresReplace(),
 					{{end}}
-					{{- if and .Computed (not .ComputedRefreshValue)}}
+					{{- if len .ComputedDependsOn}}
+					planmodifiers.ConditionalUseStateForUnknownList({{range .ComputedDependsOn}}"{{.}}", {{end}}),
+					{{- else if and .Computed (not .ComputedRefreshValue)}}
 					{{snakeCase .Type}}planmodifier.UseStateForUnknown(),
 					{{end}}
 				},
 				{{- end}}
 				{{- if isNestedListMapSet .}}
 				{{- $useStateForUnknown := isNestedMap .}}
+				{{- $computedList := isComputedNestedList .}}
 				{{- $itemsList := .}}
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -254,7 +267,8 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 							{{- else if and (len .DefaultValue) (eq .Type "String")}}
 							Default:             stringdefault.StaticString("{{.DefaultValue}}"),
 							{{- end}}
-							{{- if or (and .ResourceId $useStateForUnknown) (and .Computed (not .ComputedRefreshValue))}}
+							{{- if $computedList}}
+							{{- else if or (and .ResourceId $useStateForUnknown) (and .Computed (not .ComputedRefreshValue))}}
 							PlanModifiers: []planmodifier.{{.Type}}{
 								{{- if and (eq .TfName "id") (hasRequiresReplace $.Attributes) }}
 								{{- if eq .Type "String"}}
@@ -476,16 +490,6 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 						{{- end}}
 					},
 				},
-				{{- if or (ne .MinList 0) (ne .MaxList 0)}}
-				Validators: []validator.List{
-					{{- if ne .MinList 0}}
-					listvalidator.SizeAtLeast({{.MinList}}),
-					{{- end}}
-					{{- if ne .MaxList 0}}
-					listvalidator.SizeAtMost({{.MaxList}}),
-					{{- end}}
-				},
-				{{- end}}
 				{{- end}}
 			},
 			{{- end}}
@@ -684,7 +688,7 @@ func (r *{{camelCase .Name}}Resource) Update(ctx context.Context, req resource.U
 		return
 	}
 
-	{{- if hasComputedRefreshValue .Attributes}}
+	{{- if or (hasComputedRefreshValue .Attributes) (hasComputedDependsOn .Attributes)}}
 	plan.fromBodyUnknowns(ctx, res)
 	{{- end}}
 	{{- end}}

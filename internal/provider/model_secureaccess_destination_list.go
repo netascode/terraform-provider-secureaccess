@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
+	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -174,7 +175,7 @@ func (data *DestinationList) fromBodyPartial(ctx context.Context, res gjson.Resu
 			func(_, v gjson.Result) bool {
 				found := false
 				for ik := range keys {
-					if v.Get(keys[ik]).String() != keyValues[ik] {
+					if helpers.GetKeyValue(v.Get(keys[ik])) != keyValues[ik] {
 						found = false
 						break
 					}
@@ -238,7 +239,7 @@ func (data *DestinationList) fromBodyUnknowns(ctx context.Context, res gjson.Res
 			func(_, v gjson.Result) bool {
 				found := false
 				for ik := range keys {
-					if v.Get(keys[ik]).String() != keyValues[ik] {
+					if helpers.GetKeyValue(v.Get(keys[ik])) != keyValues[ik] {
 						found = false
 						break
 					}

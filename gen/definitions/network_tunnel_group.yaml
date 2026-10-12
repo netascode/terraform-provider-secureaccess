@@ -1,0 +1,112 @@
+---
+name: Network Tunnel Group
+rest_endpoint: /deployments/v2/networktunnelgroups
+doc_category: Connect
+skip_minimum_test: true
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Network Tunnel Group. It cannot exceed 50 characters, and can only contain alphanumeric characters, spaces, and hyphens.
+    example: my network tunnel group
+    #data_source_query: true
+    string_min_length: 1
+    string_max_length: 50
+    string_patterns: ["^[a-zA-Z0-9 -]+$"]
+  - model_name: deviceType
+    type: String
+    description: The type of device that establishes the network tunnel.
+    mandatory: true
+    requires_replace: true
+    enum_values: ["ASA", "AWS S2S VPN", "AZURE S2S VPN", "FTD", "ISR", "Meraki MX", "Viptela cEdge", "Viptela vEdge", "other"]
+    example: ASA
+  - model_name: region
+    type: String
+    description: The name of the region that the system uses to obtain the primary and secondary data centers for the Hubs.
+    example: us-east-1
+    mandatory: true
+  - model_name: authIdPrefix
+    type: String
+    tf_name: tunnel_id_format_email
+    description: Prefix for the authentication ID in email format (<tunnel_id_format_email>@<org><hub>.sse.cisco.com). The string should not have any special characters besides the period(.), underscore(_), and dash(-) characters.
+    example: my_prefix
+    write_only: true
+    string_min_length: 8
+    string_max_length: 100
+    string_patterns: ["^[a-zA-Z0-9._-]+$"]
+  - model_name: authIdPrefix
+    type: List
+    element_type: String
+    tf_name: tunnel_id_format_ip_addresses
+    description: List of IP addresses for the authentication ID in IP address format. Please include exactly two IP addresses.
+    write_only: true
+    min_list: 2
+    max_list: 2 
+    exclude_example: true
+    exclude_test: true
+  - model_name: passphrase
+    type: String
+    tf_name: preshared_key
+    mandatory: true
+    sensitive: true
+    write_only: true
+    example: t3stingTunn3lNow
+    description: Passphrase for the network tunnel. It must include at least one upper case letter, one lower case letter, one number, and cannot include any special characters.
+    string_min_length: 16
+    string_max_length: 64
+    string_patterns:
+      - "[a-z]"
+      - "[A-Z]"
+      - "[0-9]"
+      - "^[a-zA-Z0-9]+$"
+  - model_name: type
+    data_path: ["routing"]
+    type: String
+    tf_name: routing_type
+    mandatory: true
+    enum_values: ["static"]
+    description: Type of routing for the network tunnel.
+    example: static
+  - model_name: networkCIDRs
+    data_path: ["routing", "data"]
+    type: Set
+    element_type: String
+    tf_name: routing_network_cidrs
+    example: "192.168.0.0/24"
+  # After Creation read-only values
+  - model_name: hubs
+    type: List
+    description: Remote connection endpoints for connecting network tunnel group
+    computed: true
+    computed_depends_on: ["region"]
+    attributes:
+      - model_name: id
+        type: Int64
+        description: ID of the hub.
+        example: 123
+        computed: true
+      - model_name: isPrimary
+        type: Bool
+        description: Indicates if the hub is the primary hub.
+        example: "true"
+        computed: true
+      - model_name: authId
+        type: String
+        tf_name: tunnel_id
+        description: Tunnel ID
+        example: id@<org><hub>.sse.cisco.com
+        computed: true
+      - model_name: name
+        data_path: ["datacenter"]
+        tf_name: datacenter_name
+        type: String
+        computed: true
+        example: us-east-1
+        description: Name of the datacenter.
+      - model_name: ip
+        data_path: ["datacenter"]
+        type: String
+        tf_name: datacenter_ip
+        computed: true
+        example: "192.168.0.1"
+        description: IP address of the datacenter.

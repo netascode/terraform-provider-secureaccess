@@ -1,0 +1,106 @@
+---
+name: Private Resource
+rest_endpoint: /policies/v2/privateResources
+doc_category: Resources
+resource_id_model_name: resourceId
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Private Resource
+    example: my private resource
+    #data_source_query: true
+    string_min_length: 1
+    string_max_length: 50
+    string_patterns: ["^[a-zA-Z0-9 -]+$"]
+  - model_name: description
+    type: String
+    description: Description of the Private Resource
+    example: This is my private resource
+  - model_name: certificateId
+    type: Int64
+    description: The ID of the certificate you use to decrypt traffic to the Private Resource.
+    example: 123456
+    exclude_test: true
+  - model_name: dnsServerId
+    type: Int64
+    description: The ID of the DNS server you use to resolve IP addresses.
+    example: 789012
+    exclude_test: true
+  - model_name: accessTypes
+    tf_name: endpoint_connection_methods
+    type: List
+    mandatory: true
+    description: The list of connection properties that describe how end users can access private resources in the organization.
+    min_list: 1
+    max_list: 3
+    attributes:
+      - model_name: type
+        type: String
+        description: The type of access for the private resource. Each type can be listed once only.
+        enum_values: ["browser", "network", "client"]
+        example: client
+        id: true
+      - model_name: reachableAddresses
+        type: List
+        tf_name: client_reachable_addresses
+        element_type: String
+        description: The list of IP address, CIDRs, FQDN, or wildcard FQDN destinations.
+        example: "192.168.1.0/24"
+        minimum_test_value: '["192.168.1.0/24"]'
+      - model_name: externalFQDNPrefix
+        type: String
+        tf_name: browser_external_fqdn_prefix
+        description: The external fully qualified domain name (FQDN) prefix.
+        exclude_example: true
+        exclude_test: true
+      - model_name: protocol
+        type: String
+        tf_name: browser_protocol
+        description: The protocol that is used for the communication between the proxy and the Private Resource.
+        enum_values: ["HTTP", "HTTPS"]
+        exclude_example: true
+        exclude_test: true
+      - model_name: sni
+        type: String
+        tf_name: browser_sni
+        description: The Server Name Indication (SNI) domain name.
+        exclude_example: true
+        exclude_test: true
+      - model_name: sslVerificationEnabled
+        type: Bool
+        tf_name: browser_ssl_verification
+        description: Specify whether to enable upstream SSL verification for the internally hosted URL by the customer.
+        exclude_example: true
+        exclude_test: true
+  - model_name: resourceAddresses
+    tf_name: addresses
+    type: List
+    description: The list of resource addresses for the Private Resources.
+    mandatory: true
+    attributes:
+      - model_name: destinationAddr
+        type: List
+        id: true
+        element_type: String
+        tf_name: addresses
+        mandatory: true
+        description: The list of IPv4 addresses, CIDRs, FQDNs, or wildcard FQDN destinations.
+        example: "192.168.1.0/24"
+      - model_name: protocolPorts
+        type: List
+        tf_name: protocols_and_ports
+        mandatory: true
+        description: The list of protocols and ports for the IP address destinations. The protocols must be unique.
+        attributes:
+          - model_name: protocol
+            type: String
+            description: The protocol for the IP address destination.
+            enum_values: ["any", "tcp", "udp", "http/https", "ssh", "rdp-tcp"]
+            mandatory: true
+            example: http/https
+          - model_name: ports
+            type: String
+            description: The port number or list of comma-separated port numbers that you can use to connect to the Private Resource.
+            mandatory: true
+            example: 443

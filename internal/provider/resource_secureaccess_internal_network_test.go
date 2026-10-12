@@ -80,6 +80,22 @@ func testAccSecureAccessInternalNetworkConfig_all() string {
 
 // End of section. //template:end testAccConfigAll
 
+const testAccSecureAccessInternalNetworkPrerequisitesConfig_Sequential = `
+resource "secureaccess_site" "test" {
+  name = "my_internal_network"
+}
+
+resource "secureaccess_network_tunnel_group" "test" {
+  name = "my internal network"
+  device_type = "ASA"
+  region = "us-east-1"
+  tunnel_id_format_email = "my_prefix"
+  preshared_key = "t3stingTunn3lNow"
+  routing_type = "static"
+  routing_network_cidrs = ["192.168.10.0/24"]
+}
+`
+
 func TestAccSecureAccessInternalNetwork_Sequential(t *testing.T) {
 
 	step_01 := `resource "secureaccess_internal_network" "test" {` + "\n" +
@@ -96,10 +112,19 @@ func TestAccSecureAccessInternalNetwork_Sequential(t *testing.T) {
 		`	site_id = secureaccess_site.test.id` + "\n" +
 		`}` + "\n"
 
+	step_03 := `resource "secureaccess_internal_network" "test" {` + "\n" +
+		`	name = "my_internal_network_seq_rename"` + "\n" +
+		`	prefix = "10.1.2.0"` + "\n" +
+		`	prefix_length = 24` + "\n" +
+		`	site_id = secureaccess_site.test.id` + "\n" +
+		`}` + "\n"
+
 	steps := []resource.TestStep{{
-		Config: testAccSecureAccessInternalNetworkPrerequisitesConfig + step_01,
+		Config: testAccSecureAccessInternalNetworkPrerequisitesConfig_Sequential + step_01,
 	}, {
-		Config: testAccSecureAccessInternalNetworkPrerequisitesConfig + step_02,
+		Config: testAccSecureAccessInternalNetworkPrerequisitesConfig_Sequential + step_02,
+	}, {
+		Config: testAccSecureAccessInternalNetworkPrerequisitesConfig_Sequential + step_03,
 	}}
 
 	resource.Test(t, resource.TestCase{

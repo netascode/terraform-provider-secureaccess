@@ -144,7 +144,17 @@ func TestAccDataSourceSecureAccess{{camelCase .Name}}(t *testing.T) {
 	{{- end}}
 	{{- end}}
 	{{- if and (.Computed) (not .ExcludeTest)}}
+	{{- if isComputedNestedList .}}
+	{{- $list := .TfName }}
+	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_{{snakeCase $name}}.test", "{{$list}}.#"))
+	{{- range  .Attributes}}
+	{{- if and (not .ExcludeTest) (not .Value)}}
+	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_{{snakeCase $name}}.test", "{{$list}}.0.{{.TfName}}"))
+	{{- end}}
+	{{- end}}
+	{{- else}}
 	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_{{snakeCase $name}}.test", "{{.TfName}}"))
+	{{- end}}
 	{{- end}}
 	{{- end}}
 	resource.Test(t, resource.TestCase{

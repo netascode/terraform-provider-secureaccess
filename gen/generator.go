@@ -155,6 +155,7 @@ type YamlConfigAttribute struct {
 	Optional                    bool                  `yaml:"optional"`
 	ComputedRefreshValue        bool                  `yaml:"computed_refresh_value"`
 	ComputedBodyParam           bool                  `yaml:"computed_body_param"`
+	ComputedDependsOn           []string              `yaml:"computed_depends_on"`
 	DefaultValue                string                `yaml:"default_value"`
 	Value                       string                `yaml:"value"`
 	TestValue                   string                `yaml:"test_value"`
@@ -411,6 +412,21 @@ func IsNestedList(attribute YamlConfigAttribute) bool {
 	return false
 }
 
+// Templating helper function to return true if type is a nested list fully managed by the API (computed only)
+func IsComputedNestedList(attribute YamlConfigAttribute) bool {
+	return IsNestedList(attribute) && attribute.Computed && !attribute.Optional && !attribute.Mandatory
+}
+
+// Templating helper function to return true if any attribute is set with computed_depends_on
+func HasComputedDependsOn(attributes []YamlConfigAttribute) bool {
+	for _, attr := range attributes {
+		if len(attr.ComputedDependsOn) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // Templating helper function to return true if type is a map with nested elements
 func IsNestedMap(attribute YamlConfigAttribute) bool {
 	if attribute.Type == "Map" && attribute.ElementType == "" {
@@ -474,6 +490,8 @@ var functions = template.FuncMap{
 	"isNestedListMapSet":             IsNestedListMapSet,
 	"isNestedListSet":                IsNestedListSet,
 	"isNestedList":                   IsNestedList,
+	"isComputedNestedList":           IsComputedNestedList,
+	"hasComputedDependsOn":           HasComputedDependsOn,
 	"isNestedMap":                    IsNestedMap,
 	"isNestedSet":                    IsNestedSet,
 	"importParts":                    ImportParts,
@@ -543,8 +561,24 @@ func (attr *YamlConfigAttribute) init(parentGoTypeName string) error {
 		return fmt.Errorf("%q: `optional: true` cannot be combined with `mandatory: true`", attr.TfName)
 	}
 
+	if len(attr.ComputedDependsOn) > 0 && !IsComputedNestedList(*attr) {
+		return fmt.Errorf("%q: `computed_depends_on` can only be used with a computed only nested List", attr.TfName)
+	}
+
+	if IsComputedNestedList(*attr) {
+		for _, child := range attr.Attributes {
+			if child.Type != "String" && child.Type != "Int64" && child.Type != "Float64" && child.Type != "Bool" {
+				return fmt.Errorf("%q: computed only nested List supports only String, Int64, Float64 and Bool sub-attributes, got %q (%s)",
+					attr.TfName, child.TfName, child.Type)
+			}
+		}
+	}
+
 	// Recurse
 	for i := range attr.Attributes {
+		if IsComputedNestedList(attr.Attributes[i]) {
+			return fmt.Errorf("%q: computed only nested List is only supported as a top level attribute", attr.Attributes[i].TfName)
+		}
 		if err := attr.Attributes[i].init(attr.GoTypeName); err != nil {
 			return err
 		}

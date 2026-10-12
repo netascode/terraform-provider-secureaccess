@@ -19,6 +19,8 @@ package helpers
 
 import (
 	"context"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -133,4 +135,40 @@ func DifferenceStringSet(ctx context.Context, a basetypes.SetValue, b basetypes.
 	}
 
 	return types.SetValueMust(types.StringType, diff)
+}
+
+// GetKeyValue returns a canonical string of a gjson value for matching list elements by their id attributes.
+// Arrays are converted to a sorted, joined representation so that they can be compared with ListSetKeyValue.
+func GetKeyValue(v gjson.Result) string {
+	if !v.IsArray() {
+		return v.String()
+	}
+	arr := v.Array()
+	elems := make([]string, len(arr))
+	for i, e := range arr {
+		elems[i] = e.String()
+	}
+	sort.Strings(elems)
+	return strings.Join(elems, "\x00")
+}
+
+// ListSetKeyValue returns a canonical string of a List or Set of primitives, comparable with GetKeyValue.
+// Element order is ignored.
+func ListSetKeyValue(l interface{ Elements() []attr.Value }) string {
+	values := l.Elements()
+	elems := make([]string, len(values))
+	for i, e := range values {
+		switch v := e.(type) {
+		case types.String:
+			elems[i] = v.ValueString()
+		case types.Int64:
+			elems[i] = strconv.FormatInt(v.ValueInt64(), 10)
+		case types.Bool:
+			elems[i] = strconv.FormatBool(v.ValueBool())
+		default:
+			elems[i] = e.String()
+		}
+	}
+	sort.Strings(elems)
+	return strings.Join(elems, "\x00")
 }

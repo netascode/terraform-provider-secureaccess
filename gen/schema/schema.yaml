@@ -58,6 +58,7 @@ attribute:
   optional: bool(required=False) # Set to true to keep the attribute user-settable while `computed: true` lets the API own the value when it is not configured. Needs to be used in conjunction with `computed`
   computed_refresh_value: bool(required=False) # Set to true if the computed value should be refreshed on every update (no UseStateForUnknown). Needs to be used in conjunction with `computed`
   computed_body_param: bool(required=False) # Set to true if the computed value should be included in the PUT payload
+  computed_depends_on: list(str(), required=False) # Only for computed only nested List: names of top level String attributes; the list keeps its state value unless one of them changes, then it becomes `known after apply`
   default_value: any(str(), int(), bool(), required=False) # Default value for the attribute
   value: any(str(), int(), bool(), required=False) # Hardcoded value for the attribute
   test_value: any(str(), bool(), required=False) # Value used for acceptance test

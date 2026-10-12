@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
@@ -45,7 +46,9 @@ type {{camelCase .Name}} struct {
 {{- end}}
 {{- range .Attributes}}
 {{- if not .Value}}
-{{- if isNestedListSet .}}
+{{- if isComputedNestedList .}}
+	{{toGoName .TfName}} types.List `tfsdk:"{{.TfName}}"`
+{{- else if isNestedListSet .}}
 	{{toGoName .TfName}} []{{.GoTypeName}} `tfsdk:"{{.TfName}}"`
 {{- else if isNestedMap .}}
 	{{toGoName .TfName}} map[string]{{.GoTypeName}} `tfsdk:"{{.TfName}}"`
@@ -72,6 +75,16 @@ type {{.GoTypeName}} struct {
 {{- end}}
 {{- end}}
 }
+{{- if isComputedNestedList .}}
+
+var {{.GoTypeName}}AttrTypes = map[string]attr.Type{
+{{- range .Attributes}}
+{{- if not .Value}}
+	"{{.TfName}}": types.{{.Type}}Type,
+{{- end}}
+{{- end}}
+}
+{{- end}}
 {{- end}}
 {{- end}}
 {{end}}
@@ -318,6 +331,8 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	} else {
 		data.{{toGoName .TfName}} = types.{{.Type}}Null(types.{{.ElementType}}Type)
 	}
+	{{- else if isComputedNestedList .}}
+	data.fromBody{{toGoName .TfName}}(ctx, res)
 	{{- else if isNestedListSet .}}
 	if value := res{{if .ModelName}}.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"){{end}}; value.Exists() {
 		data.{{toGoName .TfName}} = make([]{{.GoTypeName}}, 0, int(value.Get("#").Int()))
@@ -375,6 +390,32 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 {{- end}}
 {{- template "fromBodyTemplate" .}}
 }
+{{- range .Attributes}}
+{{- if and (isComputedNestedList .) (not .Value) (not .WriteOnly) (not .Reference) (not .TfOnly)}}
+
+// fromBody{{toGoName .TfName}} replaces the computed only {{.TfName}} list with the values from a JSON.
+func (data *{{camelCase $.Name}}) fromBody{{toGoName .TfName}}(ctx context.Context, res gjson.Result) {
+	elemType := types.ObjectType{AttrTypes: {{.GoTypeName}}AttrTypes}
+	value := res{{if .ModelName}}.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"){{end}}
+	if !value.Exists() {
+		data.{{toGoName .TfName}} = types.ListNull(elemType)
+		return
+	}
+	items := make([]{{.GoTypeName}}, 0, int(value.Get("#").Int()))
+	value.ForEach(func(k, res gjson.Result) bool {
+		data := {{.GoTypeName}}{}
+		{{- template "fromBodyTemplate" .}}
+		items = append(items, data)
+		return true
+	})
+	list, diags := types.ListValueFrom(ctx, elemType, items)
+	if diags.HasError() {
+		tflog.Error(ctx, fmt.Sprintf("failed to convert {{.TfName}}: %v", diags))
+	}
+	data.{{toGoName .TfName}} = list
+}
+{{- end}}
+{{- end}}
 
 // End of section. //template:end fromBody
 
@@ -395,6 +436,8 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	} else {
 		data.{{toGoName .TfName}} = types.{{.Type}}Null(types.{{.ElementType}}Type)
 	}
+	{{- else if isComputedNestedList .}}
+	data.fromBody{{toGoName .TfName}}(ctx, res)
 	{{- else if isNestedListMapSet .}}
 	{{- $list := (toGoName .TfName)}}
 	{{- if isNestedMap .}}
@@ -434,8 +477,8 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	{{- $arrayVar := printf "%sArray" (lowerFirst (toGoName .TfName))}}
 	{{if .ModelName}}{{$arrayVar}} := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"){{end}}
 	for i := 0; i < len(data.{{toGoName .TfName}}); i++ {
-		keys := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if or (eq .Type "Int64") (eq .Type "Bool") (eq .Type "String")}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}", {{end}}{{end}}{{end}} }
-		keyValues := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if eq .Type "Int64"}}strconv.FormatInt(data.{{$list}}[i].{{toGoName .TfName}}.ValueInt64(), 10), {{else if eq .Type "Bool"}}strconv.FormatBool(data.{{$list}}[i].{{toGoName .TfName}}.ValueBool()), {{else if eq .Type "String"}}data.{{$list}}[i].{{toGoName .TfName}}.Value{{.Type}}(), {{end}}{{end}}{{end}} }
+		keys := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if or (eq .Type "Int64") (eq .Type "Bool") (eq .Type "String") (and .Id (isListSet .))}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}", {{end}}{{end}}{{end}} }
+		keyValues := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if eq .Type "Int64"}}strconv.FormatInt(data.{{$list}}[i].{{toGoName .TfName}}.ValueInt64(), 10), {{else if eq .Type "Bool"}}strconv.FormatBool(data.{{$list}}[i].{{toGoName .TfName}}.ValueBool()), {{else if eq .Type "String"}}data.{{$list}}[i].{{toGoName .TfName}}.Value{{.Type}}(), {{else if and .Id (isListSet .)}}helpers.ListSetKeyValue(data.{{$list}}[i].{{toGoName .TfName}}), {{end}}{{end}}{{end}} }
 
 		parent := &data
 		data := (*parent).{{toGoName .TfName}}[i]
@@ -445,7 +488,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 			func(_, v gjson.Result) bool {
 				found := false
 				for ik := range keys {
-					if v.Get(keys[ik]).String() != keyValues[ik] {
+					if helpers.GetKeyValue(v.Get(keys[ik])) != keyValues[ik] {
 						found = false
 						break
 					}
@@ -509,8 +552,10 @@ func (data *{{camelCase .Name}}) fromBodyUnknowns(ctx context.Context, res gjson
 	{{- if not .ComputedRefreshValue }}
 	}
 	{{- end}}
-	{{- else}}
-	{{- errorf "resource_id is not yet implemented for type %v" .Type}}
+	{{- else if isComputedNestedList .}}
+	if data.{{toGoName .TfName}}.IsUnknown() {
+		data.fromBody{{toGoName .TfName}}(ctx, res)
+	}
 	{{- end}}
 	{{- else if isNestedListMapSet .}}
 	{{- if or (hasResourceId .Attributes) (and (isNestedListSet .) (or .OrderedList (hasId .Attributes)) (hasComputed .Attributes))}}
@@ -527,15 +572,15 @@ func (data *{{camelCase .Name}}) fromBodyUnknowns(ctx context.Context, res gjson
 	{{- $arrayVar := printf "%sArray" (lowerFirst (toGoName .TfName))}}
 	{{if .ModelName}}{{$arrayVar}} := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"){{end}}
 	for i := range data.{{toGoName .TfName}} {
-		keys := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if or (eq .Type "Int64") (eq .Type "Bool") (eq .Type "String")}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}", {{end}}{{end}}{{end}} }
-		keyValues := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if eq .Type "Int64"}}strconv.FormatInt(data.{{$list}}[i].{{toGoName .TfName}}.ValueInt64(), 10), {{else if eq .Type "Bool"}}strconv.FormatBool(data.{{$list}}[i].{{toGoName .TfName}}.ValueBool()), {{else if eq .Type "String"}}data.{{$list}}[i].{{toGoName .TfName}}.Value{{.Type}}(), {{end}}{{end}}{{end}} }
+		keys := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if or (eq .Type "Int64") (eq .Type "Bool") (eq .Type "String") (and .Id (isListSet .))}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}", {{end}}{{end}}{{end}} }
+		keyValues := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if eq .Type "Int64"}}strconv.FormatInt(data.{{$list}}[i].{{toGoName .TfName}}.ValueInt64(), 10), {{else if eq .Type "Bool"}}strconv.FormatBool(data.{{$list}}[i].{{toGoName .TfName}}.ValueBool()), {{else if eq .Type "String"}}data.{{$list}}[i].{{toGoName .TfName}}.Value{{.Type}}(), {{else if and .Id (isListSet .)}}helpers.ListSetKeyValue(data.{{$list}}[i].{{toGoName .TfName}}), {{end}}{{end}}{{end}} }
 
 		var r gjson.Result
 		{{if .ModelName}}{{$arrayVar}}{{else}}res{{end}}.ForEach(
 			func(_, v gjson.Result) bool {
 				found := false
 				for ik := range keys {
-					if v.Get(keys[ik]).String() != keyValues[ik] {
+					if helpers.GetKeyValue(v.Get(keys[ik])) != keyValues[ik] {
 						found = false
 						break
 					}
