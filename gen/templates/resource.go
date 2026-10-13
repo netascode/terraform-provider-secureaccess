@@ -574,7 +574,9 @@ func (r *{{camelCase .Name}}Resource) Create(ctx context.Context, req resource.C
 	body = plan.adjustBody(ctx, body)
 	{{- end}}
 
-	{{- if .PutCreate}}
+	{{- if .SettingsList}}
+	res, err := r.client.Put(ctx, plan.getPath(), body, reqMods...)
+	{{- else if .PutCreate}}
 	res, err := r.client.Put(ctx, plan.getPath()+"/"+url.PathEscape(plan.Id.ValueString()), body, reqMods...)
 	{{- else}}
 	res, err := r.client.Post(ctx,plan.getPath(), body, reqMods...)
@@ -583,7 +585,11 @@ func (r *{{camelCase .Name}}Resource) Create(ctx context.Context, req resource.C
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST/PUT), got error: %s, %s", err, res.String()))
 		return
 	}
+	{{- if .SettingsList}}
+	plan.Id = types.StringValue("{{snakeCase .Name}}")
+	{{- else}}
 	plan.Id = types.StringValue(res.Get("{{.ResourceIdModelName}}").String())
+	{{- end}}
 	plan.fromBodyUnknowns(ctx, res)
 
 	{{- if hasResourceId .Attributes}}
@@ -621,7 +627,14 @@ func (r *{{camelCase .Name}}Resource) Read(ctx context.Context, req resource.Rea
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", state.Id.String()))
 
+
+	{{- if .SettingsList}}
+
+	urlPath := state.getPath()
+	{{- else}}
+
 	urlPath := state.getPath() + "/" + url.QueryEscape(state.Id.ValueString())
+	{{- end}}
 	res, err := r.client.Get(ctx, urlPath, reqMods...)
 	if err != nil && strings.Contains(err.Error(), "StatusCode 404") {
 		resp.State.RemoveResource(ctx)
@@ -682,7 +695,11 @@ func (r *{{camelCase .Name}}Resource) Update(ctx context.Context, req resource.U
 	{{- if .AdjustBody}}
 	body = plan.adjustBody(ctx, body)
 	{{- end}}
+	{{- if .SettingsList}}
+	res, err := r.client.Put(ctx, plan.getPath(), body, reqMods...)
+	{{- else}}
 	res, err := r.client.Put(ctx, plan.getPath() + "/" + url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
+	{{- end}}
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PUT), got error: %s, %s", err, res.String()))
 		return
@@ -712,12 +729,17 @@ func (r *{{camelCase .Name}}Resource) Delete(ctx context.Context, req resource.D
 		return
 	}
 
+	{{- if not (or .NoDelete .SettingsList)}}
+
 	// Set request modifiers
 	reqMods := [](func(*secureaccess.Req)){}
+	{{- end}}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Delete", state.Id.ValueString()))
 
-	{{- if not .NoDelete}}
+	{{- if .SettingsList}}
+	// Settings cannot be deleted, the resource is only removed from the state
+	{{- else if not .NoDelete}}
 	{{- if .PutDelete}}
 	body := state.toBodyPutDelete(ctx)
 	res, err := r.client.Put(ctx, state.getPath()+"/"+url.QueryEscape(state.Id.ValueString()), body, reqMods...)

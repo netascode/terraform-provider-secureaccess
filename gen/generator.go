@@ -119,10 +119,12 @@ type YamlConfig struct {
 	NoId                bool                  `yaml:"no_id"`
 	DelayOnDelete       int                   `yaml:"delay_on_delete"`
 	ResourceIdModelName string                `yaml:"resource_id_model_name"`
+	SettingsList        bool                  `yaml:"settings_list"`
 }
 
 type YamlConfigAttribute struct {
 	ModelName                   string                `yaml:"model_name"`
+	SettingName                 string                `yaml:"setting_name"`
 	TfName                      string                `yaml:"tf_name"`
 	Type                        string                `yaml:"type"`
 	ElementType                 string                `yaml:"element_type"`
@@ -587,12 +589,40 @@ func (attr *YamlConfigAttribute) init(parentGoTypeName string) error {
 	return nil
 }
 
+// validateSettingsList checks that a `settings_list` definition only uses features supported by the settings templates
+func validateSettingsList(config YamlConfig) error {
+	if config.NoId {
+		return fmt.Errorf("`settings_list: true` cannot be combined with `no_id: true`")
+	}
+	for _, attr := range config.Attributes {
+		if attr.SettingName == "" || attr.TfName == "" {
+			return fmt.Errorf("%q: `settings_list: true` requires `setting_name` and `tf_name` on every attribute", attr.TfName)
+		}
+		if attr.ModelName != "" || len(attr.DataPath) > 0 {
+			return fmt.Errorf("%q: `model_name` and `data_path` are not supported with `settings_list: true`, use `setting_name`", attr.TfName)
+		}
+		if len(attr.Attributes) > 0 || attr.Type == "Map" || attr.Type == "Set" {
+			return fmt.Errorf("%q: only String, Int64, Float64, Bool and List of primitives are supported with `settings_list: true`", attr.TfName)
+		}
+		if attr.Id || attr.Reference || attr.ResourceId || attr.Computed || attr.Value != "" || attr.TfOnly {
+			return fmt.Errorf("%q: `id`, `reference`, `resource_id`, `computed`, `value` and `tf_only` are not supported with `settings_list: true`", attr.TfName)
+		}
+	}
+	return nil
+}
+
 func NewYamlConfig(bytes []byte) (YamlConfig, error) {
 	var config YamlConfig
 	var hasPutCreateDataQuery bool = false
 
 	if err := yaml.Unmarshal(bytes, &config); err != nil {
 		return config, err
+	}
+
+	if config.SettingsList {
+		if err := validateSettingsList(config); err != nil {
+			return YamlConfig{}, err
+		}
 	}
 
 	for i := range config.Attributes {

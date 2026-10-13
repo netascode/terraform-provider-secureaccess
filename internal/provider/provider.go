@@ -288,6 +288,7 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 
 func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
+		NewAccessPolicySettingsResource,
 		NewDestinationListResource,
 		NewInternalDomainResource,
 		NewInternalNetworkResource,
@@ -304,6 +305,7 @@ func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.
 
 func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		NewAccessPolicySettingsDataSource,
 		NewDestinationListDataSource,
 		NewInternalDomainDataSource,
 		NewInternalNetworkDataSource,

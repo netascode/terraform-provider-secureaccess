@@ -286,7 +286,11 @@ func testAccDataSourceSecureAccess{{camelCase .Name}}Config() string {
 
 	config += `
 		data "secureaccess_{{snakeCase .Name}}" "test" {
+			{{- if .SettingsList}}
+			depends_on = [secureaccess_{{snakeCase $name}}.test]
+			{{- else}}
 			id = secureaccess_{{snakeCase $name}}.test.id
+			{{- end}}
 			{{- range  .Attributes}}
 			{{- if or .Reference .DataSourceOptionalParameter}}
 			{{.TfName}} = {{if .TestValue}}{{.TestValue}}{{else}}{{if eq .Type "String"}}"{{.Example}}"{{else if isStringListSet .}}["{{.Example}}"]{{else if isInt64ListSet .}}[{{.Example}}]{{else}}{{.Example}}{{end}}{{end}}

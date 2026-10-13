@@ -75,7 +75,10 @@ func (d *{{camelCase .Name}}DataSource) Schema(ctx context.Context, req datasour
 			{{- if not .NoId}}
 			"id": schema.StringAttribute{
 				MarkdownDescription: "Id of the object",
-				{{- if not (hasDataSourceQuery .Attributes) }}
+				{{- if .SettingsList}}
+				Optional:            true,
+				Computed:            true,
+				{{- else if not (hasDataSourceQuery .Attributes) }}
 				Required:            true,
 				{{- else}}
 				Optional:            true,
@@ -276,7 +279,7 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 	{{- end}}
 	{{- end}}
 
-	{{if .NoId}}
+	{{if or .NoId .SettingsList}}
 	urlPath := config.getPath()
 	{{- else}}
 	urlPath := config.getPath()+"/"+url.QueryEscape(config.Id.ValueString())
@@ -288,6 +291,9 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 	}
 
 	config.fromBody(ctx, res)
+	{{- if .SettingsList}}
+	config.Id = types.StringValue("{{snakeCase .Name}}")
+	{{- end}}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", {{if .NoId}}"{{.Name}}"{{else}}config.Id.ValueString(){{end}}))
 

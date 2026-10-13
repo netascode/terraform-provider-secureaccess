@@ -23,9 +23,11 @@ deprecation_message: str(required=False) # Message to be displayed in the docume
 no_id: bool(required=False) # Set to true if the resource does not have an ID.
 delay_on_delete: int(required=False) # Number of seconds to wait after a DELETE request before considering the resource deleted
 resource_id_model_name: str(required=False) # Name of the model attribute that represents the resource ID
+settings_list: bool(required=False) # Set to true if the endpoint is a singleton list of `{settingName, settingValue}` pairs. Create and Update send a PUT of the list to `rest_endpoint`, Read does a GET of `rest_endpoint`, Delete only removes the resource from state. Attributes are mapped via `setting_name`.
 ---
 attribute:
   model_name: str(required=False) # Name of the attribute in the model (payload)
+  setting_name: str(required=False) # Name of the setting (`settingName`), only relevant if `settings_list` is true
   tf_name: str(required=False) # Name of the attribute in the Terraform resource, by default derived from model_name
   type: enum('String', 'Int64', 'Float64', 'Bool', 'List', 'Map', 'Set', required=False) # Type of the attribute
   element_type: enum('String', 'Int64', required=False) # only relevant if type is either 'List' or 'Set'

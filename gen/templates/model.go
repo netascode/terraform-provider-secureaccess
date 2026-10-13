@@ -156,7 +156,25 @@ func (data {{camelCase .Name}}) getPath() string {
 // End of section. //template:end getPath
 
 // Section below is generated&owned by "gen/generator.go". //template:begin toBody
-{{if not .NoResource}}
+{{if and (not .NoResource) .SettingsList}}
+func (data {{camelCase .Name}}) toBody(ctx context.Context, state {{camelCase .Name}}) string {
+	body := "[]"
+	{{- range .Attributes}}
+	{{- if or (eq .Type "String") (eq .Type "Int64") (eq .Type "Float64") (eq .Type "Bool")}}
+	if !data.{{toGoName .TfName}}.IsNull() {{if .WriteChangesOnly}}&& data.{{toGoName .TfName}} != state.{{toGoName .TfName}}{{end}} {
+		body, _ = sjson.Set(body, "-1", map[string]any{"settingName": "{{.SettingName}}", "settingValue": data.{{toGoName .TfName}}.Value{{.Type}}()})
+	}
+	{{- else if isListSet .}}
+	if !data.{{toGoName .TfName}}.IsNull() {
+		var values []{{if isStringListSet .}}string{{else if isInt64ListSet .}}int64{{end}}
+		data.{{toGoName .TfName}}.ElementsAs(ctx, &values, false)
+		body, _ = sjson.Set(body, "-1", map[string]any{"settingName": "{{.SettingName}}", "settingValue": values})
+	}
+	{{- end}}
+	{{- end}}
+	return body
+}
+{{else if not .NoResource}}
 func (data {{camelCase .Name}}) toBody(ctx context.Context, state {{camelCase .Name}}) string {
 	body := ""
 	if data.Id.ValueString() != "" {
@@ -388,7 +406,28 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	{{- end}}
 	{{- end}}
 {{- end}}
+{{- if .SettingsList}}
+	settings := helpers.GetSettings(res)
+	{{- range .Attributes}}
+	{{- if not .WriteOnly}}
+	{{- if or (eq .Type "String") (eq .Type "Int64") (eq .Type "Float64") (eq .Type "Bool")}}
+	if value, ok := settings["{{.SettingName}}"]; ok {
+		data.{{toGoName .TfName}} = types.{{.Type}}Value(value.{{if eq .Type "Int64"}}Int{{else if eq .Type "Float64"}}Float{{else}}{{.Type}}{{end}}())
+	} else {
+		data.{{toGoName .TfName}} = types.{{.Type}}Null()
+	}
+	{{- else if isListSet .}}
+	if value, ok := settings["{{.SettingName}}"]; ok {
+		data.{{toGoName .TfName}} = helpers.Get{{.ElementType}}{{.Type}}(value.Array())
+	} else {
+		data.{{toGoName .TfName}} = types.{{.Type}}Null(types.{{.ElementType}}Type)
+	}
+	{{- end}}
+	{{- end}}
+	{{- end}}
+{{- else}}
 {{- template "fromBodyTemplate" .}}
+{{- end}}
 }
 {{- range .Attributes}}
 {{- if and (isComputedNestedList .) (not .Value) (not .WriteOnly) (not .Reference) (not .TfOnly)}}
@@ -527,7 +566,28 @@ func (data *{{camelCase $.Name}}) fromBody{{toGoName .TfName}}(ctx context.Conte
 // easily change across versions of the backend API.) For List/Set/Map attributes, the func only updates the
 // "managed" elements, instead of all elements.
 func (data *{{camelCase .Name}}) fromBodyPartial(ctx context.Context, res gjson.Result) {
+{{- if .SettingsList}}
+	settings := helpers.GetSettings(res)
+	{{- range .Attributes}}
+	{{- if not .WriteOnly}}
+	{{- if or (eq .Type "String") (eq .Type "Int64") (eq .Type "Float64") (eq .Type "Bool")}}
+	if value, ok := settings["{{.SettingName}}"]; ok && !data.{{toGoName .TfName}}.IsNull() {
+		data.{{toGoName .TfName}} = types.{{.Type}}Value(value.{{if eq .Type "Int64"}}Int{{else if eq .Type "Float64"}}Float{{else}}{{.Type}}{{end}}())
+	} else {
+		data.{{toGoName .TfName}} = types.{{.Type}}Null()
+	}
+	{{- else if isListSet .}}
+	if value, ok := settings["{{.SettingName}}"]; ok && !data.{{toGoName .TfName}}.IsNull() {
+		data.{{toGoName .TfName}} = helpers.Get{{.ElementType}}{{.Type}}(value.Array())
+	} else {
+		data.{{toGoName .TfName}} = types.{{.Type}}Null(types.{{.ElementType}}Type)
+	}
+	{{- end}}
+	{{- end}}
+	{{- end}}
+{{- else}}
 {{- template "fromBodyPartialTemplate" .}}
+{{- end}}
 }
 {{end}}
 // End of section. //template:end fromBodyPartial

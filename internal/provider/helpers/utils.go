@@ -172,3 +172,16 @@ func ListSetKeyValue(l interface{ Elements() []attr.Value }) string {
 	sort.Strings(elems)
 	return strings.Join(elems, "\x00")
 }
+
+// GetSettings converts a list of `{"settingName": ..., "settingValue": ...}` objects into a map keyed by setting name.
+// Settings with a null value are omitted.
+func GetSettings(res gjson.Result) map[string]gjson.Result {
+	settings := make(map[string]gjson.Result)
+	res.ForEach(func(_, v gjson.Result) bool {
+		if value := v.Get("settingValue"); value.Exists() && value.Type != gjson.Null {
+			settings[v.Get("settingName").String()] = value
+		}
+		return true
+	})
+	return settings
+}

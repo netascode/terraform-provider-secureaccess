@@ -1,0 +1,116 @@
+---
+name: Access Policy Settings
+rest_endpoint: /policies/v2/settings
+doc_category: Secure
+settings_list: true
+no_import: true
+res_description: >-
+  This resource manages Access Policy Rule Defaults and Global Settings.\n
+  On destroy, setting values are preserved.
+attributes:
+  # Rule Defaults
+  # - setting_name: sse.userTrustProfileId
+  #   tf_name: zero_trust_access_user_trust_profile_id
+  #   type: Int64
+  #   description: Set the ZTA user trust profile ID.
+  #   example: 123456
+  #   exclude_test: true
+  # - setting_name: umbrella.posture.profileIdClientbased
+  #   tf_name: zero_trust_access_client_based_profile_id
+  #   type: String
+  #   description: Set the client-based posture profile ID.
+  #   example: 789012
+  #   exclude_test: true
+  # - setting_name: umbrella.posture.profileIdClientless
+  #   tf_name: zero_trust_access_browser_based_profile_id
+  #   type: String
+  #   description: Set the browser-based posture profile ID.
+  #   example: 789012
+  #   exclude_test: true
+  # TODO: Internet Access Client-based profile id
+  - setting_name: sse.ztaAuthnTimeoutEnabled
+    tf_name: zero_trust_access_authentication
+    type: Bool
+    description: Enable ZTA authentication timeout.
+    example: true
+  - setting_name: sse.ztaAuthnTimeoutMinutes
+    tf_name: zero_trust_access_authentication_timeout
+    type: Int64
+    description: Set the ZTA authentication timeout in minutes.
+    example: 485
+    min_int: 1
+    max_int: 43200
+  - setting_name: sse.policyEditSessionTimeoutMinutes
+    tf_name: editing_session_duration
+    type: Int64
+    description: How long an editing session lasts before it automatically expires.
+    example: 55
+    min_int: 1
+    max_int: 60
+  - setting_name: sse.policyEditSessionExtensionMinutes
+    tf_name: editing_session_extension
+    type: Int64
+    description: Allow admins to extend their editing session once it's close to expiring. (minutes per extension)
+    example: 6
+    min_int: 0
+    max_int: 15
+  - setting_name: umbrella.posture.ipsProfileId
+    tf_name: global_ips_profile_id
+    type: String
+    description: Set the IPS posture profile ID.
+    example: 654321
+    exclude_test: true
+  # TODO: Security Profile Internet Access
+  # - setting_name: umbrella.posture.privateSecurityProfileId
+  #   tf_name: private_access_security_profile_id
+  #   type: String
+  #   description: Set the private security profile ID.
+  #   example: 1281818
+  #   exclude_test: true
+  # - setting_name: sse.tenantControlProfileId
+  #   tf_name: tenant_control_profile_id
+  #   type: String
+  #   description: Set the tenant control profile ID.
+  #   example: 1281818
+  #   exclude_test: true
+
+  # Global Settings
+  # TODO: Should be bool, but API wants 0/1
+  # - setting_name: sse.warnRecaptcha
+  #   tf_name: display_user_warning_message
+  #   type: Bool
+  #   description: Require users to type supplied text to gain temporary access to restricted websites.
+  #   example: true
+  - setting_name: umbrella.m365Compatibility
+    tf_name: microsoft_365_compatibility
+    type: Bool
+    description: Enable or disable Microsoft 365 compatibility.
+    example: true
+  - setting_name: sse.globalIPSEnabled
+    tf_name: decryption_global
+    type: Bool
+    description: Enable or disable global IPS.
+    example: true
+  - setting_name: global.setting.disableDecryptionSource
+    tf_name: decryption_disable_for_sources
+    type: List
+    element_type: String
+    description: List of sources for which decryption is disabled. Accepted formats include IP addresses and CIDR blocks.
+    example: "10.10.0.0/24"
+  - setting_name: sse.decryption.logInternet
+    tf_name: log_decrypted_internet_destinations
+    type: Bool
+    description: Log decrypted traffic to internet destinations.
+    example: true
+  - setting_name: sse.decryption.logPrivate
+    tf_name: log_decrypted_private_resources
+    type: Bool
+    description: Log decrypted traffic to private resources.
+    example: true
+
+  # - setting_name: umbrella.posture.webProfileId
+  #   tf_name: web_posture_profile_id
+  #   type: String
+  #   description: Set the web posture profile ID.
+  #   example: 15256616
+  #   exclude_test: true
