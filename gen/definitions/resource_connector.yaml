@@ -1,0 +1,58 @@
+# Manual resource
+# Create(), Update(), Delete()
+# Manual data source
+# Read()
+---
+name: Resource Connector
+rest_endpoint: /deployments/v2/connectorAgents
+doc_category: Connect
+res_description: >-
+  This resource manages a Resource Connector, which is previously registered with Cisco Secure Access outside of Terraform.\n
+  Implicit import of the resource will be performed based on the `instance_id` attribute.
+skip_minimum_test: true
+test_tags: ["TF_VAR_resource_connector_instance_id"]
+no_import: true
+attributes:
+  - model_name: instanceId
+    type: String
+    description: The instance ID of the Resource Connector.
+    mandatory: true
+    requires_replace: true
+    data_source_query: true
+    test_value: var.resource_connector_instance_id
+    example: i-0123456789abdef1
+  - model_name: enabled
+    type: Bool
+    description: Indicates whether the Connector can receive traffic.
+    example: true
+  - model_name: confirmed
+    type: Bool
+    description: Indicates whether the Connector exists. Once confirmed, it cannot be changed.
+    example: true
+  - model_name: hostname
+    type: String
+    description: Hostname of the Resource Connector.
+    computed: true
+  - model_name: status
+    type: String
+    description: The status of the Resource Connector.
+    computed: true
+  - model_name: groupId
+    tf_name: resource_connector_group_id
+    type: Int64
+    description: The ID of the Resource Connector Group to which this connector belongs.
+    computed: true
+  - model_name: version
+    type: String
+    description: The version of the Resource Connector.
+    computed: true
+    computed_refresh_value: true
+  - tf_name: delete_on_destroy
+    type: Bool
+    tf_only: true
+    description: When `true`, the Resource Connector is removed from Secure Access on destroy. When `false`, it is only removed from the Terraform state.
+    default_value: false
+    example: false
+
+test_prerequisites: |-
+  variable "resource_connector_instance_id" { default = null } // tests will set $TF_VAR_RESOURCE_CONNECTOR_INSTANCE_ID

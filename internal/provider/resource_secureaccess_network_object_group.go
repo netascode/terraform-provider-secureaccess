@@ -148,7 +148,9 @@ func (r *NetworkObjectGroupResource) Configure(_ context.Context, req resource.C
 
 // End of section. //template:end model
 
-func (r NetworkObjectGroupResource) ConfigValidators(ctx context.Context) []resource.ConfigValidator {
+var _ resource.ResourceWithConfigValidators = &NetworkObjectGroupResource{}
+
+func (r *NetworkObjectGroupResource) ConfigValidators(ctx context.Context) []resource.ConfigValidator {
 	return []resource.ConfigValidator{
 		resourcevalidator.AtLeastOneOf(
 			path.MatchRoot("network_object_groups"),

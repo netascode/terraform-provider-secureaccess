@@ -115,6 +115,8 @@ func (r *InternalNetworkResource) Configure(_ context.Context, req resource.Conf
 
 // End of section. //template:end model
 
+var _ resource.ResourceWithConfigValidators = &InternalNetworkResource{}
+
 func (r *InternalNetworkResource) ConfigValidators(ctx context.Context) []resource.ConfigValidator {
 	return []resource.ConfigValidator{
 		resourcevalidator.ExactlyOneOf(

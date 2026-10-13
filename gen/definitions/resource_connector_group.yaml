@@ -1,0 +1,43 @@
+---
+name: Resource Connector Group
+rest_endpoint: /deployments/v2/connectorGroups
+doc_category: Connect
+skip_minimum_test: true
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Resource Connector Group.
+    example: my resource connector group
+  - model_name: location
+    tf_name: region
+    type: String
+    mandatory: true
+    description: The region where to deploy Resource Connector Group on Cisco Secure Access.
+    requires_replace: true
+    example: us-west-2
+  - model_name: environment
+    type: String
+    mandatory: true
+    requires_replace: true
+    description: Environment in which agents will be deployed.
+    enum_values: ["aws", "azure", "container", "esx"]
+    example: container
+  # - model_name: forwardDNS
+  #   tf_name: dns_servers
+  #   type: String
+  #   mandatory: true
+  #   description: Use alternate DNS servers to resolve private resources based on domain.
+  #   attributes:
+  #     - model_name: domains
+  #       type: String
+  #       mandatory: true
+  #       description: A comma-separated list of domains.
+  #       example: example.com,example.org
+  #     - model_name: dnsResourceId
+  #       tf_name: dns_server_id
+  #       type: Int64
+  #       mandatory: true
+  #       description: The resource ID of the DNS server.
+  #       example: 123456
+    
