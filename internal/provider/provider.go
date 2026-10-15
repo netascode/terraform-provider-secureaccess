@@ -299,6 +299,8 @@ func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.
 		NewPrivateResourceResource,
 		NewResourceConnectorResource,
 		NewResourceConnectorGroupResource,
+		NewServiceObjectResource,
+		NewServiceObjectGroupResource,
 		NewSiteResource,
 	}
 }
@@ -320,6 +322,8 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewResourceConnectorDataSource,
 		NewResourceConnectorGroupDataSource,
 		NewResourceConnectorGroupsDataSource,
+		NewServiceObjectDataSource,
+		NewServiceObjectGroupDataSource,
 		NewSiteDataSource,
 	}
 }

@@ -1,0 +1,31 @@
+---
+name: Service Object
+rest_endpoint: /policies/v2/objects/serviceObjects
+doc_category: Resources
+delay_on_delete: 4
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Service Object.
+    example: my_service_object
+    data_source_query: true
+  - model_name: description
+    type: String
+    description: Description of the Service Object.
+    example: This is my service object.
+  - model_name: protocol
+    data_path: ["value"]
+    type: String
+    mandatory: true
+    enum_values: ["tcp", "udp", "icmp", "any"]
+    lowercase_response: true
+    description: Protocol of the Service Object.
+    example: tcp
+  - model_name: ports
+    data_path: ["value"]
+    type: List
+    element_type: String
+    mandatory: true
+    description: List of ports or port ranges of the Service Object.
+    example: "8080"
