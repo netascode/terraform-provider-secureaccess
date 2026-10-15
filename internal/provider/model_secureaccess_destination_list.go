@@ -60,12 +60,8 @@ func (data DestinationList) getPath() string {
 
 // End of section. //template:end getPath
 
-const (
-	// maximum number of destinations per request (max is 499)
-	destinationListMaxDestinationsPerRequest = 499
-	// page size used when retrieving destinations (max is 100)
-	destinationListDestinationsPageLimit = 100
-)
+// maximum number of destinations per request (max is 499)
+const destinationListMaxDestinationsPerRequest = 499
 
 // Section below is generated&owned by "gen/generator.go". //template:begin toBody
 
@@ -277,27 +273,16 @@ func destinationListDestinationsPath(id string) string {
 	return DestinationList{}.getPath() + "/" + url.QueryEscape(id) + "/destinations"
 }
 
-// destinationListReadDestinations retrieves all pages of destinations, as those are not included in the main object response,
-// and injects them into res under "destinations"
+// destinationListReadDestinations retrieves all destinations, as those are not included in the main object response,
+// and injects them into res under "destinations". Pagination is handled by the client.
 func destinationListReadDestinations(ctx context.Context, client *secureaccess.Client, id string, res gjson.Result, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
-	var items []string
-	for page := 1; ; page++ {
-		urlPath := fmt.Sprintf("%s?page=%d&limit=%d", destinationListDestinationsPath(id), page, destinationListDestinationsPageLimit)
-		resDest, err := client.Get(ctx, urlPath, reqMods...)
-		if err != nil {
-			return res, fmt.Errorf("failed to retrieve destinations page %d (GET): %w, %s", page, err, resDest.String())
-		}
-
-		data := resDest.Get("data").Array()
-		for _, item := range data {
-			items = append(items, item.Raw)
-		}
-
-		total := resDest.Get("meta.total")
-		if len(data) < destinationListDestinationsPageLimit || (total.Exists() && int64(len(items)) >= total.Int()) {
-			break
-		}
+	items, err := client.GetAll(ctx, destinationListDestinationsPath(id), reqMods...)
+	if err != nil {
+		return res, fmt.Errorf("failed to retrieve destinations (GET): %w, %s", err, items.String())
 	}
-	s, _ := sjson.SetRaw(res.String(), "destinations", "["+strings.Join(items, ",")+"]")
+	if !items.IsArray() {
+		return res, fmt.Errorf("failed to retrieve destinations, expected a list, got: %s", items.Type)
+	}
+	s, _ := sjson.SetRaw(res.String(), "destinations", items.Raw)
 	return gjson.Parse(s), nil
 }

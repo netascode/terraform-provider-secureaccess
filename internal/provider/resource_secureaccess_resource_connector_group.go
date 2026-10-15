@@ -94,6 +94,38 @@ func (r *ResourceConnectorGroupResource) Schema(ctx context.Context, req resourc
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			"provisioning_key_expires_at": schema.StringAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("The expiration date and time of the Resource Connector Group's provisioning key.").String,
+				Computed:            true,
+			},
+			"status": schema.StringAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("The label that describes the status of the Resource Connector Group.").String,
+				Computed:            true,
+			},
+			"connectors_count": schema.Int64Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("The number of connectors in the Resource Connector Group.").String,
+				Computed:            true,
+			},
+			"connected_connectors_count": schema.Int64Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("The number of Connectors in the Resource Connector Group that are connected.").String,
+				Computed:            true,
+			},
+			"disconnected_connectors_count": schema.Int64Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("The number of Connectors in the Resource Connector Group that are disconnected.").String,
+				Computed:            true,
+			},
+			"unable_to_sync_connectors_count": schema.Int64Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("The number of Connectors in the Resource Connector Group that are unable to sync.").String,
+				Computed:            true,
+			},
+			"need_update_connectors_count": schema.Int64Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("The number of Connectors in the Resource Connector Group that need an update.").String,
+				Computed:            true,
+			},
+			"failed_update_agents_attempts": schema.Int64Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("The number of Connectors in the Resource Connector Group that failed to update their agents.").String,
+				Computed:            true,
+			},
 		},
 	}
 }
@@ -220,6 +252,7 @@ func (r *ResourceConnectorGroupResource) Update(ctx context.Context, req resourc
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PUT), got error: %s, %s", err, res.String()))
 		return
 	}
+	plan.fromBodyUnknowns(ctx, res)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
 

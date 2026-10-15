@@ -1,0 +1,20 @@
+---
+name: Content Category List
+rest_endpoint: /policies/v2/categorySettings
+doc_category: Resources
+no_resource: true
+no_import: true
+attributes:
+  - model_name: name
+    type: String
+    description: Name of the Content Category List
+    data_source_query: true
+    example: My Content Category List
+  - model_name: type
+    type: String
+    description: Type of the Content Category List
+    example: mixed
+  - model_name: isDefault
+    type: Bool
+    description: Indicates if the Content Category List is the default one
+    example: false

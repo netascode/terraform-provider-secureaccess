@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/datasourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -118,7 +119,7 @@ func (d *{{camelCase .Name}}DataSource) Schema(ctx context.Context, req datasour
 							{{- if isListSet .}}
 							ElementType:         types.{{.ElementType}}Type,
 							{{- end}}
-							{{- if and .ResourceId $parentNestedMap }}
+							{{- if and .ResourceId $parentNestedMap (not $.IsBulk) }}
 							Required:            true,
 							{{- else}}
 							Computed:            true,
@@ -220,56 +221,34 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", {{if .NoId}}"{{.Name}}"{{else}}config.Id.String(){{end}}))
 
 	{{- if hasDataSourceQuery .Attributes }}
+
+	// Object found by a query attribute, it is not retrieved again by ID
+	var res gjson.Result
 	{{- range $index, $dataSourceAttribute := $dataSourceAttributes }}
 	if config.Id.IsNull() && !config.{{toGoName $dataSourceAttribute.TfName}}.IsNull() {
-		offset := 0
-		limit := 100
-		for page := 1; ; page++ {
-			queryString := fmt.Sprintf("?limit=%d&offset=%d", limit, offset)
-			res, err := d.client.Get(ctx, config.getPath() + queryString, reqMods...)
-			if err != nil {
-				resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, got error: %s", err))
-				return
-			}
-			if value := res.Get("results"); len(value.Array()) > 0 {
-				value.ForEach(func(k, v gjson.Result) bool {
-					if config.{{toGoName $dataSourceAttribute.TfName}}.
-						{{- if eq $dataSourceAttribute.Type "Int64" -}}ValueInt64()
-						{{- else -}}ValueString(){{- end -}} == v.Get("{{range $dataSourceAttribute.DataPath}}{{.}}.{{end}}{{$dataSourceAttribute.ModelName}}").
-						{{- if eq $dataSourceAttribute.Type "Int64" -}}Int()
-						{{- else -}}String(){{- end -}} {
-						config.Id = types.StringValue(v.Get("id").String())
-						tflog.Debug(ctx, fmt.Sprintf("%s: Found object with {{$dataSourceAttribute.TfName}} '%v', id: %v", config.Id.ValueString(), config.{{toGoName $dataSourceAttribute.TfName}}.{{if eq $dataSourceAttribute.Type "Int64"}}ValueInt64(){{else}}ValueString(){{end}}, config.Id.ValueString()))
-						return false
-					}
-					return true
-				})
-			}
-
-			if !config.Id.IsNull() {
-				break
-			}
-			
-			resCount := res.Get("count")
-			resLimit := res.Get("limit")
-
-			// Pagination data not available, return the raw data as is
-			if !resCount.Exists() || !resLimit.Exists() {
-				break
-			}
-
-			// All items are already returned in a single response, return the raw data as is
-			if resCount.Int() <= resLimit.Int() {
-				break
-			}
-
-			// If there are no more pages, stop reading
-			if resCount.Int() <= int64(offset+limit) {
-				break
-			}
-
-			offset += limit
+		// Client handles pagination and returns all items merged into a single list
+		items, err := d.client.GetAll(ctx, config.getPath(), reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, got error: %s", err))
+			return
 		}
+		if !items.IsArray() {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, expected a list, got: %s", items.Type))
+			return
+		}
+		items.ForEach(func(k, v gjson.Result) bool {
+			if config.{{toGoName $dataSourceAttribute.TfName}}.
+				{{- if eq $dataSourceAttribute.Type "Int64" -}}ValueInt64()
+				{{- else -}}ValueString(){{- end -}} == v.Get("{{range $dataSourceAttribute.DataPath}}{{.}}.{{end}}{{$dataSourceAttribute.ModelName}}").
+				{{- if eq $dataSourceAttribute.Type "Int64" -}}Int()
+				{{- else -}}String(){{- end -}} {
+				config.Id = types.StringValue(v.Get("id").String())
+				res = v
+				tflog.Debug(ctx, fmt.Sprintf("%s: Found object with {{$dataSourceAttribute.TfName}} '%v', id: %v", config.Id.ValueString(), config.{{toGoName $dataSourceAttribute.TfName}}.{{if eq $dataSourceAttribute.Type "Int64"}}ValueInt64(){{else}}ValueString(){{end}}, config.Id.ValueString()))
+				return false
+			}
+			return true
+		})
 
 		if config.Id.IsNull() {
 			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to find object with {{$dataSourceAttribute.TfName}}: %v", config.{{toGoName $dataSourceAttribute.TfName}}.{{if eq $dataSourceAttribute.Type "Int64"}}ValueInt64(){{else}}ValueString(){{end}}))
@@ -279,16 +258,67 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 	{{- end}}
 	{{- end}}
 
-	{{if or .NoId .SettingsList}}
+	{{if hasDataSourceQuery .Attributes}}
+	if !res.Exists() {
+		urlPath := config.getPath()+"/"+url.QueryEscape(config.Id.ValueString())
+		var err error
+		res, err = d.client.Get(ctx, urlPath, reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
+			return
+		}
+	}
+	{{- else}}
+	{{- if or .NoId .SettingsList}}
 	urlPath := config.getPath()
 	{{- else}}
 	urlPath := config.getPath()+"/"+url.QueryEscape(config.Id.ValueString())
 	{{- end}}
+	{{- if .IsBulk}}
+	// Client handles pagination and returns all items merged into a single list
+	res, err := d.client.GetAll(ctx, urlPath, reqMods...)
+	{{- else}}
 	res, err := d.client.Get(ctx, urlPath, reqMods...)
+	{{- end}}
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
 		return
 	}
+	{{- if .IsBulk}}
+	if !res.IsArray() {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, expected a list, got: %s", res.Type))
+		return
+	}
+	{{- end}}
+	{{- end}}
+
+	{{- if .IsBulk}}
+	{{- $items := getAttributeByTfName .Attributes "items"}}
+	{{- $filter := getAttributeByTfName .Attributes "filter"}}
+
+	// Read all items if user did not provide any specific item names in the config
+	if len(config.{{toGoName $items.TfName}}) == 0 {
+		config.{{toGoName $items.TfName}} = map[string]{{$items.GoTypeName}}{}
+		res.{{if $items.ModelName}}Get("{{range $items.DataPath}}{{.}}.{{end}}{{$items.ModelName}}").{{end}}ForEach(func(_, v gjson.Result) bool {
+			if name := v.Get("name").String(); name != "" {
+				config.{{toGoName $items.TfName}}[name] = {{$items.GoTypeName}}{}
+			}
+			return true
+		})
+	}
+	{{- if $filter.TfName}}
+
+	// Keep only items whose name contains the filter (case-insensitive)
+	if filter := strings.ToLower(config.{{toGoName $filter.TfName}}.ValueString()); filter != "" {
+		for name := range config.{{toGoName $items.TfName}} {
+			if !strings.Contains(strings.ToLower(name), filter) {
+				tflog.Debug(ctx, fmt.Sprintf("item does not match filter, removing: name=%v", name))
+				delete(config.{{toGoName $items.TfName}}, name)
+			}
+		}
+	}
+	{{- end}}
+	{{- end}}
 
 	config.fromBody(ctx, res)
 	{{- if .SettingsList}}

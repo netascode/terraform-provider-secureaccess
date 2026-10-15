@@ -32,7 +32,15 @@ resource "secureaccess_resource_connector_group" "example" {
 
 ### Read-Only
 
+- `connected_connectors_count` (Number) The number of Connectors in the Resource Connector Group that are connected.
+- `connectors_count` (Number) The number of connectors in the Resource Connector Group.
+- `disconnected_connectors_count` (Number) The number of Connectors in the Resource Connector Group that are disconnected.
+- `failed_update_agents_attempts` (Number) The number of Connectors in the Resource Connector Group that failed to update their agents.
 - `id` (String) Id of the object
+- `need_update_connectors_count` (Number) The number of Connectors in the Resource Connector Group that need an update.
+- `provisioning_key_expires_at` (String) The expiration date and time of the Resource Connector Group's provisioning key.
+- `status` (String) The label that describes the status of the Resource Connector Group.
+- `unable_to_sync_connectors_count` (Number) The number of Connectors in the Resource Connector Group that are unable to sync.
 
 ## Import
 

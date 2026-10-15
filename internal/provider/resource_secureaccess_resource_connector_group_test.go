@@ -33,6 +33,14 @@ func TestAccSecureAccessResourceConnectorGroup(t *testing.T) {
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_resource_connector_group.test", "name", "my resource connector group"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_resource_connector_group.test", "region", "us-west-2"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_resource_connector_group.test", "environment", "container"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("secureaccess_resource_connector_group.test", "provisioning_key_expires_at"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("secureaccess_resource_connector_group.test", "status"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("secureaccess_resource_connector_group.test", "connectors_count"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("secureaccess_resource_connector_group.test", "connected_connectors_count"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("secureaccess_resource_connector_group.test", "disconnected_connectors_count"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("secureaccess_resource_connector_group.test", "unable_to_sync_connectors_count"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("secureaccess_resource_connector_group.test", "need_update_connectors_count"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("secureaccess_resource_connector_group.test", "failed_update_agents_attempts"))
 
 	var steps []resource.TestStep
 	steps = append(steps, resource.TestStep{

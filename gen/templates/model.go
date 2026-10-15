@@ -364,11 +364,16 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	}
 	{{- else if isNestedMap .}}
 	// Build lookup map for O(1) access
-	{{- if $.ImportNameQuery }}
+	{{- if or $.ImportNameQuery $.IsBulk}}
 	itemsByName := make(map[string]gjson.Result)
 	res.{{if .ModelName}}Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}").{{end}}ForEach(func(_, v gjson.Result) bool {
 		if name := v.Get("name").String(); name != "" {
+			{{- if $.IsBulk}}
+			// Item names are matched case-insensitively
+			itemsByName[strings.ToLower(name)] = v
+			{{- else}}
 			itemsByName[name] = v
+			{{- end}}
 		}
 		return true
 	})
@@ -384,14 +389,17 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	for k := range data.{{toGoName .TfName}} {
 		parent := &data
 		data := (*parent).{{toGoName .TfName}}[k]
-		{{- if $.ImportNameQuery}}
+		{{- if $.IsBulk}}
+		res, found := itemsByName[strings.ToLower(k)]
+		if !found {
+		{{- else if $.ImportNameQuery}}
 		res, found := itemsByName[k]
 		if !found {
 		{{- else}}
 		res, found := itemsById[data.Id.ValueString()]
 		if !found || data.Id.ValueString() == "" {
 		{{- end}}
-			{{- if $.ImportNameQuery -}}
+			{{- if or $.ImportNameQuery $.IsBulk -}}
 			tflog.Debug(ctx, fmt.Sprintf("subresource not found, removing: name=%v", k))
 			{{- else -}}
 			tflog.Debug(ctx, fmt.Sprintf("subresource not found, removing: uuid=%s, key=%v", data.Id, k))

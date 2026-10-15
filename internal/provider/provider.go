@@ -306,6 +306,9 @@ func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.
 func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewAccessPolicySettingsDataSource,
+		NewContentCategoriesDataSource,
+		NewContentCategoryListDataSource,
+		NewContentCategoryListsDataSource,
 		NewDestinationListDataSource,
 		NewInternalDomainDataSource,
 		NewInternalNetworkDataSource,
@@ -316,6 +319,7 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewPrivateResourceDataSource,
 		NewResourceConnectorDataSource,
 		NewResourceConnectorGroupDataSource,
+		NewResourceConnectorGroupsDataSource,
 		NewSiteDataSource,
 	}
 }
