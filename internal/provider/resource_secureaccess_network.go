@@ -94,10 +94,10 @@ func (r *NetworkResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:            true,
 			},
 			"prefix_length": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Subnet prefix length.").AddIntegerRangeDescription(29, 32).String,
+				MarkdownDescription: helpers.NewAttributeDescription("Subnet prefix length.").AddIntegerRangeDescription(27, 32).String,
 				Required:            true,
 				Validators: []validator.Int64{
-					int64validator.Between(29, 32),
+					int64validator.Between(27, 32),
 				},
 			},
 		},

@@ -1,0 +1,47 @@
+# Manual data source
+# Read() - single Get() instead of GetAll(), items read from `data.applications`, keyed by `label`
+# Manual model
+# fromBody() - items keyed by `label`
+# APIBEHAVIOUR: no pagination, single request returns all items
+---
+name: Applications
+rest_endpoint: /reports/v2/applications
+doc_category: Resources
+no_resource: true
+no_import: true
+no_id: true
+is_bulk: true
+ds_description: >-
+  This resource reads Applications.\n
+  If `items` is empty, all Applications are returned, otherwise only the listed ones.\n
+  If `filter` is provided, only Applications matching the filter are returned.
+attributes:
+  - model_name: filter
+    tf_only: true
+    type: String
+    data_source_optional_parameter: true
+    description: Case-insensitive substring used to filter applications by name.
+    exclude_example: true
+    exclude_test: true
+  - tf_name: items
+    type: Map
+    description: >-
+      Map of Applications. The key of the map is the name of the individual Application.
+    map_key_example: My Application
+    attributes:
+      - model_name: id
+        type: String
+        resource_id: true
+        description: Id of the Application.
+        exclude_example: true
+        exclude_test: true
+      - model_name: type
+        type: String
+        description: Type of the Application
+        computed: true
+      - model_name: label
+        tf_name: category
+        data_path: ["category"]
+        type: String
+        description: Category of the Application
+        computed: true

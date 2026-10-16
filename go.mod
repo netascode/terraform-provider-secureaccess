@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/terraform-plugin-go v0.31.0
 	github.com/hashicorp/terraform-plugin-log v0.11.0
 	github.com/hashicorp/terraform-plugin-testing v1.16.0
-	github.com/netascode/go-secureaccess v0.0.0-20261015081424-3fd5c3f24c96
+	github.com/netascode/go-secureaccess v0.0.0-20261016133939-d2c1139bb355
 	github.com/tidwall/gjson v1.20.0
 	github.com/tidwall/sjson v1.2.5
 	golang.org/x/tools v0.51.0

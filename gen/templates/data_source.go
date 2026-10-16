@@ -242,7 +242,7 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 				{{- else -}}ValueString(){{- end -}} == v.Get("{{range $dataSourceAttribute.DataPath}}{{.}}.{{end}}{{$dataSourceAttribute.ModelName}}").
 				{{- if eq $dataSourceAttribute.Type "Int64" -}}Int()
 				{{- else -}}String(){{- end -}} {
-				config.Id = types.StringValue(v.Get("id").String())
+				config.Id = types.StringValue(v.Get("{{$.ResourceIdModelName}}").String())
 				res = v
 				tflog.Debug(ctx, fmt.Sprintf("%s: Found object with {{$dataSourceAttribute.TfName}} '%v', id: %v", config.Id.ValueString(), config.{{toGoName $dataSourceAttribute.TfName}}.{{if eq $dataSourceAttribute.Type "Int64"}}ValueInt64(){{else}}ValueString(){{end}}, config.Id.ValueString()))
 				return false

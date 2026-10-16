@@ -29,7 +29,7 @@ attributes:
     example: 192.168.1.0
   - model_name: prefixLength
     type: Int64
-    min_int: 29
+    min_int: 27
     max_int: 32
     mandatory: true
     description: Subnet prefix length.

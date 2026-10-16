@@ -1,0 +1,36 @@
+---
+name: Application Categories
+rest_endpoint: /policies/v2/applicationCategories?optionalFields=[\"applicationsCount\"]
+doc_category: Resources
+no_resource: true
+no_import: true
+no_id: true
+is_bulk: true
+ds_description: >-
+  This resource reads Application Categories.\n
+  If `items` is empty, all Application Categories are returned, otherwise only the listed ones.\n
+  If `filter` is provided, only Application Categories matching the filter are returned.
+attributes:
+  - model_name: filter
+    tf_only: true
+    type: String
+    data_source_optional_parameter: true
+    description: Case-insensitive substring used to filter application categories by name.
+    exclude_example: true
+    exclude_test: true
+  - tf_name: items
+    type: Map
+    description: >-
+      Map of Application Categories. The key of the map is the name of the individual Application Category.
+    map_key_example: My Application Category
+    attributes:
+      - model_name: id
+        type: String
+        resource_id: true
+        description: Id of the Application Category.
+        exclude_example: true
+        exclude_test: true
+      - model_name: type
+        type: String
+        description: Type of the Application Category
+        example: mixed

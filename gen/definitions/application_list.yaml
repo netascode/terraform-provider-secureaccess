@@ -1,0 +1,49 @@
+# Manual resource
+# -> adjustBody() - insert empty `applicationIds` if not configured
+# Manual data source
+# Read() - single Get() instead of GetAll(), items read from `results`,
+#          object always retrieved by ID after the name lookup
+# APIBEHAVIOUR: no pagination, list response is {"count": N, "results": [...]}
+# APIBEHAVIOUR: `applicationIds` must always be present in the request, even if empty
+---
+name: Application List
+rest_endpoint: /policies/v2/applicationLists
+doc_category: Resources
+resource_id_model_name: applicationListId
+adjust_body: true
+attributes:
+  - model_name: applicationListName
+    tf_name: name
+    type: String
+    mandatory: true
+    description: The descriptive label for the Application List.
+    example: my_application_list
+    data_source_query: true
+  - model_name: applicationIds
+    tf_name: application_ids
+    type: Set
+    element_type: Int64
+    description: The list of IDs of the Applications in the Application List.
+    example: 1
+    test_value: '[data.secureaccess_applications.test.items["Google Docs"].id]'
+  - model_name: applicationCategoryIds
+    tf_name: application_category_ids
+    type: Set
+    element_type: Int64
+    description: The list of IDs of the Application Categories in the Application List.
+    example: 40
+    test_value: '[data.secureaccess_application_categories.test.items["Search"].id]'
+  - model_name: isDefault
+    tf_name: is_default
+    type: Bool
+    description: Specifies whether the Application List is the default Application List.
+    default_value: false
+    example: false
+
+test_prerequisites: |-
+  data "secureaccess_application_categories" "test" {}
+  data "secureaccess_applications" "test" {
+      items = {
+          "Google Docs" = {}
+      }
+  }

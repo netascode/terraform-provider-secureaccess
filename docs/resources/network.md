@@ -30,7 +30,7 @@ resource "secureaccess_network" "example" {
 - `is_dynamic` (Boolean) Specifies whether the IP is dynamic.
 - `name` (String) Name of the Network.
 - `prefix_length` (Number) Subnet prefix length.
-  - Range: `29`-`32`
+  - Range: `27`-`32`
 - `status` (String) Status of the Network.
   - Choices: `OPEN`, `CLOSED`
 
