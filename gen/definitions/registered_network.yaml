@@ -1,6 +1,6 @@
 # Not tested
 ---
-name: Network
+name: Registered Network
 rest_endpoint: /deployments/v2/networks
 doc_category: Resources
 test_tags: ["TF_VAR_NETWORKS"]
@@ -29,7 +29,7 @@ attributes:
     example: 192.168.1.0
   - model_name: prefixLength
     type: Int64
-    min_int: 27
+    min_int: 16
     max_int: 32
     mandatory: true
     description: Subnet prefix length.

@@ -29,26 +29,26 @@ import (
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testAccDataSource
 
-func TestAccDataSourceSecureAccessNetwork(t *testing.T) {
+func TestAccDataSourceSecureAccessRegisteredNetwork(t *testing.T) {
 	if os.Getenv("TF_VAR_NETWORKS") == "" {
 		t.Skip("skipping test, set environment variable TF_VAR_NETWORKS")
 	}
 	var checks []resource.TestCheckFunc
-	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network.test", "name", "my_network"))
-	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network.test", "status", "OPEN"))
-	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network.test", "is_dynamic", "true"))
-	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network.test", "prefix", "192.168.1.0"))
-	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network.test", "prefix_length", "30"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_registered_network.test", "name", "my_network"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_registered_network.test", "status", "OPEN"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_registered_network.test", "is_dynamic", "true"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_registered_network.test", "prefix", "192.168.1.0"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_registered_network.test", "prefix_length", "30"))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDataSourceSecureAccessNetworkConfig(),
+				Config: testAccDataSourceSecureAccessRegisteredNetworkConfig(),
 				Check:  resource.ComposeTestCheckFunc(checks...),
 			},
 			{
-				Config: testAccNamedDataSourceSecureAccessNetworkConfig(),
+				Config: testAccNamedDataSourceSecureAccessRegisteredNetworkConfig(),
 				Check:  resource.ComposeTestCheckFunc(checks...),
 			},
 		},
@@ -62,8 +62,8 @@ func TestAccDataSourceSecureAccessNetwork(t *testing.T) {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testAccDataSourceConfig
 
-func testAccDataSourceSecureAccessNetworkConfig() string {
-	config := `resource "secureaccess_network" "test" {` + "\n"
+func testAccDataSourceSecureAccessRegisteredNetworkConfig() string {
+	config := `resource "secureaccess_registered_network" "test" {` + "\n"
 	config += `	name = "my_network"` + "\n"
 	config += `	status = "OPEN"` + "\n"
 	config += `	is_dynamic = true` + "\n"
@@ -72,15 +72,15 @@ func testAccDataSourceSecureAccessNetworkConfig() string {
 	config += `}` + "\n"
 
 	config += `
-		data "secureaccess_network" "test" {
-			id = secureaccess_network.test.id
+		data "secureaccess_registered_network" "test" {
+			id = secureaccess_registered_network.test.id
 		}
 	`
 	return config
 }
 
-func testAccNamedDataSourceSecureAccessNetworkConfig() string {
-	config := `resource "secureaccess_network" "test" {` + "\n"
+func testAccNamedDataSourceSecureAccessRegisteredNetworkConfig() string {
+	config := `resource "secureaccess_registered_network" "test" {` + "\n"
 	config += `	name = "my_network"` + "\n"
 	config += `	status = "OPEN"` + "\n"
 	config += `	is_dynamic = true` + "\n"
@@ -89,8 +89,8 @@ func testAccNamedDataSourceSecureAccessNetworkConfig() string {
 	config += `}` + "\n"
 
 	config += `
-		data "secureaccess_network" "test" {
-			name = secureaccess_network.test.name
+		data "secureaccess_registered_network" "test" {
+			name = secureaccess_registered_network.test.name
 		}
 	`
 	return config

@@ -29,29 +29,29 @@ import (
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testAcc
 
-func TestAccSecureAccessNetwork(t *testing.T) {
+func TestAccSecureAccessRegisteredNetwork(t *testing.T) {
 	if os.Getenv("TF_VAR_NETWORKS") == "" {
 		t.Skip("skipping test, set environment variable TF_VAR_NETWORKS")
 	}
 	var checks []resource.TestCheckFunc
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_network.test", "name", "my_network"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_network.test", "status", "OPEN"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_network.test", "is_dynamic", "true"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_network.test", "prefix", "192.168.1.0"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_network.test", "prefix_length", "30"))
+	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_registered_network.test", "name", "my_network"))
+	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_registered_network.test", "status", "OPEN"))
+	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_registered_network.test", "is_dynamic", "true"))
+	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_registered_network.test", "prefix", "192.168.1.0"))
+	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_registered_network.test", "prefix_length", "30"))
 
 	var steps []resource.TestStep
 	if os.Getenv("SKIP_MINIMUM_TEST") == "" {
 		steps = append(steps, resource.TestStep{
-			Config: testAccSecureAccessNetworkConfig_minimum(),
+			Config: testAccSecureAccessRegisteredNetworkConfig_minimum(),
 		})
 	}
 	steps = append(steps, resource.TestStep{
-		Config: testAccSecureAccessNetworkConfig_all(),
+		Config: testAccSecureAccessRegisteredNetworkConfig_all(),
 		Check:  resource.ComposeTestCheckFunc(checks...),
 	})
 	steps = append(steps, resource.TestStep{
-		ResourceName: "secureaccess_network.test",
+		ResourceName: "secureaccess_registered_network.test",
 		ImportState:  true,
 	})
 
@@ -69,8 +69,8 @@ func TestAccSecureAccessNetwork(t *testing.T) {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testAccConfigMinimal
 
-func testAccSecureAccessNetworkConfig_minimum() string {
-	config := `resource "secureaccess_network" "test" {` + "\n"
+func testAccSecureAccessRegisteredNetworkConfig_minimum() string {
+	config := `resource "secureaccess_registered_network" "test" {` + "\n"
 	config += `	name = "my_network"` + "\n"
 	config += `	status = "OPEN"` + "\n"
 	config += `	is_dynamic = true` + "\n"
@@ -83,8 +83,8 @@ func testAccSecureAccessNetworkConfig_minimum() string {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testAccConfigAll
 
-func testAccSecureAccessNetworkConfig_all() string {
-	config := `resource "secureaccess_network" "test" {` + "\n"
+func testAccSecureAccessRegisteredNetworkConfig_all() string {
+	config := `resource "secureaccess_registered_network" "test" {` + "\n"
 	config += `	name = "my_network"` + "\n"
 	config += `	status = "OPEN"` + "\n"
 	config += `	is_dynamic = true` + "\n"

@@ -1,4 +1,4 @@
-resource "secureaccess_network" "example" {
+resource "secureaccess_registered_network" "example" {
   name          = "my_network"
   status        = "OPEN"
   is_dynamic    = true

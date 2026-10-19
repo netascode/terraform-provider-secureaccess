@@ -40,26 +40,26 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ datasource.DataSource              = &NetworkDataSource{}
-	_ datasource.DataSourceWithConfigure = &NetworkDataSource{}
+	_ datasource.DataSource              = &RegisteredNetworkDataSource{}
+	_ datasource.DataSourceWithConfigure = &RegisteredNetworkDataSource{}
 )
 
-func NewNetworkDataSource() datasource.DataSource {
-	return &NetworkDataSource{}
+func NewRegisteredNetworkDataSource() datasource.DataSource {
+	return &RegisteredNetworkDataSource{}
 }
 
-type NetworkDataSource struct {
+type RegisteredNetworkDataSource struct {
 	client *secureaccess.Client
 }
 
-func (d *NetworkDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_network"
+func (d *RegisteredNetworkDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_registered_network"
 }
 
-func (d *NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *RegisteredNetworkDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This data source reads the Network.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This data source reads the Registered Network.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -91,7 +91,7 @@ func (d *NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 		},
 	}
 }
-func (d *NetworkDataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
+func (d *RegisteredNetworkDataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
 	return []datasource.ConfigValidator{
 		datasourcevalidator.ExactlyOneOf(
 			path.MatchRoot("id"),
@@ -100,7 +100,7 @@ func (d *NetworkDataSource) ConfigValidators(ctx context.Context) []datasource.C
 	}
 }
 
-func (d *NetworkDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
+func (d *RegisteredNetworkDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -112,8 +112,8 @@ func (d *NetworkDataSource) Configure(_ context.Context, req datasource.Configur
 
 // Section below is generated&owned by "gen/generator.go". //template:begin read
 
-func (d *NetworkDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var config Network
+func (d *RegisteredNetworkDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var config RegisteredNetwork
 
 	// Read config
 	diags := req.Config.Get(ctx, &config)

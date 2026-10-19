@@ -30,7 +30,7 @@ import (
 
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
-type Network struct {
+type RegisteredNetwork struct {
 	Id           types.String `tfsdk:"id"`
 	Name         types.String `tfsdk:"name"`
 	Status       types.String `tfsdk:"status"`
@@ -43,7 +43,7 @@ type Network struct {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin getPath
 
-func (data Network) getPath() string {
+func (data RegisteredNetwork) getPath() string {
 	return "/deployments/v2/networks"
 }
 
@@ -51,7 +51,7 @@ func (data Network) getPath() string {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin toBody
 
-func (data Network) toBody(ctx context.Context, state Network) string {
+func (data RegisteredNetwork) toBody(ctx context.Context, state RegisteredNetwork) string {
 	body := ""
 	if data.Id.ValueString() != "" {
 		body, _ = sjson.Set(body, "id", data.Id.ValueString())
@@ -78,7 +78,7 @@ func (data Network) toBody(ctx context.Context, state Network) string {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin fromBody
 
-func (data *Network) fromBody(ctx context.Context, res gjson.Result) {
+func (data *RegisteredNetwork) fromBody(ctx context.Context, res gjson.Result) {
 	if value := res.Get("name"); value.Exists() {
 		data.Name = types.StringValue(value.String())
 	} else {
@@ -114,7 +114,7 @@ func (data *Network) fromBody(ctx context.Context, res gjson.Result) {
 // uncouple the provider from the exact values that the backend API might summon to replace nulls. (Such behavior might
 // easily change across versions of the backend API.) For List/Set/Map attributes, the func only updates the
 // "managed" elements, instead of all elements.
-func (data *Network) fromBodyPartial(ctx context.Context, res gjson.Result) {
+func (data *RegisteredNetwork) fromBodyPartial(ctx context.Context, res gjson.Result) {
 	if value := res.Get("name"); value.Exists() && !data.Name.IsNull() {
 		data.Name = types.StringValue(value.String())
 	} else {
@@ -148,7 +148,7 @@ func (data *Network) fromBodyPartial(ctx context.Context, res gjson.Result) {
 
 // fromBodyUnknowns updates the Unknown Computed tfstate values from a JSON.
 // Known values are not changed (usual for Computed attributes with UseStateForUnknown or with Default).
-func (data *Network) fromBodyUnknowns(ctx context.Context, res gjson.Result) {
+func (data *RegisteredNetwork) fromBodyUnknowns(ctx context.Context, res gjson.Result) {
 }
 
 // End of section. //template:end fromBodyUnknowns
