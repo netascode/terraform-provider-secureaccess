@@ -590,7 +590,7 @@ func (r *{{camelCase .Name}}Resource) Create(ctx context.Context, req resource.C
 	{{- else}}
 	plan.Id = types.StringValue(res.Get("{{.ResourceIdModelName}}").String())
 	{{- end}}
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	{{- if hasResourceId .Attributes}}
 	res, err = r.client.Get(ctx, plan.getPath() + "/" + url.QueryEscape(plan.Id.ValueString()), reqMods...)
@@ -598,7 +598,7 @@ func (r *{{camelCase .Name}}Resource) Create(ctx context.Context, req resource.C
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object (GET), got error: %s, %s", err, res.String()))
 		return
 	}
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 	{{- end}}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
@@ -651,9 +651,9 @@ func (r *{{camelCase .Name}}Resource) Read(ctx context.Context, req resource.Rea
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res)
+		state.fromBody(ctx, res.Result)
 	} else {
-		state.fromBodyPartial(ctx, res)
+		state.fromBodyPartial(ctx, res.Result)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))
@@ -706,7 +706,7 @@ func (r *{{camelCase .Name}}Resource) Update(ctx context.Context, req resource.U
 	}
 
 	{{- if or (hasComputedRefreshValue .Attributes) (hasComputedDependsOn .Attributes)}}
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 	{{- end}}
 	{{- end}}
 

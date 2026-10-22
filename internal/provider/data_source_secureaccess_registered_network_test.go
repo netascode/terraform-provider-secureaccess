@@ -30,8 +30,8 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin testAccDataSource
 
 func TestAccDataSourceSecureAccessRegisteredNetwork(t *testing.T) {
-	if os.Getenv("TF_VAR_NETWORKS") == "" {
-		t.Skip("skipping test, set environment variable TF_VAR_NETWORKS")
+	if os.Getenv("TF_VAR_REGISTERED_NETWORK") == "" {
+		t.Skip("skipping test, set environment variable TF_VAR_REGISTERED_NETWORK")
 	}
 	var checks []resource.TestCheckFunc
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_registered_network.test", "name", "my_network"))

@@ -3,7 +3,7 @@
 name: Registered Network
 rest_endpoint: /deployments/v2/networks
 doc_category: Resources
-test_tags: ["TF_VAR_NETWORKS"]
+test_tags: ["TF_VAR_REGISTERED_NETWORK"]
 attributes:
   - model_name: name
     type: String

@@ -125,7 +125,7 @@ func (d *ServiceObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", config.Id.String()))
 
 	// Object found by a query attribute, it is not retrieved again by ID
-	var res gjson.Result
+	var res secureaccess.Res
 	if config.Id.IsNull() && !config.Name.IsNull() {
 		// Client handles pagination and returns all items merged into a single list
 		items, err := d.client.GetAll(ctx, config.getPath(), reqMods...)
@@ -140,7 +140,7 @@ func (d *ServiceObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 		items.ForEach(func(k, v gjson.Result) bool {
 			if config.Name.ValueString() == v.Get("name").String() {
 				config.Id = types.StringValue(v.Get("id").String())
-				res = v
+				res.Result = v
 				tflog.Debug(ctx, fmt.Sprintf("%s: Found object with name '%v', id: %v", config.Id.ValueString(), config.Name.ValueString(), config.Id.ValueString()))
 				return false
 			}
@@ -163,7 +163,7 @@ func (d *ServiceObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 		}
 	}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", config.Id.ValueString()))
 

@@ -198,7 +198,7 @@ func (r *RoamingComputerResource) Create(ctx context.Context, req resource.Creat
 
 	plan.Id = types.StringValue(res.Get("deviceId").String())
 
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
@@ -241,9 +241,9 @@ func (r *RoamingComputerResource) Read(ctx context.Context, req resource.ReadReq
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res)
+		state.fromBody(ctx, res.Result)
 	} else {
-		state.fromBodyPartial(ctx, res)
+		state.fromBodyPartial(ctx, res.Result)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))
@@ -278,7 +278,7 @@ func (r *RoamingComputerResource) Update(ctx context.Context, req resource.Updat
 
 	// Only the name can be updated, other changes (e.g. delete_on_destroy) are state only
 	urlPath := plan.getPath() + "/" + url.QueryEscape(plan.Id.ValueString())
-	var res gjson.Result
+	var res secureaccess.Res
 	var err error
 	if body := plan.toBodyPut(ctx, state); body != "" {
 		res, err = r.client.Put(ctx, urlPath, body, reqMods...)
@@ -293,7 +293,7 @@ func (r *RoamingComputerResource) Update(ctx context.Context, req resource.Updat
 			return
 		}
 	}
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
 
@@ -303,7 +303,7 @@ func (r *RoamingComputerResource) Update(ctx context.Context, req resource.Updat
 
 // getRoamingComputerByName retrieves the single Roaming Computer matching the name.
 // Returns an error if the lookup fails, or if no or multiple roaming computers match.
-func getRoamingComputerByName(ctx context.Context, client *secureaccess.Client, name string, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
+func getRoamingComputerByName(ctx context.Context, client *secureaccess.Client, name string, reqMods ...func(*secureaccess.Req)) (secureaccess.Res, error) {
 	// The name query parameter filters the list server side, a single page is sufficient
 	query := url.Values{}
 	query.Set("name", name)
@@ -322,12 +322,12 @@ func getRoamingComputerByName(ctx context.Context, client *secureaccess.Client, 
 		}
 	}
 	if len(matches) == 0 {
-		return gjson.Result{}, fmt.Errorf("Roaming Computer with name %s not found", name)
+		return secureaccess.Res{}, fmt.Errorf("Roaming Computer with name %s not found", name)
 	}
 	if len(matches) > 1 {
-		return gjson.Result{}, fmt.Errorf("multiple Roaming Computers with name %s found", name)
+		return secureaccess.Res{}, fmt.Errorf("multiple Roaming Computers with name %s found", name)
 	}
-	return matches[0], nil
+	return secureaccess.Res{Result: matches[0], StatusCode: res.StatusCode}, nil
 }
 
 func (r *RoamingComputerResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {

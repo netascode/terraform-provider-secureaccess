@@ -185,7 +185,7 @@ func (r *NetworkObjectGroupResource) Create(ctx context.Context, req resource.Cr
 		return
 	}
 	plan.Id = types.StringValue(res.Get("id").String())
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
@@ -230,9 +230,9 @@ func (r *NetworkObjectGroupResource) Read(ctx context.Context, req resource.Read
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res)
+		state.fromBody(ctx, res.Result)
 	} else {
-		state.fromBodyPartial(ctx, res)
+		state.fromBodyPartial(ctx, res.Result)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))
@@ -274,7 +274,7 @@ func (r *NetworkObjectGroupResource) Update(ctx context.Context, req resource.Up
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PUT), got error: %s, %s", err, res.String()))
 		return
 	}
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
 

@@ -157,7 +157,7 @@ func (r *AccessPolicySettingsResource) Create(ctx context.Context, req resource.
 		return
 	}
 	plan.Id = types.StringValue("access_policy_settings")
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
@@ -202,9 +202,9 @@ func (r *AccessPolicySettingsResource) Read(ctx context.Context, req resource.Re
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res)
+		state.fromBody(ctx, res.Result)
 	} else {
-		state.fromBodyPartial(ctx, res)
+		state.fromBodyPartial(ctx, res.Result)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))

@@ -149,7 +149,7 @@ func (d *ContentCategoryListsDataSource) Read(ctx context.Context, req datasourc
 		}
 	}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", "Content Category Lists"))
 

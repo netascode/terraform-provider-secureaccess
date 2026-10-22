@@ -125,15 +125,15 @@ func (d *DestinationListDataSource) Read(ctx context.Context, req datasource.Rea
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
 		return
 	}
-	res = res.Get("data")
+	resData := res.Get("data")
 
-	res, err = destinationListReadDestinations(ctx, d.client, config.Id.ValueString(), res, reqMods...)
+	resData, err = destinationListReadDestinations(ctx, d.client, config.Id.ValueString(), resData, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
 	}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, resData)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", config.Id.ValueString()))
 

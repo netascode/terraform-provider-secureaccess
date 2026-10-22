@@ -164,7 +164,7 @@ func (r *ResourceConnectorGroupResource) Create(ctx context.Context, req resourc
 		return
 	}
 	plan.Id = types.StringValue(res.Get("id").String())
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
@@ -209,9 +209,9 @@ func (r *ResourceConnectorGroupResource) Read(ctx context.Context, req resource.
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res)
+		state.fromBody(ctx, res.Result)
 	} else {
-		state.fromBodyPartial(ctx, res)
+		state.fromBodyPartial(ctx, res.Result)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))
@@ -252,7 +252,7 @@ func (r *ResourceConnectorGroupResource) Update(ctx context.Context, req resourc
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PUT), got error: %s, %s", err, res.String()))
 		return
 	}
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
 

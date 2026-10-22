@@ -150,7 +150,7 @@ func (r *SiteResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 	plan.Id = types.StringValue(res.Get("siteId").String())
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
@@ -195,9 +195,9 @@ func (r *SiteResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res)
+		state.fromBody(ctx, res.Result)
 	} else {
-		state.fromBodyPartial(ctx, res)
+		state.fromBodyPartial(ctx, res.Result)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))

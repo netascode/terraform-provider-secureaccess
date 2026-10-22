@@ -142,7 +142,7 @@ func (d *AccessPolicySettingsDataSource) Read(ctx context.Context, req datasourc
 		return
 	}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, res.Result)
 	config.Id = types.StringValue("access_policy_settings")
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", config.Id.ValueString()))

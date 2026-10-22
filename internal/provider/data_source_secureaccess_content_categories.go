@@ -141,7 +141,7 @@ func (d *ContentCategoriesDataSource) Read(ctx context.Context, req datasource.R
 		}
 	}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", "Content Categories"))
 

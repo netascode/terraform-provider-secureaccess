@@ -223,7 +223,7 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 	{{- if hasDataSourceQuery .Attributes }}
 
 	// Object found by a query attribute, it is not retrieved again by ID
-	var res gjson.Result
+	var res secureaccess.Res
 	{{- range $index, $dataSourceAttribute := $dataSourceAttributes }}
 	if config.Id.IsNull() && !config.{{toGoName $dataSourceAttribute.TfName}}.IsNull() {
 		// Client handles pagination and returns all items merged into a single list
@@ -243,7 +243,7 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 				{{- if eq $dataSourceAttribute.Type "Int64" -}}Int()
 				{{- else -}}String(){{- end -}} {
 				config.Id = types.StringValue(v.Get("{{$.ResourceIdModelName}}").String())
-				res = v
+				res.Result = v
 				tflog.Debug(ctx, fmt.Sprintf("%s: Found object with {{$dataSourceAttribute.TfName}} '%v', id: %v", config.Id.ValueString(), config.{{toGoName $dataSourceAttribute.TfName}}.{{if eq $dataSourceAttribute.Type "Int64"}}ValueInt64(){{else}}ValueString(){{end}}, config.Id.ValueString()))
 				return false
 			}
@@ -320,7 +320,7 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 	{{- end}}
 	{{- end}}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, res.Result)
 	{{- if .SettingsList}}
 	config.Id = types.StringValue("{{snakeCase .Name}}")
 	{{- end}}

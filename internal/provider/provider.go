@@ -261,7 +261,7 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 	))
 
 	// Create a new Secure Access client and set it to the provider client
-	var c secureaccess.Client
+	var c *secureaccess.Client
 
 	c, err = secureaccess.NewClient(
 		url,
@@ -281,7 +281,7 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 		return
 	}
 
-	data := SecureAccessProviderData{Client: &c}
+	data := SecureAccessProviderData{Client: c}
 	resp.DataSourceData = &data
 	resp.ResourceData = &data
 }

@@ -150,8 +150,8 @@ func (r *DestinationListResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	res = res.Get("data")
-	plan.Id = types.StringValue(res.Get("id").String())
+	resData := res.Get("data")
+	plan.Id = types.StringValue(resData.Get("id").String())
 
 	if err := r.createDestinations(ctx, plan.Id.ValueString(), plan.Destinations, reqMods...); err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
@@ -161,13 +161,13 @@ func (r *DestinationListResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	res, err = destinationListReadDestinations(ctx, r.client, plan.Id.ValueString(), res, reqMods...)
+	resData, err = destinationListReadDestinations(ctx, r.client, plan.Id.ValueString(), resData, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
 	}
 
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, resData)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
@@ -201,9 +201,9 @@ func (r *DestinationListResource) Read(ctx context.Context, req resource.ReadReq
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object (GET), got error: %s, %s", err, res.String()))
 		return
 	}
-	res = res.Get("data")
+	resData := res.Get("data")
 
-	res, err = destinationListReadDestinations(ctx, r.client, state.Id.ValueString(), res, reqMods...)
+	resData, err = destinationListReadDestinations(ctx, r.client, state.Id.ValueString(), resData, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
@@ -216,9 +216,9 @@ func (r *DestinationListResource) Read(ctx context.Context, req resource.ReadReq
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res)
+		state.fromBody(ctx, resData)
 	} else {
-		state.fromBodyPartial(ctx, res)
+		state.fromBodyPartial(ctx, resData)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))
