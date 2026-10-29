@@ -290,6 +290,7 @@ func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.
 	return []func() resource.Resource{
 		NewAccessPolicySettingsResource,
 		NewDestinationListResource,
+		NewDoNotDecryptListResource,
 		NewInternalDomainResource,
 		NewInternalNetworkResource,
 		NewNetworkResource,

@@ -1,0 +1,73 @@
+# Manual resource
+# -> toBody() on update: PUT takes `add*`/`remove*` lists instead of full lists, Update() builds them from state vs. plan
+# -> fromBody(), fromBodyPartial(): `decryptExceptionCategories` is a list of ids on write but a list of `{categoryId, name}` on read
+# APIBEHAVIOUR: GET does not return destinations and applications (only totals), they are tracked in the Terraform state
+# APIBEHAVIOUR: response JSON is not wrapped, list endpoint returns a bare array
+---
+name: Do Not Decrypt List
+rest_endpoint: /policies/v2/doNotDecryptLists
+doc_category: Resources
+no_data_source: true
+res_description: >-
+  This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list,
+  therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`.
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Do Not Decrypt List.
+    example: my_do_not_decrypt_list
+    string_max_length: 1024
+  - model_name: destinations
+    type: Set
+    description: Destinations (domain names, URLs or IP addresses) that are excluded from decryption. At most 500 destinations can be sent in a single request, larger lists are split automatically.
+    attributes:
+      - model_name: destination
+        type: String
+        description: The destination value (domain name, URL, IP address or CIDR block).
+        example: example.com
+        id: true
+        mandatory: true
+      - model_name: comment
+        type: String
+        description: Comment for the destination.
+        example: This is a comment for the destination.
+        string_min_length: 1
+        string_max_length: 255
+  - model_name: applications
+    type: Set
+    element_type: Int64
+    description: IDs of the applications that are excluded from decryption.
+    example: 101
+    exclude_test: true
+  - model_name: decryptExceptionCategories
+    tf_name: decrypt_exception_categories
+    type: Set
+    element_type: Int64
+    description: IDs of the content categories that are excluded from decryption.
+    example: 12
+    exclude_test: true
+  # RO
+  - model_name: isDefault
+    type: Bool
+    description: Specifies whether this is the default Do Not Decrypt List.
+    computed: true
+    exclude_test: true
+  - model_name: totalDomains
+    type: Int64
+    description: Number of domains in the Do Not Decrypt List.
+    computed: true
+    computed_refresh_value: true
+    exclude_test: true
+  - model_name: totalIps
+    type: Int64
+    description: Number of IP addresses in the Do Not Decrypt List.
+    computed: true
+    computed_refresh_value: true
+    exclude_test: true
+  - model_name: totalApplications
+    type: Int64
+    description: Number of applications in the Do Not Decrypt List.
+    computed: true
+    computed_refresh_value: true
+    exclude_test: true
