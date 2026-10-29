@@ -289,6 +289,7 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewAccessPolicySettingsResource,
+		NewApplicationListResource,
 		NewDestinationListResource,
 		NewDoNotDecryptListResource,
 		NewInternalDomainResource,
@@ -298,8 +299,13 @@ func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.
 		NewNetworkObjectGroupResource,
 		NewNetworkTunnelGroupResource,
 		NewPrivateResourceResource,
+		NewPrivateResourceGroupResource,
 		NewResourceConnectorResource,
 		NewResourceConnectorGroupResource,
+		NewRoamingComputerResource,
+		NewRoamingComputerWebSecurityOverrideResource,
+		NewServiceObjectResource,
+		NewServiceObjectGroupResource,
 		NewSiteResource,
 	}
 }
@@ -307,7 +313,14 @@ func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.
 func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewAccessPolicySettingsDataSource,
+		NewApplicationCategoriesDataSource,
+		NewApplicationListDataSource,
+		NewApplicationsDataSource,
+		NewContentCategoriesDataSource,
+		NewContentCategoryListDataSource,
+		NewContentCategoryListsDataSource,
 		NewDestinationListDataSource,
+		NewIdentitiesDataSource,
 		NewInternalDomainDataSource,
 		NewInternalNetworkDataSource,
 		NewNetworkDataSource,
@@ -315,8 +328,13 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewNetworkObjectGroupDataSource,
 		NewNetworkTunnelGroupDataSource,
 		NewPrivateResourceDataSource,
+		NewPrivateResourceGroupDataSource,
 		NewResourceConnectorDataSource,
 		NewResourceConnectorGroupDataSource,
+		NewResourceConnectorGroupsDataSource,
+		NewRoamingComputerDataSource,
+		NewServiceObjectDataSource,
+		NewServiceObjectGroupDataSource,
 		NewSiteDataSource,
 	}
 }

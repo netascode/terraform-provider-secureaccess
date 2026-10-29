@@ -9,6 +9,7 @@ attributes:
     mandatory: true
     description: Name of the Resource Connector Group.
     example: my resource connector group
+    data_source_query: true
   - model_name: location
     tf_name: region
     type: String
@@ -40,4 +41,43 @@ attributes:
   #       mandatory: true
   #       description: The resource ID of the DNS server.
   #       example: 123456
-    
+  - model_name: provisioningKeyExpiresAt
+    type: String
+    computed: true
+    computed_refresh_value: true
+    description: The expiration date and time of the Resource Connector Group's provisioning key.
+  - model_name: status
+    type: String
+    computed: true
+    computed_refresh_value: true
+    description: The label that describes the status of the Resource Connector Group.
+  - model_name: connectorsCount
+    type: Int64
+    computed: true
+    computed_refresh_value: true
+    description: The number of connectors in the Resource Connector Group.
+  - model_name: connectedConnectorsCount
+    type: Int64
+    computed: true
+    computed_refresh_value: true
+    description: The number of Connectors in the Resource Connector Group that are connected.  
+  - model_name: disconnectedConnectorsCount
+    type: Int64
+    computed: true
+    computed_refresh_value: true
+    description: The number of Connectors in the Resource Connector Group that are disconnected.
+  - model_name: unableToSyncConnectorsCount
+    type: Int64
+    computed: true
+    computed_refresh_value: true
+    description: The number of Connectors in the Resource Connector Group that are unable to sync.
+  - model_name: needUpdateConnectorsCount
+    type: Int64
+    computed: true
+    computed_refresh_value: true
+    description: The number of Connectors in the Resource Connector Group that need an update.
+  - model_name: failedUpdateAgentsAttempts
+    type: Int64
+    computed: true
+    computed_refresh_value: true
+    description: The number of Connectors in the Resource Connector Group that failed to update their agents.

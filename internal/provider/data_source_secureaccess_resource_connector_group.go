@@ -23,11 +23,15 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/datasourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
+	"github.com/tidwall/gjson"
 )
 
 // End of section. //template:end imports
@@ -60,10 +64,12 @@ func (d *ResourceConnectorGroupDataSource) Schema(ctx context.Context, req datas
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "Id of the object",
-				Required:            true,
+				Optional:            true,
+				Computed:            true,
 			},
 			"name": schema.StringAttribute{
 				MarkdownDescription: "Name of the Resource Connector Group.",
+				Optional:            true,
 				Computed:            true,
 			},
 			"region": schema.StringAttribute{
@@ -74,7 +80,47 @@ func (d *ResourceConnectorGroupDataSource) Schema(ctx context.Context, req datas
 				MarkdownDescription: "Environment in which agents will be deployed.",
 				Computed:            true,
 			},
+			"provisioning_key_expires_at": schema.StringAttribute{
+				MarkdownDescription: "The expiration date and time of the Resource Connector Group's provisioning key.",
+				Computed:            true,
+			},
+			"status": schema.StringAttribute{
+				MarkdownDescription: "The label that describes the status of the Resource Connector Group.",
+				Computed:            true,
+			},
+			"connectors_count": schema.Int64Attribute{
+				MarkdownDescription: "The number of connectors in the Resource Connector Group.",
+				Computed:            true,
+			},
+			"connected_connectors_count": schema.Int64Attribute{
+				MarkdownDescription: "The number of Connectors in the Resource Connector Group that are connected.",
+				Computed:            true,
+			},
+			"disconnected_connectors_count": schema.Int64Attribute{
+				MarkdownDescription: "The number of Connectors in the Resource Connector Group that are disconnected.",
+				Computed:            true,
+			},
+			"unable_to_sync_connectors_count": schema.Int64Attribute{
+				MarkdownDescription: "The number of Connectors in the Resource Connector Group that are unable to sync.",
+				Computed:            true,
+			},
+			"need_update_connectors_count": schema.Int64Attribute{
+				MarkdownDescription: "The number of Connectors in the Resource Connector Group that need an update.",
+				Computed:            true,
+			},
+			"failed_update_agents_attempts": schema.Int64Attribute{
+				MarkdownDescription: "The number of Connectors in the Resource Connector Group that failed to update their agents.",
+				Computed:            true,
+			},
 		},
+	}
+}
+func (d *ResourceConnectorGroupDataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
+	return []datasource.ConfigValidator{
+		datasourcevalidator.ExactlyOneOf(
+			path.MatchRoot("id"),
+			path.MatchRoot("name"),
+		),
 	}
 }
 
@@ -105,11 +151,43 @@ func (d *ResourceConnectorGroupDataSource) Read(ctx context.Context, req datasou
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", config.Id.String()))
 
-	urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
-	res, err := d.client.Get(ctx, urlPath, reqMods...)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
-		return
+	// Object found by a query attribute, it is not retrieved again by ID
+	var res gjson.Result
+	if config.Id.IsNull() && !config.Name.IsNull() {
+		// Client handles pagination and returns all items merged into a single list
+		items, err := d.client.GetAll(ctx, config.getPath(), reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, got error: %s", err))
+			return
+		}
+		if !items.IsArray() {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, expected a list, got: %s", items.Type))
+			return
+		}
+		items.ForEach(func(k, v gjson.Result) bool {
+			if config.Name.ValueString() == v.Get("name").String() {
+				config.Id = types.StringValue(v.Get("id").String())
+				res = v
+				tflog.Debug(ctx, fmt.Sprintf("%s: Found object with name '%v', id: %v", config.Id.ValueString(), config.Name.ValueString(), config.Id.ValueString()))
+				return false
+			}
+			return true
+		})
+
+		if config.Id.IsNull() {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to find object with name: %v", config.Name.ValueString()))
+			return
+		}
+	}
+
+	if !res.Exists() {
+		urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
+		var err error
+		res, err = d.client.Get(ctx, urlPath, reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
+			return
+		}
 	}
 
 	config.fromBody(ctx, res)

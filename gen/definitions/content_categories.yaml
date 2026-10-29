@@ -1,0 +1,33 @@
+---
+name: Content Categories
+rest_endpoint: /policies/v2/categories
+doc_category: Resources
+no_resource: true
+no_import: true
+no_id: true
+is_bulk: true
+ds_description: >-
+  This resource reads Content Categories.\n
+  If `items` is empty, all Content Categories are returned, otherwise only the listed ones.\n
+  If `filter` is provided, only Content Categories matching the filter are returned.
+attributes:
+  - model_name: filter
+    tf_only: true
+    type: String
+    data_source_optional_parameter: true
+    description: Case-insensitive substring used to filter content category lists by name.
+    exclude_example: true
+    exclude_test: true
+  - tf_name: items
+    type: Map
+    description: >-
+      Map of Content Categories. The key of the map is the name of the individual Content Category.
+    map_key_example: Animals and Pets
+    attributes:
+      - model_name: categoryId
+        tf_name: id
+        type: String
+        resource_id: true
+        description: Id of the Content Category.
+        exclude_example: true
+        exclude_test: true

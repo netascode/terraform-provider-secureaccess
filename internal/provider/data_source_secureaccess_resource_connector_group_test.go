@@ -33,12 +33,24 @@ func TestAccDataSourceSecureAccessResourceConnectorGroup(t *testing.T) {
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_resource_connector_group.test", "name", "my resource connector group"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_resource_connector_group.test", "region", "us-west-2"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_resource_connector_group.test", "environment", "container"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_resource_connector_group.test", "provisioning_key_expires_at"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_resource_connector_group.test", "status"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_resource_connector_group.test", "connectors_count"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_resource_connector_group.test", "connected_connectors_count"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_resource_connector_group.test", "disconnected_connectors_count"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_resource_connector_group.test", "unable_to_sync_connectors_count"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_resource_connector_group.test", "need_update_connectors_count"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_resource_connector_group.test", "failed_update_agents_attempts"))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceSecureAccessResourceConnectorGroupConfig(),
+				Check:  resource.ComposeTestCheckFunc(checks...),
+			},
+			{
+				Config: testAccNamedDataSourceSecureAccessResourceConnectorGroupConfig(),
 				Check:  resource.ComposeTestCheckFunc(checks...),
 			},
 		},
@@ -62,6 +74,21 @@ func testAccDataSourceSecureAccessResourceConnectorGroupConfig() string {
 	config += `
 		data "secureaccess_resource_connector_group" "test" {
 			id = secureaccess_resource_connector_group.test.id
+		}
+	`
+	return config
+}
+
+func testAccNamedDataSourceSecureAccessResourceConnectorGroupConfig() string {
+	config := `resource "secureaccess_resource_connector_group" "test" {` + "\n"
+	config += `	name = "my resource connector group"` + "\n"
+	config += `	region = "us-west-2"` + "\n"
+	config += `	environment = "container"` + "\n"
+	config += `}` + "\n"
+
+	config += `
+		data "secureaccess_resource_connector_group" "test" {
+			name = secureaccess_resource_connector_group.test.name
 		}
 	`
 	return config

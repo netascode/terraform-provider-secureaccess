@@ -1,0 +1,82 @@
+# Manual resource
+# Create(), Update(), Delete()
+# Manual data source
+# Read()
+# APIBEHAVIOUR: page/limit pagination with plain array response, not supported by the client paginators
+---
+name: Roaming Computer
+rest_endpoint: /deployments/v2/roamingcomputers
+doc_category: Resources
+resource_id_model_name: deviceId
+res_description: >-
+  This resource manages a Roaming Computer, which is previously registered with Cisco Secure Access outside of Terraform.\n
+  Implicit import of the resource will be performed based on the `name` attribute.
+skip_minimum_test: true
+test_tags: ["TF_VAR_roaming_computer_name"]
+no_import: true
+attributes:
+  - model_name: name
+    type: String
+    description: The name of the Roaming Computer. Used to find the Roaming Computer on create, a later change renames it.
+    mandatory: true
+    data_source_query: true
+    string_min_length: 1
+    string_max_length: 50
+    test_value: var.roaming_computer_name
+    example: roaming-computer-one
+  - model_name: deviceId
+    type: String
+    description: The hex ID of the Roaming Computer.
+    computed: true
+  - model_name: anyconnectDeviceId
+    type: String
+    description: The ID of the device that has the Cisco Secure Client deployed with the Internet Security module.
+    computed: true
+  - model_name: originId
+    type: Int64
+    description: The origin ID of the Roaming Computer.
+    computed: true
+  - model_name: appliedBundle
+    type: Int64
+    description: The ID of the policy applied to the Roaming Computer.
+    computed: true
+  - model_name: type
+    type: String
+    description: The type of the Roaming Computer.
+    computed: true
+  - model_name: osVersion
+    type: String
+    description: The OS version of the Roaming Computer.
+    computed: true
+  - model_name: osVersionName
+    type: String
+    description: The OS version name of the Roaming Computer.
+    computed: true
+  - model_name: hasIpBlocking
+    type: Bool
+    description: Specifies whether the Roaming Computer has IP blocking.
+    computed: true
+  - model_name: status
+    type: String
+    description: The status of the Roaming Computer with DNS-layer security.
+    computed: true
+  - model_name: swgStatus
+    tf_name: secure_web_gateway_status
+    type: String
+    description: The status of the Roaming Computer with Internet security (Secure Web Gateway).
+    computed: true
+  - model_name: version
+    tf_name: secure_client_version
+    type: String
+    description: The version of the Roaming Computer client.
+    computed: true
+    computed_refresh_value: true
+  - tf_name: delete_on_destroy
+    type: Bool
+    tf_only: true
+    description: When `true`, the Roaming Computer is removed from Secure Access on destroy. When `false`, it is only removed from the Terraform state.
+    default_value: false
+    example: false
+
+test_prerequisites: |-
+  variable "roaming_computer_name" { default = null } // tests will set $TF_VAR_ROAMING_COMPUTER_NAME

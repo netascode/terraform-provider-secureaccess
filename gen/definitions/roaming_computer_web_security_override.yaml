@@ -1,0 +1,38 @@
+# Manual resource
+# ConfigValidators(), ValidateConfig(), Create(), Read(), Update(), Delete()
+# Manual model
+# toBody/fromBody replaced by toBodyOriginIds(), toBodySet(), fromBody() and helpers
+# APIBEHAVIOUR: settings are managed per origin ID via POST /set, /list and /remove, there is no object ID
+---
+name: Roaming Computer Web Security Override
+rest_endpoint: /deployments/v2/deviceSettings/SWGEnabled
+doc_category: Resources
+res_description: >-
+  This resource manages Secure Web Gateway override settings of Roaming Computers.\n
+  Roaming Computers are referenced by their origin ID. Only the listed Roaming Computers are managed, on destroy their override setting is removed.
+skip_minimum_test: true
+test_tags: ["TF_VAR_roaming_computer_name"]
+no_data_source: true
+no_import: true
+no_id: true
+attributes:
+  - tf_name: enabled_origin_ids
+    tf_only: true
+    type: List
+    element_type: Int64
+    description: The list of Roaming Computer origin IDs with Secure Web Gateway always enabled.
+    example: 123456789
+    test_value: "[data.secureaccess_roaming_computer.test.origin_id]"
+  - tf_name: disabled_origin_ids
+    tf_only: true
+    type: List
+    element_type: Int64
+    description: The list of Roaming Computer origin IDs with Secure Web Gateway always disabled.
+    example: 987654321
+    exclude_test: true
+
+test_prerequisites: |-
+  variable "roaming_computer_name" { default = null } // tests will set $TF_VAR_ROAMING_COMPUTER_NAME
+  data "secureaccess_roaming_computer" "test" {
+    name = var.roaming_computer_name
+  }

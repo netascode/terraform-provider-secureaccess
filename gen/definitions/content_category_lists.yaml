@@ -1,0 +1,40 @@
+---
+name: Content Category Lists
+rest_endpoint: /policies/v2/categorySettings
+doc_category: Resources
+no_resource: true
+no_import: true
+no_id: true
+is_bulk: true
+ds_description: >-
+  This resource reads Content Category Lists.\n
+  If `items` is empty, all Content Category Lists are returned, otherwise only the listed ones.\n
+  If `filter` is provided, only Content Category Lists matching the filter are returned.
+attributes:
+  - model_name: filter
+    tf_only: true
+    type: String
+    data_source_optional_parameter: true
+    description: Case-insensitive substring used to filter content category lists by name.
+    exclude_example: true
+    exclude_test: true
+  - tf_name: items
+    type: Map
+    description: >-
+      Map of Content Category Lists. The key of the map is the name of the individual Content Category List.
+    map_key_example: My Content Category List
+    attributes:
+      - model_name: id
+        type: String
+        resource_id: true
+        description: Id of the Content Category List.
+        exclude_example: true
+        exclude_test: true
+      - model_name: type
+        type: String
+        description: Type of the Content Category List
+        example: mixed
+      - model_name: isDefault
+        type: Bool
+        description: Indicates if the Content Category List is the default one
+        example: false

@@ -122,51 +122,29 @@ func (d *NetworkObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 	reqMods := [](func(*secureaccess.Req)){}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", config.Id.String()))
+
+	// Object found by a query attribute, it is not retrieved again by ID
+	var res gjson.Result
 	if config.Id.IsNull() && !config.Name.IsNull() {
-		offset := 0
-		limit := 100
-		for page := 1; ; page++ {
-			queryString := fmt.Sprintf("?limit=%d&offset=%d", limit, offset)
-			res, err := d.client.Get(ctx, config.getPath()+queryString, reqMods...)
-			if err != nil {
-				resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, got error: %s", err))
-				return
-			}
-			if value := res.Get("results"); len(value.Array()) > 0 {
-				value.ForEach(func(k, v gjson.Result) bool {
-					if config.Name.ValueString() == v.Get("name").String() {
-						config.Id = types.StringValue(v.Get("id").String())
-						tflog.Debug(ctx, fmt.Sprintf("%s: Found object with name '%v', id: %v", config.Id.ValueString(), config.Name.ValueString(), config.Id.ValueString()))
-						return false
-					}
-					return true
-				})
-			}
-
-			if !config.Id.IsNull() {
-				break
-			}
-
-			resCount := res.Get("count")
-			resLimit := res.Get("limit")
-
-			// Pagination data not available, return the raw data as is
-			if !resCount.Exists() || !resLimit.Exists() {
-				break
-			}
-
-			// All items are already returned in a single response, return the raw data as is
-			if resCount.Int() <= resLimit.Int() {
-				break
-			}
-
-			// If there are no more pages, stop reading
-			if resCount.Int() <= int64(offset+limit) {
-				break
-			}
-
-			offset += limit
+		// Client handles pagination and returns all items merged into a single list
+		items, err := d.client.GetAll(ctx, config.getPath(), reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, got error: %s", err))
+			return
 		}
+		if !items.IsArray() {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, expected a list, got: %s", items.Type))
+			return
+		}
+		items.ForEach(func(k, v gjson.Result) bool {
+			if config.Name.ValueString() == v.Get("name").String() {
+				config.Id = types.StringValue(v.Get("id").String())
+				res = v
+				tflog.Debug(ctx, fmt.Sprintf("%s: Found object with name '%v', id: %v", config.Id.ValueString(), config.Name.ValueString(), config.Id.ValueString()))
+				return false
+			}
+			return true
+		})
 
 		if config.Id.IsNull() {
 			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to find object with name: %v", config.Name.ValueString()))
@@ -174,11 +152,14 @@ func (d *NetworkObjectDataSource) Read(ctx context.Context, req datasource.ReadR
 		}
 	}
 
-	urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
-	res, err := d.client.Get(ctx, urlPath, reqMods...)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
-		return
+	if !res.Exists() {
+		urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
+		var err error
+		res, err = d.client.Get(ctx, urlPath, reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
+			return
+		}
 	}
 
 	config.fromBody(ctx, res)

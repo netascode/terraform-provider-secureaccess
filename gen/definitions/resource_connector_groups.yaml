@@ -1,0 +1,103 @@
+---
+name: Resource Connector Groups
+rest_endpoint: /deployments/v2/connectorGroups
+doc_category: Connect
+no_resource: true
+no_import: true
+no_id: true
+is_bulk: true
+ds_description: >-
+  This resource reads Resource Connector Groups.\n
+  If `items` is empty, all Resource Connector Groups are returned, otherwise only the listed ones.\n
+  If `filter` is provided, only Resource Connector Groups matching the filter are returned.
+attributes:
+  - model_name: filter
+    tf_only: true
+    type: String
+    data_source_optional_parameter: true
+    description: Case-insensitive substring used to filter resource connector groups by name.
+    exclude_example: true
+    exclude_test: true
+  - tf_name: items
+    type: Map
+    description: >-
+      Map of Resource Connector Groups. The key of the map is the name of the individual Resource Connector Group.
+    map_key_example: My Resource Connector Group
+    attributes:
+      - model_name: id
+        type: String
+        resource_id: true
+        description: Id of the Resource Connector Group.
+        exclude_example: true
+        exclude_test: true
+      - model_name: location
+        tf_name: region
+        type: String
+        mandatory: true
+        description: The region where to deploy Resource Connector Group on Cisco Secure Access.
+        requires_replace: true
+        example: us-west-2
+      - model_name: environment
+        type: String
+        mandatory: true
+        requires_replace: true
+        description: Environment in which agents will be deployed.
+        enum_values: ["aws", "azure", "container", "esx"]
+        example: container
+      # - model_name: forwardDNS
+      #   tf_name: dns_servers
+      #   type: String
+      #   mandatory: true
+      #   description: Use alternate DNS servers to resolve private resources based on domain.
+      #   attributes:
+      #     - model_name: domains
+      #       type: String
+      #       mandatory: true
+      #       description: A comma-separated list of domains.
+      #       example: example.com,example.org
+      #     - model_name: dnsResourceId
+      #       tf_name: dns_server_id
+      #       type: Int64
+      #       mandatory: true
+      #       description: The resource ID of the DNS server.
+      #       example: 123456
+      - model_name: provisioningKeyExpiresAt
+        type: String
+        computed: true
+        computed_refresh_value: true
+        description: The expiration date and time of the Resource Connector Group's provisioning key.
+      - model_name: status
+        type: String
+        computed: true
+        computed_refresh_value: true
+        description: The label that describes the status of the Resource Connector Group.
+      - model_name: connectorsCount
+        type: Int64
+        computed: true
+        computed_refresh_value: true
+        description: The number of connectors in the Resource Connector Group.
+      - model_name: connectedConnectorsCount
+        type: Int64
+        computed: true
+        computed_refresh_value: true
+        description: The number of Connectors in the Resource Connector Group that are connected.  
+      - model_name: disconnectedConnectorsCount
+        type: Int64
+        computed: true
+        computed_refresh_value: true
+        description: The number of Connectors in the Resource Connector Group that are disconnected.
+      - model_name: unableToSyncConnectorsCount
+        type: Int64
+        computed: true
+        computed_refresh_value: true
+        description: The number of Connectors in the Resource Connector Group that are unable to sync.
+      - model_name: needUpdateConnectorsCount
+        type: Int64
+        computed: true
+        computed_refresh_value: true
+        description: The number of Connectors in the Resource Connector Group that need an update.
+      - model_name: failedUpdateAgentsAttempts
+        type: Int64
+        computed: true
+        computed_refresh_value: true
+        description: The number of Connectors in the Resource Connector Group that failed to update their agents.

@@ -23,6 +23,7 @@ deprecation_message: str(required=False) # Message to be displayed in the docume
 no_id: bool(required=False) # Set to true if the resource does not have an ID.
 delay_on_delete: int(required=False) # Number of seconds to wait after a DELETE request before considering the resource deleted
 resource_id_model_name: str(required=False) # Name of the model attribute that represents the resource ID
+is_bulk: bool(required=False) # Set to true if the data source reads all objects from `rest_endpoint` in a single GET and exposes them as an `items` map keyed by object `name`. If `items` is empty in the config, all objects are read, otherwise only the listed ones. An optional tf_only `filter` attribute (case-insensitive substring of the name) narrows the result in both cases.
 settings_list: bool(required=False) # Set to true if the endpoint is a singleton list of `{settingName, settingValue}` pairs. Create and Update send a PUT of the list to `rest_endpoint`, Read does a GET of `rest_endpoint`, Delete only removes the resource from state. Attributes are mapped via `setting_name`.
 ---
 attribute:
@@ -59,6 +60,7 @@ attribute:
   computed: bool(required=False) # Defines field as read-only (computed) with value derived from the API
   optional: bool(required=False) # Set to true to keep the attribute user-settable while `computed: true` lets the API own the value when it is not configured. Needs to be used in conjunction with `computed`
   computed_refresh_value: bool(required=False) # Set to true if the computed value should be refreshed on every update (no UseStateForUnknown). Needs to be used in conjunction with `computed`
+  lowercase_response: bool(required=False) # Set to true if the API returns the value in different case (e.g. `TCP` instead of `tcp`). The value read from the API response is converted to lowercase. Only relevant if type is "String"
   computed_body_param: bool(required=False) # Set to true if the computed value should be included in the PUT payload
   computed_depends_on: list(str(), required=False) # Only for computed only nested List: names of top level String attributes; the list keeps its state value unless one of them changes, then it becomes `known after apply`
   default_value: any(str(), int(), bool(), required=False) # Default value for the attribute

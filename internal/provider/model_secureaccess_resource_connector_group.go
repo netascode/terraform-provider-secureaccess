@@ -31,10 +31,18 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
 type ResourceConnectorGroup struct {
-	Id          types.String `tfsdk:"id"`
-	Name        types.String `tfsdk:"name"`
-	Region      types.String `tfsdk:"region"`
-	Environment types.String `tfsdk:"environment"`
+	Id                          types.String `tfsdk:"id"`
+	Name                        types.String `tfsdk:"name"`
+	Region                      types.String `tfsdk:"region"`
+	Environment                 types.String `tfsdk:"environment"`
+	ProvisioningKeyExpiresAt    types.String `tfsdk:"provisioning_key_expires_at"`
+	Status                      types.String `tfsdk:"status"`
+	ConnectorsCount             types.Int64  `tfsdk:"connectors_count"`
+	ConnectedConnectorsCount    types.Int64  `tfsdk:"connected_connectors_count"`
+	DisconnectedConnectorsCount types.Int64  `tfsdk:"disconnected_connectors_count"`
+	UnableToSyncConnectorsCount types.Int64  `tfsdk:"unable_to_sync_connectors_count"`
+	NeedUpdateConnectorsCount   types.Int64  `tfsdk:"need_update_connectors_count"`
+	FailedUpdateAgentsAttempts  types.Int64  `tfsdk:"failed_update_agents_attempts"`
 }
 
 // End of section. //template:end types
@@ -86,6 +94,46 @@ func (data *ResourceConnectorGroup) fromBody(ctx context.Context, res gjson.Resu
 	} else {
 		data.Environment = types.StringNull()
 	}
+	if value := res.Get("provisioningKeyExpiresAt"); value.Exists() {
+		data.ProvisioningKeyExpiresAt = types.StringValue(value.String())
+	} else {
+		data.ProvisioningKeyExpiresAt = types.StringNull()
+	}
+	if value := res.Get("status"); value.Exists() {
+		data.Status = types.StringValue(value.String())
+	} else {
+		data.Status = types.StringNull()
+	}
+	if value := res.Get("connectorsCount"); value.Exists() {
+		data.ConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.ConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("connectedConnectorsCount"); value.Exists() {
+		data.ConnectedConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.ConnectedConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("disconnectedConnectorsCount"); value.Exists() {
+		data.DisconnectedConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.DisconnectedConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("unableToSyncConnectorsCount"); value.Exists() {
+		data.UnableToSyncConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.UnableToSyncConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("needUpdateConnectorsCount"); value.Exists() {
+		data.NeedUpdateConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.NeedUpdateConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("failedUpdateAgentsAttempts"); value.Exists() {
+		data.FailedUpdateAgentsAttempts = types.Int64Value(value.Int())
+	} else {
+		data.FailedUpdateAgentsAttempts = types.Int64Null()
+	}
 }
 
 // End of section. //template:end fromBody
@@ -112,6 +160,46 @@ func (data *ResourceConnectorGroup) fromBodyPartial(ctx context.Context, res gjs
 	} else {
 		data.Environment = types.StringNull()
 	}
+	if value := res.Get("provisioningKeyExpiresAt"); value.Exists() {
+		data.ProvisioningKeyExpiresAt = types.StringValue(value.String())
+	} else {
+		data.ProvisioningKeyExpiresAt = types.StringNull()
+	}
+	if value := res.Get("status"); value.Exists() {
+		data.Status = types.StringValue(value.String())
+	} else {
+		data.Status = types.StringNull()
+	}
+	if value := res.Get("connectorsCount"); value.Exists() {
+		data.ConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.ConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("connectedConnectorsCount"); value.Exists() {
+		data.ConnectedConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.ConnectedConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("disconnectedConnectorsCount"); value.Exists() {
+		data.DisconnectedConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.DisconnectedConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("unableToSyncConnectorsCount"); value.Exists() {
+		data.UnableToSyncConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.UnableToSyncConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("needUpdateConnectorsCount"); value.Exists() {
+		data.NeedUpdateConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.NeedUpdateConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("failedUpdateAgentsAttempts"); value.Exists() {
+		data.FailedUpdateAgentsAttempts = types.Int64Value(value.Int())
+	} else {
+		data.FailedUpdateAgentsAttempts = types.Int64Null()
+	}
 }
 
 // End of section. //template:end fromBodyPartial
@@ -121,6 +209,46 @@ func (data *ResourceConnectorGroup) fromBodyPartial(ctx context.Context, res gjs
 // fromBodyUnknowns updates the Unknown Computed tfstate values from a JSON.
 // Known values are not changed (usual for Computed attributes with UseStateForUnknown or with Default).
 func (data *ResourceConnectorGroup) fromBodyUnknowns(ctx context.Context, res gjson.Result) {
+	if value := res.Get("provisioningKeyExpiresAt"); value.Exists() {
+		data.ProvisioningKeyExpiresAt = types.StringValue(value.String())
+	} else {
+		data.ProvisioningKeyExpiresAt = types.StringNull()
+	}
+	if value := res.Get("status"); value.Exists() {
+		data.Status = types.StringValue(value.String())
+	} else {
+		data.Status = types.StringNull()
+	}
+	if value := res.Get("connectorsCount"); value.Exists() {
+		data.ConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.ConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("connectedConnectorsCount"); value.Exists() {
+		data.ConnectedConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.ConnectedConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("disconnectedConnectorsCount"); value.Exists() {
+		data.DisconnectedConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.DisconnectedConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("unableToSyncConnectorsCount"); value.Exists() {
+		data.UnableToSyncConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.UnableToSyncConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("needUpdateConnectorsCount"); value.Exists() {
+		data.NeedUpdateConnectorsCount = types.Int64Value(value.Int())
+	} else {
+		data.NeedUpdateConnectorsCount = types.Int64Null()
+	}
+	if value := res.Get("failedUpdateAgentsAttempts"); value.Exists() {
+		data.FailedUpdateAgentsAttempts = types.Int64Value(value.Int())
+	} else {
+		data.FailedUpdateAgentsAttempts = types.Int64Null()
+	}
 }
 
 // End of section. //template:end fromBodyUnknowns

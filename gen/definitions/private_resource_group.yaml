@@ -1,0 +1,50 @@
+---
+name: Private Resource Group
+rest_endpoint: /policies/v2/privateResourceGroups
+doc_category: Resources
+resource_id_model_name: resourceGroupId
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Private Resource Group. The name must not have any special characters other than spaces and hyphens.
+    example: my private resource group
+    string_min_length: 1
+    string_max_length: 100
+    string_patterns: ["^[a-zA-Z0-9 -]+$"]
+    data_source_query: true
+  - model_name: description
+    type: String
+    description: Description of the Private Resource Group.
+    example: This is my private resource group
+    string_max_length: 255
+  - model_name: resourceIds
+    tf_name: private_resource_ids
+    type: Set
+    element_type: Int64
+    mandatory: true
+    description: The list of IDs of the Private Resources that belong to the group.
+    example: "123456"
+    test_value: "[secureaccess_private_resource.test.id]"
+
+test_prerequisites: |-
+  resource "secureaccess_private_resource" "test" {
+    name = "my private resource group"
+    endpoint_connection_methods = [
+      {
+        type                       = "client"
+        client_reachable_addresses = ["192.168.1.0/24"]
+      }
+    ]
+    addresses = [
+      {
+        addresses = ["192.168.1.0/24"]
+        protocols_and_ports = [
+          {
+            protocol = "http/https"
+            ports    = "443"
+          }
+        ]
+      }
+    ]
+  }

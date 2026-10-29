@@ -120,6 +120,7 @@ type YamlConfig struct {
 	DelayOnDelete       int                   `yaml:"delay_on_delete"`
 	ResourceIdModelName string                `yaml:"resource_id_model_name"`
 	SettingsList        bool                  `yaml:"settings_list"`
+	IsBulk              bool                  `yaml:"is_bulk"`
 }
 
 type YamlConfigAttribute struct {
@@ -156,6 +157,7 @@ type YamlConfigAttribute struct {
 	Computed                    bool                  `yaml:"computed"`
 	Optional                    bool                  `yaml:"optional"`
 	ComputedRefreshValue        bool                  `yaml:"computed_refresh_value"`
+	LowercaseResponse           bool                  `yaml:"lowercase_response"`
 	ComputedBodyParam           bool                  `yaml:"computed_body_param"`
 	ComputedDependsOn           []string              `yaml:"computed_depends_on"`
 	DefaultValue                string                `yaml:"default_value"`
@@ -547,6 +549,10 @@ func (attr *YamlConfigAttribute) init(parentGoTypeName string) error {
 			attr.TfName)
 	}
 
+	if attr.LowercaseResponse && attr.Type != "String" {
+		return fmt.Errorf("%q: `lowercase_response: true` can only be used with `type: String`", attr.TfName)
+	}
+
 	if attr.ComputedRefreshValue && !attr.Computed {
 		return fmt.Errorf("%q: `computed_refresh_value: true` can only be used with `computed: true`", attr.TfName)
 	}
@@ -611,6 +617,26 @@ func validateSettingsList(config YamlConfig) error {
 	return nil
 }
 
+// validateBulk checks that an `is_bulk` definition only uses features supported by the bulk templates
+func validateBulk(config YamlConfig) error {
+	if !config.NoResource {
+		return fmt.Errorf("`is_bulk: true` is only supported for data sources, set `no_resource: true`")
+	}
+	if !config.NoId {
+		return fmt.Errorf("`is_bulk: true` requires `no_id: true`, as all objects are read from `rest_endpoint`")
+	}
+	if HasDataSourceQuery(config.Attributes) {
+		return fmt.Errorf("`is_bulk: true` cannot be combined with `data_source_query` attributes")
+	}
+	if items := GetAttributeByTfName(config.Attributes, "items"); !IsNestedMap(items) {
+		return fmt.Errorf("`is_bulk: true` requires a top level nested Map attribute with `tf_name: items`")
+	}
+	if filter := GetAttributeByTfName(config.Attributes, "filter"); filter.TfName != "" && (filter.Type != "String" || !filter.TfOnly || !filter.DataSourceOptionalParameter) {
+		return fmt.Errorf("`is_bulk: true` requires the `filter` attribute to be a `tf_only` String with `data_source_optional_parameter: true`")
+	}
+	return nil
+}
+
 func NewYamlConfig(bytes []byte) (YamlConfig, error) {
 	var config YamlConfig
 	var hasPutCreateDataQuery bool = false
@@ -634,6 +660,11 @@ func NewYamlConfig(bytes []byte) (YamlConfig, error) {
 				return YamlConfig{}, fmt.Errorf("Multiple `put_create_data_query` attributes found. Only one is allowed.")
 			}
 			hasPutCreateDataQuery = true
+		}
+	}
+	if config.IsBulk {
+		if err := validateBulk(config); err != nil {
+			return YamlConfig{}, err
 		}
 	}
 	if config.DsDescription == "" {
