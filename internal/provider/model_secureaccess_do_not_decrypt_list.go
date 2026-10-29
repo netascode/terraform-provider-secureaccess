@@ -22,6 +22,7 @@ import (
 	"context"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -231,6 +232,15 @@ func doNotDecryptListIsIP(destination string) bool {
 
 // doNotDecryptListDestinationProblem returns why a destination cannot be managed by this resource, or an empty string.
 func doNotDecryptListDestinationProblem(destination string) string {
+	if destination == "" {
+		return "The destination must not be empty."
+	}
+	if destination != strings.TrimSpace(destination) {
+		return "The destination must not start or end with whitespace."
+	}
+	if strings.HasSuffix(destination, ".") {
+		return "The destination must not end with a dot."
+	}
 	if strings.Contains(destination, "://") {
 		return "URLs are not supported, use the domain name."
 	}
@@ -368,6 +378,40 @@ func doNotDecryptListListRemovalSteps(destinations []DoNotDecryptListDestination
 	return steps
 }
 
+// doNotDecryptListNotFound matches the error of the API for a destination that cannot be removed because it does not exist.
+var doNotDecryptListNotFound = regexp.MustCompile(`destination '([^']+)' not found`)
+
+// doNotDecryptListMissingDestination returns the destination that an error message of the API reports as not found.
+func doNotDecryptListMissingDestination(message string) string {
+	if match := doNotDecryptListNotFound.FindStringSubmatch(message); match != nil {
+		return match[1]
+	}
+	return ""
+}
+
+// removes reports whether the step removes the destination.
+func (step doNotDecryptListStep) removes(destination string) bool {
+	return slices.ContainsFunc(step.removeDestinations, func(item DoNotDecryptListDestinations) bool {
+		return item.Destination.ValueString() == destination
+	})
+}
+
+// bodyWithout returns the PUT body of a removal step without the given destinations.
+func (step doNotDecryptListStep) bodyWithout(dropped map[string]struct{}) string {
+	var remaining []DoNotDecryptListDestinations
+	for _, item := range step.removeDestinations {
+		if _, ok := dropped[item.Destination.ValueString()]; !ok {
+			remaining = append(remaining, item)
+		}
+	}
+	if len(remaining) == 0 {
+		body, _ := sjson.Delete(step.body, "removeDestinations")
+		return body
+	}
+	body, _ := sjson.SetRaw(step.body, "removeDestinations", doNotDecryptListDestinationsBody(remaining, false))
+	return body
+}
+
 // toUpdateSteps builds the requests for an update. The API does not take full lists on update, but lists of
 // destinations, applications and categories to add and to remove. Those are calculated from the state and the plan.
 // Additions are sent first and are idempotent (an existing destination only gets its comment updated), so a rejected
@@ -400,9 +444,9 @@ func (data DoNotDecryptList) toUpdateSteps(ctx context.Context, state DoNotDecry
 	steps = append(steps, doNotDecryptListListRemovalSteps(ips)...)
 	steps = append(steps, doNotDecryptListChangeSteps(name, true, readd, nil, nil)...)
 
-	// The name is part of every PUT. Make sure that there is one if the name changed.
-	if !slices.ContainsFunc(steps, func(step doNotDecryptListStep) bool { return !step.viaList }) &&
-		(len(steps) == 0 || !data.Name.Equal(state.Name)) {
+	// The name is part of every PUT. If the name changed, it is sent before anything is removed through the destination
+	// list, so that a rejected name changes nothing.
+	if len(steps) == 0 || (steps[0].viaList && !data.Name.Equal(state.Name)) {
 		body, _ := sjson.Set("", "name", name)
 		steps = slices.Insert(steps, 0, doNotDecryptListStep{body: body})
 	}

@@ -333,6 +333,10 @@ func TestDoNotDecryptListDestinationProblem(t *testing.T) {
 		"ftp://10.0.0.1":       true,
 		"Example.com":          true,
 		"EXAMPLE.COM":          true,
+		"":                     true,
+		" example.com":         true,
+		"example.com ":         true,
+		"example.com.":         true,
 	} {
 		if got := doNotDecryptListDestinationProblem(destination) != ""; got != wantProblem {
 			t.Errorf("%q: problem = %q, want a problem: %v", destination, doNotDecryptListDestinationProblem(destination), wantProblem)
@@ -353,5 +357,79 @@ func TestDoNotDecryptListIsIP(t *testing.T) {
 		if got := doNotDecryptListIsIP(destination); got != want {
 			t.Errorf("%q: IP = %v, want %v", destination, got, want)
 		}
+	}
+}
+
+func TestDoNotDecryptListToUpdateStepsEdgeCases(t *testing.T) {
+	ctx := context.Background()
+	state := DoNotDecryptList{
+		Name:                       types.StringValue("old"),
+		Destinations:               []DoNotDecryptListDestinations{dndDestination("a.com", "x"), dndDestination("10.10.10.10", "y")},
+		Applications:               dndInt64Set(1),
+		DecryptExceptionCategories: dndInt64Set(10),
+	}
+
+	t.Run("no change sends a single request with the name", func(t *testing.T) {
+		steps := state.toUpdateSteps(ctx, state)
+		if len(steps) != 1 || steps[0].viaList || steps[0].body != `{"name":"old"}` {
+			t.Fatalf("got %+v", steps)
+		}
+	})
+
+	t.Run("a category and an application are added in the first request", func(t *testing.T) {
+		plan := state
+		plan.DecryptExceptionCategories = dndInt64Set(10, 11)
+		plan.Applications = dndInt64Set(1, 2)
+		steps := plan.toUpdateSteps(ctx, state)
+		if len(steps) != 1 || gjson.Get(steps[0].body, "addDecryptExceptionCategories").Raw != `[11]` || gjson.Get(steps[0].body, "addApplications").Raw != `[2]` {
+			t.Fatalf("got %+v", steps)
+		}
+	})
+
+	t.Run("removing only an IP address with an unchanged name is a single request through the destination list", func(t *testing.T) {
+		plan := state
+		plan.Destinations = []DoNotDecryptListDestinations{dndDestination("a.com", "x")}
+		steps := plan.toUpdateSteps(ctx, state)
+		if len(steps) != 1 || !steps[0].viaList || steps[0].body != "" {
+			t.Fatalf("got %+v", steps)
+		}
+	})
+
+	t.Run("a changed name is sent before the first removal through the destination list", func(t *testing.T) {
+		plan := state
+		plan.Name = types.StringValue("new")
+		plan.Destinations = []DoNotDecryptListDestinations{dndDestination("a.com", "x"), dndDestination("10.10.10.10", "")} // comment removed: list removal, then add
+		steps := plan.toUpdateSteps(ctx, state)
+		if len(steps) != 3 || steps[0].viaList || steps[0].body != `{"name":"new"}` || !steps[1].viaList || steps[2].viaList {
+			t.Fatalf("got %+v", steps)
+		}
+	})
+}
+
+func TestDoNotDecryptListMissingDestination(t *testing.T) {
+	for message, want := range map[string]string{
+		`HTTP Request failed: StatusCode 400, {"statusCode":400,"error":"Bad Request","message":"destination 'gone.example.com' not found","txId":"x"}`: "gone.example.com",
+		`destination '10.10.10.10' not found`: "10.10.10.10",
+		`HTTP Request failed: StatusCode 400, {"message":"addDestinations cannot contain more than 500 destinations."}`: "",
+		"": "",
+	} {
+		if got := doNotDecryptListMissingDestination(message); got != want {
+			t.Errorf("%q: got %q, want %q", message, got, want)
+		}
+	}
+
+	ctx := context.Background()
+	state := DoNotDecryptList{Name: types.StringValue("n"), Destinations: []DoNotDecryptListDestinations{dndDestination("a.com", ""), dndDestination("b.com", ""), dndDestination("c.com", "")}}
+	plan := DoNotDecryptList{Name: types.StringValue("n")}
+	steps := plan.toUpdateSteps(ctx, state)
+	if len(steps) != 1 || !steps[0].removes("b.com") || steps[0].removes("d.com") {
+		t.Fatalf("got %+v", steps)
+	}
+	if got := gjson.Get(steps[0].bodyWithout(map[string]struct{}{"b.com": {}}), "removeDestinations.#.destination").Raw; got != `["a.com","c.com"]` {
+		t.Errorf("without b.com: %s", got)
+	}
+	body := steps[0].bodyWithout(map[string]struct{}{"a.com": {}, "b.com": {}, "c.com": {}})
+	if body != `{"name":"n"}` {
+		t.Errorf("without all destinations the request only carries the name, got %s", body)
 	}
 }

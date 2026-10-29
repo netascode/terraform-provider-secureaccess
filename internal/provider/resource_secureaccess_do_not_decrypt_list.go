@@ -281,10 +281,7 @@ func (r *DoNotDecryptListResource) Update(ctx context.Context, req resource.Upda
 				err = fmt.Errorf("failed to remove IP addresses through the destination list: %w", err)
 			}
 		} else {
-			res, err = r.client.Put(ctx, objectPath, step.body, reqMods...)
-			if err != nil {
-				err = fmt.Errorf("%w, %s", err, res.String())
-			}
+			res, err = r.putSkippingMissing(ctx, objectPath, step, reqMods...)
 		}
 		if err != nil {
 			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (request %d of %d), got error: %s", i+1, len(steps), err))
@@ -351,6 +348,28 @@ func (r *DoNotDecryptListResource) ImportState(ctx context.Context, req resource
 // End of section. //template:end import
 
 var _ resource.ResourceWithValidateConfig = &DoNotDecryptListResource{}
+
+// putSkippingMissing sends the PUT request of a step. If the API refuses it because a destination that is to be removed
+// does not exist (any more), for instance because it was removed in the portal, or by a request that was repeated after
+// its response got lost, that destination is left out and the request is sent again: it is gone, which is what the plan
+// asks for. Any other error is returned with the response of the API.
+func (r *DoNotDecryptListResource) putSkippingMissing(ctx context.Context, objectPath string, step doNotDecryptListStep, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
+	body := step.body
+	dropped := map[string]struct{}{}
+	for {
+		res, err := r.client.Put(ctx, objectPath, body, reqMods...)
+		if err == nil {
+			return res, nil
+		}
+		missing := doNotDecryptListMissingDestination(err.Error() + " " + res.String())
+		if _, again := dropped[missing]; missing == "" || again || !step.removes(missing) {
+			return res, fmt.Errorf("%w, %s", err, res.String())
+		}
+		tflog.Warn(ctx, fmt.Sprintf("%s: %s is not in the list anymore, removing the others", objectPath, missing))
+		dropped[missing] = struct{}{}
+		body = step.bodyWithout(dropped)
+	}
+}
 
 // removeThroughDestinationList removes IP addresses and CIDR blocks. The update request of the API cannot remove them
 // ("destination not found"), but the destinations of the object are also available as a destination list
