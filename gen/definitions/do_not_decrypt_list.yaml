@@ -3,11 +3,12 @@
 # -> fromBody(), fromBodyPartial(): `decryptExceptionCategories` is a list of ids on write but a list of `{categoryId, name}` on read
 # -> Create(): at most 500 destinations are accepted on create, the rest is added with updates
 # -> Update(): PUT takes `add*`/`remove*` lists instead of full lists, Update() builds them from state vs. plan
-# -> ValidateConfig(): URLs, uppercase domain names and duplicates are rejected before a request is sent
+# -> ValidateConfig(): URLs, uppercase domain names, malformed IPv4 addresses, empty or padded values and duplicates are rejected before a request is sent
 # APIBEHAVIOUR: GET does not return destinations and applications (only totals), they are tracked in the Terraform state
 # APIBEHAVIOUR: response JSON is not wrapped, list endpoint returns a bare array
 # APIBEHAVIOUR: adding a destination that exists updates its comment, adding it without a comment keeps the old comment
-# APIBEHAVIOUR: PUT cannot remove IP addresses and CIDR blocks ("destination not found"), they are removed by id from the destination list `exceptiondomainlistId`
+# APIBEHAVIOUR: PUT removal of a private IP address and of a CIDR block answered "destination not found", so all IP addresses and CIDR blocks are removed by id from the destination list `exceptiondomainlistId`
+# APIBEHAVIOUR: removing a destination that does not exist is an error, Update() checks the destination list and leaves such destinations out
 # APIBEHAVIOUR: domain names are stored in lowercase, URLs are rejected, a failed PUT does not change anything
 ---
 name: Do Not Decrypt List

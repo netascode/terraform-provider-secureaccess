@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -273,18 +274,28 @@ func (r *DoNotDecryptListResource) Update(ctx context.Context, req resource.Upda
 	interim := state
 	objectPath := plan.getPath() + "/" + url.QueryEscape(plan.Id.ValueString())
 	var res gjson.Result
+	var skipped []string
+	warnSkipped := func() {
+		if len(skipped) > 0 {
+			resp.Diagnostics.AddWarning("Destinations not found",
+				"These destinations were not in the list anymore. As they are meant to be removed, they are treated as removed: "+strings.Join(skipped, ", "))
+		}
+	}
 	for i, step := range steps {
 		var err error
+		var stepSkipped []string
 		if step.viaList {
-			res, err = r.removeThroughDestinationList(ctx, objectPath, step.removeDestinations, reqMods...)
+			res, stepSkipped, err = r.removeThroughDestinationList(ctx, objectPath, step.removeDestinations, reqMods...)
 			if err != nil {
 				err = fmt.Errorf("failed to remove IP addresses through the destination list: %w", err)
 			}
 		} else {
-			res, err = r.putSkippingMissing(ctx, objectPath, step, reqMods...)
+			res, stepSkipped, err = r.putSkippingMissing(ctx, objectPath, step, reqMods...)
 		}
+		skipped = append(skipped, stepSkipped...)
 		if err != nil {
 			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (request %d of %d), got error: %s", i+1, len(steps), err))
+			warnSkipped()
 			if i > 0 {
 				resp.Diagnostics.Append(resp.State.Set(ctx, &interim)...)
 			}
@@ -293,6 +304,7 @@ func (r *DoNotDecryptListResource) Update(ctx context.Context, req resource.Upda
 		interim.applyStep(ctx, plan.Name, step)
 		interim.fromBodyUnknowns(ctx, res)
 	}
+	warnSkipped()
 	plan.fromBodyUnknowns(ctx, res)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
@@ -349,65 +361,99 @@ func (r *DoNotDecryptListResource) ImportState(ctx context.Context, req resource
 
 var _ resource.ResourceWithValidateConfig = &DoNotDecryptListResource{}
 
+// readDestinationList reads the object and the destinations of the destination list behind it (exceptiondomainlistId).
+// The API does not return them with the object.
+func (r *DoNotDecryptListResource) readDestinationList(ctx context.Context, objectPath string, reqMods ...func(*secureaccess.Req)) (gjson.Result, string, []gjson.Result, error) {
+	object, err := r.client.Get(ctx, objectPath, reqMods...)
+	if err != nil {
+		return object, "", nil, fmt.Errorf("failed to retrieve object (GET): %w, %s", err, object.String())
+	}
+	listId := object.Get("exceptiondomainlistId").String()
+	if listId == "" || listId == "0" {
+		return object, "", nil, fmt.Errorf("the object has no destination list (exceptiondomainlistId), got: %s", object.String())
+	}
+	destinations, err := r.client.GetAll(ctx, doNotDecryptListDestinationListPath(listId), reqMods...)
+	if err != nil {
+		return object, listId, nil, fmt.Errorf("failed to retrieve destinations (GET): %w, %s", err, destinations.String())
+	}
+	return object, listId, destinations.Array(), nil
+}
+
 // putSkippingMissing sends the PUT request of a step. If the API refuses it because a destination that is to be removed
 // does not exist (any more), for instance because it was removed in the portal, or by a request that was repeated after
-// its response got lost, that destination is left out and the request is sent again: it is gone, which is what the plan
-// asks for. Any other error is returned with the response of the API.
-func (r *DoNotDecryptListResource) putSkippingMissing(ctx context.Context, objectPath string, step doNotDecryptListStep, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
+// its response got lost, the destination list is read to see which of the destinations are gone. They are left out and
+// the request is sent again: they are gone, which is what the plan asks for. The destinations that were left out are
+// returned. If the destination that the API reports is in the list, or any other error occurs, the error is returned
+// with the response of the API.
+func (r *DoNotDecryptListResource) putSkippingMissing(ctx context.Context, objectPath string, step doNotDecryptListStep, reqMods ...func(*secureaccess.Req)) (gjson.Result, []string, error) {
 	body := step.body
-	dropped := map[string]struct{}{}
-	for {
+	var skipped []string
+	for attempt := 0; ; attempt++ {
 		res, err := r.client.Put(ctx, objectPath, body, reqMods...)
 		if err == nil {
-			return res, nil
+			return res, skipped, nil
 		}
+		failure := fmt.Errorf("%w, %s", err, res.String())
 		missing := doNotDecryptListMissingDestination(err.Error() + " " + res.String())
-		if _, again := dropped[missing]; missing == "" || again || !step.removes(missing) {
-			return res, fmt.Errorf("%w, %s", err, res.String())
+		if missing == "" || attempt >= 3 || !step.removes(missing) {
+			return res, skipped, failure
 		}
-		tflog.Warn(ctx, fmt.Sprintf("%s: %s is not in the list anymore, removing the others", objectPath, missing))
-		dropped[missing] = struct{}{}
+
+		_, _, destinations, readErr := r.readDestinationList(ctx, objectPath, reqMods...)
+		if readErr != nil {
+			return res, skipped, fmt.Errorf("%w (checking whether %s is gone failed: %s)", failure, missing, readErr)
+		}
+		present := make(map[string]struct{}, len(destinations))
+		for _, destination := range destinations {
+			present[destination.Get("destination").String()] = struct{}{}
+		}
+		if _, ok := present[missing]; ok {
+			return res, skipped, fmt.Errorf("%w (%s is in the list)", failure, missing)
+		}
+		dropped := map[string]struct{}{}
+		skipped = nil
+		for _, item := range step.removeDestinations {
+			if destination := item.Destination.ValueString(); !slices.Contains(skipped, destination) {
+				if _, ok := present[destination]; !ok {
+					dropped[destination] = struct{}{}
+					skipped = append(skipped, destination)
+				}
+			}
+		}
+		tflog.Warn(ctx, fmt.Sprintf("%s: %s are not in the list anymore, removing the others", objectPath, strings.Join(skipped, ", ")))
 		body = step.bodyWithout(dropped)
 	}
 }
 
-// removeThroughDestinationList removes IP addresses and CIDR blocks. The update request of the API cannot remove them
-// ("destination not found"), but the destinations of the object are also available as a destination list
+// removeThroughDestinationList removes IP addresses and CIDR blocks. The update request of the API answered
+// "destination not found" for some of them, but the destinations of the object are also available as a destination list
 // (exceptiondomainlistId), from which they can be removed by id. A destination that is not in the list anymore is
-// skipped, as it is gone already. Returns the object as it is afterwards.
-func (r *DoNotDecryptListResource) removeThroughDestinationList(ctx context.Context, objectPath string, items []DoNotDecryptListDestinations, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
-	res, err := r.client.Get(ctx, objectPath, reqMods...)
+// skipped and returned, as it is gone already. Returns the object as it is afterwards.
+func (r *DoNotDecryptListResource) removeThroughDestinationList(ctx context.Context, objectPath string, items []DoNotDecryptListDestinations, reqMods ...func(*secureaccess.Req)) (gjson.Result, []string, error) {
+	object, listId, destinations, err := r.readDestinationList(ctx, objectPath, reqMods...)
 	if err != nil {
-		return res, fmt.Errorf("failed to retrieve object (GET): %w, %s", err, res.String())
-	}
-	listId := res.Get("exceptiondomainlistId").String()
-	if listId == "" || listId == "0" {
-		return res, fmt.Errorf("the object has no destination list (exceptiondomainlistId), got: %s", res.String())
+		return object, nil, err
 	}
 
-	// Find the ids of the destinations, the client reads all pages
-	wanted := make(map[string]struct{}, len(items))
-	for _, item := range items {
-		wanted[item.Destination.ValueString()] = struct{}{}
-	}
-	destinations, err := r.client.GetAll(ctx, doNotDecryptListDestinationListPath(listId), reqMods...)
-	if err != nil {
-		return res, fmt.Errorf("failed to retrieve destinations (GET): %w, %s", err, destinations.String())
-	}
-	found := make(map[string]int64, len(items))
-	for _, item := range destinations.Array() {
-		destination := item.Get("destination").String()
-		if _, ok := wanted[destination]; ok {
-			found[destination] = item.Get("id").Int()
-		}
+	found := make(map[string]int64, len(destinations))
+	for _, destination := range destinations {
+		found[destination.Get("destination").String()] = destination.Get("id").Int()
 	}
 	var ids []int64
+	var skipped []string
 	for _, item := range items {
 		if id, ok := found[item.Destination.ValueString()]; ok {
 			ids = append(ids, id)
 		} else {
-			tflog.Warn(ctx, fmt.Sprintf("%s: %s is not in the destination list anymore, skipping its removal", objectPath, item.Destination.ValueString()))
+			skipped = append(skipped, item.Destination.ValueString())
 		}
+	}
+	if len(skipped) > 0 {
+		// Skipping is only safe if the list was read completely
+		if total := object.Get("totalDomains").Int() + object.Get("totalIps").Int(); int64(len(destinations)) < total {
+			return object, nil, fmt.Errorf("the destination list was read incompletely (%d of %d destinations), %s cannot be treated as removed", len(destinations), total, strings.Join(skipped, ", "))
+		}
+		tflog.Warn(ctx, fmt.Sprintf("%s: %s are not in the destination list anymore, skipping their removal", objectPath, strings.Join(skipped, ", ")))
 	}
 
 	for i := 0; i < len(ids); i += doNotDecryptListListRemovalChunk {
@@ -416,10 +462,17 @@ func (r *DoNotDecryptListResource) removeThroughDestinationList(ctx context.Cont
 		body, _ := json.Marshal(ids[i:end])
 		resDel, err := r.client.DeleteWithBody(ctx, doNotDecryptListDestinationListPath(listId)+"/remove", string(body), reqMods...)
 		if err != nil {
-			return res, fmt.Errorf("failed to remove destinations %d-%d (DELETE): %w, %s", i, end, err, resDel.String())
+			return object, skipped, fmt.Errorf("failed to remove destinations %d-%d (DELETE): %w, %s", i, end, err, resDel.String())
 		}
 	}
-	return r.client.Get(ctx, objectPath, reqMods...)
+
+	res, err := r.client.Get(ctx, objectPath, reqMods...)
+	if err != nil {
+		// The destinations are removed, only the new totals are missing, a refresh brings them
+		tflog.Warn(ctx, fmt.Sprintf("%s: reading the object after the removal failed: %s", objectPath, err))
+		return object, skipped, nil
+	}
+	return res, skipped, nil
 }
 
 // ValidateConfig rejects destinations that the API cannot store as they are (URLs, domain names with uppercase

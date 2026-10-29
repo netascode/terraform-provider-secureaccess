@@ -244,6 +244,13 @@ func doNotDecryptListDestinationProblem(destination string) string {
 	if strings.Contains(destination, "://") {
 		return "URLs are not supported, use the domain name."
 	}
+	if strings.Trim(destination, "0123456789./") == "" {
+		// only digits, dots and slashes: it has to be an IPv4 address or a CIDR block
+		if !doNotDecryptListIsIP(destination) {
+			return "This is not a valid IPv4 address or CIDR block."
+		}
+		return ""
+	}
 	if strings.Contains(destination, "/") {
 		if _, err := netip.ParsePrefix(destination); err != nil {
 			return "URLs are not supported, use the domain name."
@@ -257,10 +264,10 @@ func doNotDecryptListDestinationProblem(destination string) string {
 
 // doNotDecryptListDestinationChanges compares the destinations of the state and of the plan:
 //   - upsert: new destinations, and destinations with a new comment (adding an existing destination updates its comment)
-//   - remove: destinations that are gone, and destinations whose comment is removed
-//   - readd: the destinations with a removed comment, to be added again after their removal, as adding a destination
-//     without a comment leaves the existing comment in place
-func doNotDecryptListDestinationChanges(state, plan []DoNotDecryptListDestinations) (upsert, remove, readd []DoNotDecryptListDestinations) {
+//   - gone: destinations that are not in the plan anymore
+//   - cleared: destinations whose comment is removed. They are removed and added again, as adding a destination without a
+//     comment leaves the existing comment in place
+func doNotDecryptListDestinationChanges(state, plan []DoNotDecryptListDestinations) (upsert, gone, cleared []DoNotDecryptListDestinations) {
 	stateComments := make(map[string]types.String, len(state))
 	for _, item := range state {
 		stateComments[item.Destination.ValueString()] = item.Comment
@@ -275,18 +282,17 @@ func doNotDecryptListDestinationChanges(state, plan []DoNotDecryptListDestinatio
 			upsert = append(upsert, item)
 		case item.Comment.Equal(old):
 		case item.Comment.IsNull():
-			remove = append(remove, item)
-			readd = append(readd, item)
+			cleared = append(cleared, item)
 		default:
 			upsert = append(upsert, item)
 		}
 	}
 	for _, item := range state {
 		if _, ok := planned[item.Destination.ValueString()]; !ok {
-			remove = append(remove, item)
+			gone = append(gone, item)
 		}
 	}
-	return upsert, remove, readd
+	return upsert, gone, cleared
 }
 
 // doNotDecryptListInt64Values returns the elements of an Int64 set, or nil if the set is null or unknown.
@@ -315,8 +321,9 @@ func doNotDecryptListInt64Diff(a, b []int64) []int64 {
 type doNotDecryptListStep struct {
 	// body is the PUT payload. It is empty if viaList is set.
 	body string
-	// viaList marks a step that removes IP addresses and CIDR blocks through the destination list behind the object,
-	// as the update request of the API cannot remove them (it answers "destination not found").
+	// viaList marks a step that removes IP addresses and CIDR blocks through the destination list behind the object.
+	// The update request of the API answered "destination not found" for a private IP address and for a CIDR block, so
+	// all of them are removed by id from the list, which worked for both.
 	viaList                             bool
 	removeDestinations, addDestinations []DoNotDecryptListDestinations
 	removeApplications, addApplications []int64
@@ -412,12 +419,28 @@ func (step doNotDecryptListStep) bodyWithout(dropped map[string]struct{}) string
 	return body
 }
 
+// doNotDecryptListSplitIPs splits destinations into domain names and IP addresses or CIDR blocks.
+func doNotDecryptListSplitIPs(destinations []DoNotDecryptListDestinations) (domains, ips []DoNotDecryptListDestinations) {
+	for _, item := range destinations {
+		if doNotDecryptListIsIP(item.Destination.ValueString()) {
+			ips = append(ips, item)
+		} else {
+			domains = append(domains, item)
+		}
+	}
+	return domains, ips
+}
+
 // toUpdateSteps builds the requests for an update. The API does not take full lists on update, but lists of
 // destinations, applications and categories to add and to remove. Those are calculated from the state and the plan.
-// Additions are sent first and are idempotent (an existing destination only gets its comment updated), so a rejected
-// addition leaves everything in place. Domain names are removed with the update request, IP addresses and CIDR blocks
-// through the destination list (see doNotDecryptListStep). Destinations whose comment is removed are removed and added
-// again last. If nothing but the name changes, a single request with the name is returned.
+// The requests are ordered so that a failure leaves as much as possible in place:
+//  1. additions, which are idempotent (an existing destination only gets its comment updated)
+//  2. removal of the destinations that are gone: domain names with the update request, IP addresses and CIDR blocks
+//     through the destination list (see doNotDecryptListStep)
+//  3. removal of the destinations whose comment is removed, in the same way
+//  4. adding those destinations again, without a comment
+//
+// If nothing but the name changes, a single request with the name is returned.
 func (data DoNotDecryptList) toUpdateSteps(ctx context.Context, state DoNotDecryptList) []doNotDecryptListStep {
 	name := data.Name.ValueString()
 	planApplications := doNotDecryptListInt64Values(ctx, data.Applications)
@@ -425,24 +448,20 @@ func (data DoNotDecryptList) toUpdateSteps(ctx context.Context, state DoNotDecry
 	planCategories := doNotDecryptListInt64Values(ctx, data.DecryptExceptionCategories)
 	stateCategories := doNotDecryptListInt64Values(ctx, state.DecryptExceptionCategories)
 
-	upsert, remove, readd := doNotDecryptListDestinationChanges(state.Destinations, data.Destinations)
-	var domains, ips []DoNotDecryptListDestinations
-	for _, item := range remove {
-		if doNotDecryptListIsIP(item.Destination.ValueString()) {
-			ips = append(ips, item)
-		} else {
-			domains = append(domains, item)
-		}
-	}
+	upsert, gone, cleared := doNotDecryptListDestinationChanges(state.Destinations, data.Destinations)
+	goneDomains, goneIPs := doNotDecryptListSplitIPs(gone)
+	clearedDomains, clearedIPs := doNotDecryptListSplitIPs(cleared)
 
 	steps := doNotDecryptListChangeSteps(name, true, upsert,
 		doNotDecryptListInt64Diff(planApplications, stateApplications),
 		doNotDecryptListInt64Diff(planCategories, stateCategories))
-	steps = append(steps, doNotDecryptListChangeSteps(name, false, domains,
+	steps = append(steps, doNotDecryptListChangeSteps(name, false, goneDomains,
 		doNotDecryptListInt64Diff(stateApplications, planApplications),
 		doNotDecryptListInt64Diff(stateCategories, planCategories))...)
-	steps = append(steps, doNotDecryptListListRemovalSteps(ips)...)
-	steps = append(steps, doNotDecryptListChangeSteps(name, true, readd, nil, nil)...)
+	steps = append(steps, doNotDecryptListListRemovalSteps(goneIPs)...)
+	steps = append(steps, doNotDecryptListChangeSteps(name, false, clearedDomains, nil, nil)...)
+	steps = append(steps, doNotDecryptListListRemovalSteps(clearedIPs)...)
+	steps = append(steps, doNotDecryptListChangeSteps(name, true, cleared, nil, nil)...)
 
 	// The name is part of every PUT. If the name changed, it is sent before anything is removed through the destination
 	// list, so that a rejected name changes nothing.

@@ -19,11 +19,15 @@ package provider
 
 // Section below is generated&owned by "gen/generator.go". //template:begin imports
 import (
+	"context"
+	"encoding/json"
 	"os"
 	"regexp"
+	"slices"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/netascode/go-secureaccess"
 )
 
 // End of section. //template:end imports
@@ -90,8 +94,8 @@ func testAccSecureAccessDoNotDecryptListConfig_all() string {
 // End of section. //template:end testAccConfigAll
 
 // Manual test: adding, changing and removing destinations is done with separate add/remove lists in the API, as it does
-// not return the destinations, only the totals. IP addresses and CIDR blocks cannot be removed with the update request
-// of the API, they are removed through the destination list behind the object.
+// not return the destinations, only the totals. IP addresses and CIDR blocks are removed through the destination list
+// behind the object, as the update request of the API did not find some of them.
 func TestAccSecureAccessDoNotDecryptList_Sequential(t *testing.T) {
 	config := func(name string, destinations ...string) string {
 		cfg := `resource "secureaccess_do_not_decrypt_list" "test" {` + "\n" +
@@ -111,13 +115,7 @@ func TestAccSecureAccessDoNotDecryptList_Sequential(t *testing.T) {
 		cfg += `}` + "\n"
 		return cfg
 	}
-	totals := func(destinations, domains, ips string) resource.TestCheckFunc {
-		return resource.ComposeTestCheckFunc(
-			resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "destinations.#", destinations),
-			resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "total_domains", domains),
-			resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "total_ips", ips),
-		)
-	}
+	totals := testAccDoNotDecryptListTotals
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -192,6 +190,91 @@ func TestAccSecureAccessDoNotDecryptList_InvalidDestination(t *testing.T) {
 		Steps: []resource.TestStep{
 			{Config: config("https://foo.bar/path"), ExpectError: regexp.MustCompile(`Invalid destination`)},
 			{Config: config("Example.com"), ExpectError: regexp.MustCompile(`Invalid destination`)},
+		},
+	})
+}
+
+func testAccDoNotDecryptListTotals(destinations, domains, ips string) resource.TestCheckFunc {
+	return resource.ComposeTestCheckFunc(
+		resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "destinations.#", destinations),
+		resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "total_domains", domains),
+		resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "total_ips", ips),
+	)
+}
+
+// removeDestinationsOutsideTerraform removes destinations from a Do Not Decrypt List the way someone in the portal would:
+// through the destination list behind the object.
+func removeDestinationsOutsideTerraform(t *testing.T, listName string, destinations ...string) func() {
+	return func() {
+		url := os.Getenv("SECUREACCESS_URL")
+		if url == "" {
+			url = "https://api.sse.cisco.com"
+		}
+		client, err := secureaccess.NewClient(url, os.Getenv("SECUREACCESS_API_KEY"), os.Getenv("SECUREACCESS_API_KEY_SECRET"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx := context.Background()
+		lists, err := client.GetAll(ctx, "/policies/v2/doNotDecryptLists")
+		if err != nil {
+			t.Fatal(err)
+		}
+		listId := ""
+		for _, list := range lists.Array() {
+			if list.Get("name").String() == listName {
+				listId = list.Get("exceptiondomainlistId").String()
+			}
+		}
+		if listId == "" {
+			t.Fatalf("list %q not found", listName)
+		}
+		path := "/policies/v2/destinationlists/" + listId + "/destinations"
+		items, err := client.GetAll(ctx, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var ids []int64
+		for _, item := range items.Array() {
+			if slices.Contains(destinations, item.Get("destination").String()) {
+				ids = append(ids, item.Get("id").Int())
+			}
+		}
+		if len(ids) != len(destinations) {
+			t.Fatalf("found %d of the %d destinations %v in list %s", len(ids), len(destinations), destinations, listId)
+		}
+		body, _ := json.Marshal(ids)
+		if res, err := client.DeleteWithBody(ctx, path+"/remove", string(body)); err != nil {
+			t.Fatalf("%s, %s", err, res.String())
+		}
+	}
+}
+
+// Manual test: destinations that were removed outside of Terraform (the API does not return them, so Terraform cannot see
+// it) can still be removed from the configuration: removing a destination that does not exist is an error of the API,
+// which the provider checks against the destination list and treats as removed.
+func TestAccSecureAccessDoNotDecryptList_RemovedOutsideTerraform(t *testing.T) {
+	config := func(destinations ...string) string {
+		cfg := `resource "secureaccess_do_not_decrypt_list" "test" {` + "\n" +
+			`	name = "my_do_not_decrypt_list_gone"` + "\n" +
+			`	destinations = [` + "\n"
+		for _, destination := range destinations {
+			cfg += `		{ destination = "` + destination + `" },` + "\n"
+		}
+		return cfg + `	]` + "\n" + `}` + "\n"
+	}
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: config("a.example.com", "b.example.com", "10.10.10.10"),
+				Check:  testAccDoNotDecryptListTotals("3", "2", "1"),
+			},
+			{
+				PreConfig: removeDestinationsOutsideTerraform(t, "my_do_not_decrypt_list_gone", "b.example.com", "10.10.10.10"),
+				Config:    config("a.example.com"),
+				Check:     testAccDoNotDecryptListTotals("1", "1", "0"),
+			},
 		},
 	})
 }

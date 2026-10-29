@@ -75,11 +75,25 @@ func TestDoNotDecryptListChangeStepsChunking(t *testing.T) {
 			for i := 0; i < tc.applications; i++ {
 				applications = append(applications, int64(100+i))
 			}
-			steps := doNotDecryptListChangeSteps("name", add, dndDestinations(tc.destinations), applications, nil)
+			input := dndDestinations(tc.destinations)
+			steps := doNotDecryptListChangeSteps("name", add, input, applications, nil)
 			if len(steps) != len(tc.wantSteps) {
 				t.Fatalf("destinations=%d applications=%d add=%v: got %d requests, want %d", tc.destinations, tc.applications, add, len(steps), len(tc.wantSteps))
 			}
 			verb := map[bool]string{true: "add", false: "remove"}[add]
+			var sent []string
+			for _, step := range steps {
+				for _, destination := range gjson.Get(step.body, verb+"Destinations.#.destination").Array() {
+					sent = append(sent, destination.String())
+				}
+			}
+			var want []string
+			for _, item := range input {
+				want = append(want, item.Destination.ValueString())
+			}
+			if !slices.Equal(sent, want) {
+				t.Errorf("destinations=%d add=%v: the requests do not carry every destination exactly once, in order", tc.destinations, add)
+			}
 			for i, step := range steps {
 				if got := len(gjson.Get(step.body, verb+"Destinations").Array()); got != tc.wantSteps[i] {
 					t.Errorf("destinations=%d add=%v request %d: got %d destinations, want %d", tc.destinations, add, i, got, tc.wantSteps[i])
@@ -99,7 +113,7 @@ func TestDoNotDecryptListDestinationChanges(t *testing.T) {
 	state := []DoNotDecryptListDestinations{dndDestination("same.com", "x"), dndDestination("changed.com", "x"), dndDestination("cleared.com", "x"), dndDestination("gets-comment.com", ""), dndDestination("gone.com", "x")}
 	plan := []DoNotDecryptListDestinations{dndDestination("same.com", "x"), dndDestination("changed.com", "y"), dndDestination("cleared.com", ""), dndDestination("gets-comment.com", "z"), dndDestination("new.com", "")}
 
-	upsert, remove, readd := doNotDecryptListDestinationChanges(state, plan)
+	upsert, gone, cleared := doNotDecryptListDestinationChanges(state, plan)
 	names := func(items []DoNotDecryptListDestinations) []string {
 		var out []string
 		for _, item := range items {
@@ -110,11 +124,11 @@ func TestDoNotDecryptListDestinationChanges(t *testing.T) {
 	if got, want := names(upsert), []string{"changed.com", "gets-comment.com", "new.com"}; !slices.Equal(got, want) {
 		t.Errorf("upsert = %v, want %v (a new comment is set by adding the destination again, without removing it)", got, want)
 	}
-	if got, want := names(remove), []string{"cleared.com", "gone.com"}; !slices.Equal(got, want) {
-		t.Errorf("remove = %v, want %v", got, want)
+	if got, want := names(gone), []string{"gone.com"}; !slices.Equal(got, want) {
+		t.Errorf("gone = %v, want %v", got, want)
 	}
-	if got, want := names(readd), []string{"cleared.com"}; !slices.Equal(got, want) {
-		t.Errorf("readd = %v, want %v (adding without a comment does not clear an existing one)", got, want)
+	if got, want := names(cleared), []string{"cleared.com"}; !slices.Equal(got, want) {
+		t.Errorf("cleared = %v, want %v (adding without a comment does not clear an existing one)", got, want)
 	}
 }
 
@@ -215,6 +229,32 @@ func TestDoNotDecryptListToUpdateSteps(t *testing.T) {
 		}
 	})
 
+	t.Run("destinations that are gone are removed before those whose comment is removed", func(t *testing.T) {
+		state := state
+		state.Destinations = []DoNotDecryptListDestinations{dndDestination("gone.com", ""), dndDestination("10.0.0.1", ""), dndDestination("cleared.com", "x"), dndDestination("10.0.0.2", "y")}
+		plan := state
+		plan.Destinations = []DoNotDecryptListDestinations{dndDestination("cleared.com", ""), dndDestination("10.0.0.2", "")}
+		steps := plan.toUpdateSteps(ctx, state)
+		if len(steps) != 5 {
+			t.Fatalf("got %d requests, want 5: %+v", len(steps), steps)
+		}
+		removed := func(step doNotDecryptListStep) string {
+			var out []string
+			for _, item := range step.removeDestinations {
+				out = append(out, item.Destination.ValueString())
+			}
+			return fmt.Sprintf("%v/list=%v", out, step.viaList)
+		}
+		for i, want := range []string{"[gone.com]/list=false", "[10.0.0.1]/list=true", "[cleared.com]/list=false", "[10.0.0.2]/list=true"} {
+			if got := removed(steps[i]); got != want {
+				t.Errorf("request %d removes %s, want %s", i, got, want)
+			}
+		}
+		if got := gjson.Get(steps[4].body, "addDestinations.#.destination").Raw; got != `["cleared.com","10.0.0.2"]` || steps[4].viaList {
+			t.Errorf("the last request must add the cleared destinations again: %+v", steps[4])
+		}
+	})
+
 	t.Run("a new name is sent even if the only other change is an IP removal", func(t *testing.T) {
 		state := state
 		state.Destinations = []DoNotDecryptListDestinations{dndDestination("10.10.10.10", "")}
@@ -254,6 +294,21 @@ func TestDoNotDecryptListToUpdateSteps(t *testing.T) {
 			} else {
 				put = append(put, len(gjson.Get(step.body, "removeDestinations").Array()))
 			}
+		}
+		var putSent, listSent []string
+		for _, step := range steps {
+			if step.viaList {
+				for _, item := range step.removeDestinations {
+					listSent = append(listSent, item.Destination.ValueString())
+				}
+			} else {
+				for _, destination := range gjson.Get(step.body, "removeDestinations.#.destination").Array() {
+					putSent = append(putSent, destination.String())
+				}
+			}
+		}
+		if len(putSent) != 501 || putSent[0] != "host0.example.com" || putSent[500] != "host500.example.com" || len(listSent) != 500 || listSent[0] != "10.1.0.0" || listSent[499] != "10.1.2.99" {
+			t.Errorf("removals do not carry every destination exactly once, in order: %d domains (%v...%v), %d IPs (%v...%v)", len(putSent), putSent[:1], putSent[len(putSent)-1:], len(listSent), listSent[:1], listSent[len(listSent)-1:])
 		}
 		if !slices.Equal(put, []int{500, 1}) || !slices.Equal(list, []int{doNotDecryptListListRemovalChunk, 500 - doNotDecryptListListRemovalChunk}) {
 			t.Errorf("PUT removals = %v, destination list removals = %v", put, list)
@@ -337,6 +392,11 @@ func TestDoNotDecryptListDestinationProblem(t *testing.T) {
 		" example.com":         true,
 		"example.com ":         true,
 		"example.com.":         true,
+		"10.10.10.010":         true,
+		"127.1":                true,
+		"256.1.1.1":            true,
+		"1.2.3.4/33":           true,
+		"203.0.113.5":          false,
 	} {
 		if got := doNotDecryptListDestinationProblem(destination) != ""; got != wantProblem {
 			t.Errorf("%q: problem = %q, want a problem: %v", destination, doNotDecryptListDestinationProblem(destination), wantProblem)
