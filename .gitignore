@@ -41,3 +41,6 @@ running.sh
 
 CLAUDE.md
 .claude/
+
+# Locally built provider binary
+/terraform-provider-secureaccess
