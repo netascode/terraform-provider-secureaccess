@@ -366,27 +366,20 @@ func (r *DoNotDecryptListResource) removeThroughDestinationList(ctx context.Cont
 		return res, fmt.Errorf("the object has no destination list (exceptiondomainlistId), got: %s", res.String())
 	}
 
-	// Find the ids of the destinations, the list is read page by page until all of them are found
+	// Find the ids of the destinations, the client reads all pages
 	wanted := make(map[string]struct{}, len(items))
 	for _, item := range items {
 		wanted[item.Destination.ValueString()] = struct{}{}
 	}
+	destinations, err := r.client.GetAll(ctx, doNotDecryptListDestinationListPath(listId), reqMods...)
+	if err != nil {
+		return res, fmt.Errorf("failed to retrieve destinations (GET): %w, %s", err, destinations.String())
+	}
 	found := make(map[string]int64, len(items))
-	for page := 1; len(found) < len(wanted); page++ {
-		urlPath := fmt.Sprintf("%s?page=%d&limit=%d", destinationListDestinationsPath(listId), page, destinationListDestinationsPageLimit)
-		resDest, err := r.client.Get(ctx, urlPath, reqMods...)
-		if err != nil {
-			return res, fmt.Errorf("failed to retrieve destinations page %d (GET): %w, %s", page, err, resDest.String())
-		}
-		data := resDest.Get("data").Array()
-		for _, item := range data {
-			destination := item.Get("destination").String()
-			if _, ok := wanted[destination]; ok {
-				found[destination] = item.Get("id").Int()
-			}
-		}
-		if len(data) < destinationListDestinationsPageLimit {
-			break
+	for _, item := range destinations.Array() {
+		destination := item.Get("destination").String()
+		if _, ok := wanted[destination]; ok {
+			found[destination] = item.Get("id").Int()
 		}
 	}
 	var ids []int64
@@ -398,11 +391,11 @@ func (r *DoNotDecryptListResource) removeThroughDestinationList(ctx context.Cont
 		}
 	}
 
-	for i := 0; i < len(ids); i += destinationListMaxDestinationsPerRequest {
-		end := min(i+destinationListMaxDestinationsPerRequest, len(ids))
+	for i := 0; i < len(ids); i += doNotDecryptListListRemovalChunk {
+		end := min(i+doNotDecryptListListRemovalChunk, len(ids))
 		tflog.Debug(ctx, fmt.Sprintf("%s: Removing destinations %d-%d of %d from destination list %s", objectPath, i, end, len(ids), listId))
 		body, _ := json.Marshal(ids[i:end])
-		resDel, err := r.client.DeleteWithBody(ctx, destinationListDestinationsPath(listId)+"/remove", string(body), reqMods...)
+		resDel, err := r.client.DeleteWithBody(ctx, doNotDecryptListDestinationListPath(listId)+"/remove", string(body), reqMods...)
 		if err != nil {
 			return res, fmt.Errorf("failed to remove destinations %d-%d (DELETE): %w, %s", i, end, err, resDel.String())
 		}

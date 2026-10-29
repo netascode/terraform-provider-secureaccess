@@ -21,6 +21,7 @@ package provider
 import (
 	"context"
 	"net/netip"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -194,6 +195,16 @@ func (data *DoNotDecryptList) fromBodyUnknowns(ctx context.Context, res gjson.Re
 // for create as well as for the add and remove lists of an update.
 const doNotDecryptListMaxItemsPerRequest = 500
 
+// doNotDecryptListListRemovalChunk is the number of destinations that are removed from a destination list with a single
+// request, the same limit that applies to the destination lists themselves.
+const doNotDecryptListListRemovalChunk = 499
+
+// doNotDecryptListDestinationListPath is the path of the destinations of the destination list (exceptiondomainlistId)
+// behind a Do Not Decrypt List.
+func doNotDecryptListDestinationListPath(listId string) string {
+	return "/policies/v2/destinationlists/" + url.QueryEscape(listId) + "/destinations"
+}
+
 // doNotDecryptListDestinationsBody builds a JSON array of destinations. Comments are left out if withComment is false,
 // the API does not need them to remove a destination.
 func doNotDecryptListDestinationsBody(items []DoNotDecryptListDestinations, withComment bool) string {
@@ -347,11 +358,11 @@ func doNotDecryptListChangeSteps(name string, add bool, destinations []DoNotDecr
 }
 
 // doNotDecryptListListRemovalSteps builds the steps that remove IP addresses and CIDR blocks through the destination
-// list, in chunks of destinationListMaxDestinationsPerRequest.
+// list, in chunks of doNotDecryptListListRemovalChunk.
 func doNotDecryptListListRemovalSteps(destinations []DoNotDecryptListDestinations) []doNotDecryptListStep {
 	var steps []doNotDecryptListStep
-	for i := 0; i < len(destinations); i += destinationListMaxDestinationsPerRequest {
-		end := min(i+destinationListMaxDestinationsPerRequest, len(destinations))
+	for i := 0; i < len(destinations); i += doNotDecryptListListRemovalChunk {
+		end := min(i+doNotDecryptListListRemovalChunk, len(destinations))
 		steps = append(steps, doNotDecryptListStep{viaList: true, removeDestinations: destinations[i:end]})
 	}
 	return steps

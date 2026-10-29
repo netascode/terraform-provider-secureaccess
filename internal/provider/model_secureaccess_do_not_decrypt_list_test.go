@@ -255,7 +255,7 @@ func TestDoNotDecryptListToUpdateSteps(t *testing.T) {
 				put = append(put, len(gjson.Get(step.body, "removeDestinations").Array()))
 			}
 		}
-		if !slices.Equal(put, []int{500, 1}) || !slices.Equal(list, []int{destinationListMaxDestinationsPerRequest, 500 - destinationListMaxDestinationsPerRequest}) {
+		if !slices.Equal(put, []int{500, 1}) || !slices.Equal(list, []int{doNotDecryptListListRemovalChunk, 500 - doNotDecryptListListRemovalChunk}) {
 			t.Errorf("PUT removals = %v, destination list removals = %v", put, list)
 		}
 	})
