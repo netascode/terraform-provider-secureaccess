@@ -37,7 +37,7 @@ resource "secureaccess_do_not_decrypt_list" "example" {
 
 - `applications` (Set of Number) IDs of the applications that are excluded from decryption.
 - `decrypt_exception_categories` (Set of Number) IDs of the content categories that are excluded from decryption.
-- `destinations` (Attributes Set) Destinations (domain names, URLs or IP addresses) that are excluded from decryption. At most 500 destinations can be sent in a single request, larger lists are split automatically. (see [below for nested schema](#nestedatt--destinations))
+- `destinations` (Attributes Set) Destinations that are excluded from decryption, domain names (in lowercase), IPv4 addresses or CIDR blocks. URLs are not supported. Large lists are split into multiple requests automatically. (see [below for nested schema](#nestedatt--destinations))
 
 ### Read-Only
 
@@ -52,7 +52,7 @@ resource "secureaccess_do_not_decrypt_list" "example" {
 
 Required:
 
-- `destination` (String) The destination value (domain name, URL, IP address or CIDR block).
+- `destination` (String) The destination value (domain name in lowercase, IPv4 address or CIDR block).
 
 Optional:
 

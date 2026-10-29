@@ -20,7 +20,9 @@ package provider
 // Section below is generated&owned by "gen/generator.go". //template:begin imports
 import (
 	"context"
+	"net/netip"
 	"slices"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -188,11 +190,12 @@ func (data *DoNotDecryptList) fromBodyUnknowns(ctx context.Context, res gjson.Re
 
 // End of section. //template:end adjustBody
 
-// doNotDecryptListMaxItemsPerRequest is the maximum number of destinations sent in a single request (create allows 500)
+// doNotDecryptListMaxItemsPerRequest is the maximum number of destinations the API accepts in a single request,
+// for create as well as for the add and remove lists of an update.
 const doNotDecryptListMaxItemsPerRequest = 500
 
 // doNotDecryptListDestinationsBody builds a JSON array of destinations. Comments are left out if withComment is false,
-// the API only requires the `destination` value to remove a destination.
+// the API does not need them to remove a destination.
 func doNotDecryptListDestinationsBody(items []DoNotDecryptListDestinations, withComment bool) string {
 	body := "[]"
 	for _, item := range items {
@@ -206,25 +209,63 @@ func doNotDecryptListDestinationsBody(items []DoNotDecryptListDestinations, with
 	return body
 }
 
-// doNotDecryptListDestinationKey identifies a destination including its comment, a destination with a changed
-// comment is treated as removed and added again.
-func doNotDecryptListDestinationKey(item DoNotDecryptListDestinations) string {
-	return item.Destination.ValueString() + "\x00" + item.Comment.ValueString()
+// doNotDecryptListIsIP reports whether a destination is an IP address or a CIDR block, as opposed to a domain name.
+func doNotDecryptListIsIP(destination string) bool {
+	if _, err := netip.ParsePrefix(destination); err == nil {
+		return true
+	}
+	_, err := netip.ParseAddr(destination)
+	return err == nil
 }
 
-// doNotDecryptListDestinationsDiff returns the destinations that are in `a` but not in `b`.
-func doNotDecryptListDestinationsDiff(a, b []DoNotDecryptListDestinations) []DoNotDecryptListDestinations {
-	inB := make(map[string]struct{}, len(b))
-	for _, item := range b {
-		inB[doNotDecryptListDestinationKey(item)] = struct{}{}
+// doNotDecryptListDestinationProblem returns why a destination cannot be managed by this resource, or an empty string.
+func doNotDecryptListDestinationProblem(destination string) string {
+	if strings.Contains(destination, "://") {
+		return "URLs are not supported, use the domain name."
 	}
-	var diff []DoNotDecryptListDestinations
-	for _, item := range a {
-		if _, ok := inB[doNotDecryptListDestinationKey(item)]; !ok {
-			diff = append(diff, item)
+	if strings.Contains(destination, "/") {
+		if _, err := netip.ParsePrefix(destination); err != nil {
+			return "URLs are not supported, use the domain name."
 		}
 	}
-	return diff
+	if destination != strings.ToLower(destination) {
+		return "Domain names must be lowercase, the API stores them in lowercase."
+	}
+	return ""
+}
+
+// doNotDecryptListDestinationChanges compares the destinations of the state and of the plan:
+//   - upsert: new destinations, and destinations with a new comment (adding an existing destination updates its comment)
+//   - remove: destinations that are gone, and destinations whose comment is removed
+//   - readd: the destinations with a removed comment, to be added again after their removal, as adding a destination
+//     without a comment leaves the existing comment in place
+func doNotDecryptListDestinationChanges(state, plan []DoNotDecryptListDestinations) (upsert, remove, readd []DoNotDecryptListDestinations) {
+	stateComments := make(map[string]types.String, len(state))
+	for _, item := range state {
+		stateComments[item.Destination.ValueString()] = item.Comment
+	}
+	planned := make(map[string]struct{}, len(plan))
+	for _, item := range plan {
+		destination := item.Destination.ValueString()
+		planned[destination] = struct{}{}
+		old, exists := stateComments[destination]
+		switch {
+		case !exists:
+			upsert = append(upsert, item)
+		case item.Comment.Equal(old):
+		case item.Comment.IsNull():
+			remove = append(remove, item)
+			readd = append(readd, item)
+		default:
+			upsert = append(upsert, item)
+		}
+	}
+	for _, item := range state {
+		if _, ok := planned[item.Destination.ValueString()]; !ok {
+			remove = append(remove, item)
+		}
+	}
+	return upsert, remove, readd
 }
 
 // doNotDecryptListInt64Values returns the elements of an Int64 set, or nil if the set is null or unknown.
@@ -248,10 +289,14 @@ func doNotDecryptListInt64Diff(a, b []int64) []int64 {
 	return diff
 }
 
-// doNotDecryptListStep is one PUT request of an update, together with the changes it makes. The changes are kept to
-// be able to tell what is applied if a later request of the same update fails.
+// doNotDecryptListStep is one request of an update, together with the changes it makes. The changes are kept to be able
+// to tell what is applied if a later request of the same update fails.
 type doNotDecryptListStep struct {
-	body                                string
+	// body is the PUT payload. It is empty if viaList is set.
+	body string
+	// viaList marks a step that removes IP addresses and CIDR blocks through the destination list behind the object,
+	// as the update request of the API cannot remove them (it answers "destination not found").
+	viaList                             bool
 	removeDestinations, addDestinations []DoNotDecryptListDestinations
 	removeApplications, addApplications []int64
 	removeCategories, addCategories     []int64
@@ -301,10 +346,23 @@ func doNotDecryptListChangeSteps(name string, add bool, destinations []DoNotDecr
 	return steps
 }
 
-// toUpdateSteps builds the PUT requests for an update. The API does not take full lists on update, but lists of
+// doNotDecryptListListRemovalSteps builds the steps that remove IP addresses and CIDR blocks through the destination
+// list, in chunks of destinationListMaxDestinationsPerRequest.
+func doNotDecryptListListRemovalSteps(destinations []DoNotDecryptListDestinations) []doNotDecryptListStep {
+	var steps []doNotDecryptListStep
+	for i := 0; i < len(destinations); i += destinationListMaxDestinationsPerRequest {
+		end := min(i+destinationListMaxDestinationsPerRequest, len(destinations))
+		steps = append(steps, doNotDecryptListStep{viaList: true, removeDestinations: destinations[i:end]})
+	}
+	return steps
+}
+
+// toUpdateSteps builds the requests for an update. The API does not take full lists on update, but lists of
 // destinations, applications and categories to add and to remove. Those are calculated from the state and the plan.
-// Removals are sent first, so that a destination with a changed comment can be removed and added again.
-// If nothing but the name changes, a single request with the name is returned.
+// Additions are sent first and are idempotent (an existing destination only gets its comment updated), so a rejected
+// addition leaves everything in place. Domain names are removed with the update request, IP addresses and CIDR blocks
+// through the destination list (see doNotDecryptListStep). Destinations whose comment is removed are removed and added
+// again last. If nothing but the name changes, a single request with the name is returned.
 func (data DoNotDecryptList) toUpdateSteps(ctx context.Context, state DoNotDecryptList) []doNotDecryptListStep {
 	name := data.Name.ValueString()
 	planApplications := doNotDecryptListInt64Values(ctx, data.Applications)
@@ -312,17 +370,30 @@ func (data DoNotDecryptList) toUpdateSteps(ctx context.Context, state DoNotDecry
 	planCategories := doNotDecryptListInt64Values(ctx, data.DecryptExceptionCategories)
 	stateCategories := doNotDecryptListInt64Values(ctx, state.DecryptExceptionCategories)
 
-	steps := doNotDecryptListChangeSteps(name, false,
-		doNotDecryptListDestinationsDiff(state.Destinations, data.Destinations),
-		doNotDecryptListInt64Diff(stateApplications, planApplications),
-		doNotDecryptListInt64Diff(stateCategories, planCategories))
-	steps = append(steps, doNotDecryptListChangeSteps(name, true,
-		doNotDecryptListDestinationsDiff(data.Destinations, state.Destinations),
+	upsert, remove, readd := doNotDecryptListDestinationChanges(state.Destinations, data.Destinations)
+	var domains, ips []DoNotDecryptListDestinations
+	for _, item := range remove {
+		if doNotDecryptListIsIP(item.Destination.ValueString()) {
+			ips = append(ips, item)
+		} else {
+			domains = append(domains, item)
+		}
+	}
+
+	steps := doNotDecryptListChangeSteps(name, true, upsert,
 		doNotDecryptListInt64Diff(planApplications, stateApplications),
-		doNotDecryptListInt64Diff(planCategories, stateCategories))...)
-	if len(steps) == 0 {
+		doNotDecryptListInt64Diff(planCategories, stateCategories))
+	steps = append(steps, doNotDecryptListChangeSteps(name, false, domains,
+		doNotDecryptListInt64Diff(stateApplications, planApplications),
+		doNotDecryptListInt64Diff(stateCategories, planCategories))...)
+	steps = append(steps, doNotDecryptListListRemovalSteps(ips)...)
+	steps = append(steps, doNotDecryptListChangeSteps(name, true, readd, nil, nil)...)
+
+	// The name is part of every PUT. Make sure that there is one if the name changed.
+	if !slices.ContainsFunc(steps, func(step doNotDecryptListStep) bool { return !step.viaList }) &&
+		(len(steps) == 0 || !data.Name.Equal(state.Name)) {
 		body, _ := sjson.Set("", "name", name)
-		steps = append(steps, doNotDecryptListStep{body: body})
+		steps = slices.Insert(steps, 0, doNotDecryptListStep{body: body})
 	}
 	return steps
 }
@@ -337,7 +408,7 @@ func doNotDecryptListApplyInt64(ctx context.Context, set types.Set, remove, add 
 		}
 	}
 	for _, v := range add {
-		if !slices.Contains(values, v) || slices.Contains(remove, v) {
+		if !slices.Contains(values, v) {
 			result = append(result, types.Int64Value(v))
 		}
 	}
@@ -351,12 +422,19 @@ func doNotDecryptListApplyInt64(ctx context.Context, set types.Set, remove, add 
 // API holds if a later request of the same update fails: the API does not return destinations and applications, so
 // the state could not be corrected by a refresh.
 func (data *DoNotDecryptList) applyStep(ctx context.Context, name types.String, step doNotDecryptListStep) {
-	data.Name = name
+	if !step.viaList {
+		data.Name = name
+	}
+	touched := make(map[string]struct{}, len(step.removeDestinations)+len(step.addDestinations))
+	for _, item := range step.removeDestinations {
+		touched[item.Destination.ValueString()] = struct{}{}
+	}
+	for _, item := range step.addDestinations {
+		touched[item.Destination.ValueString()] = struct{}{}
+	}
 	var destinations []DoNotDecryptListDestinations
 	for _, item := range data.Destinations {
-		if !slices.ContainsFunc(step.removeDestinations, func(r DoNotDecryptListDestinations) bool {
-			return r.Destination.ValueString() == item.Destination.ValueString()
-		}) {
+		if _, ok := touched[item.Destination.ValueString()]; !ok {
 			destinations = append(destinations, item)
 		}
 	}

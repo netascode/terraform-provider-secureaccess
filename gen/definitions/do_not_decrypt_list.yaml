@@ -1,8 +1,14 @@
 # Manual resource
-# -> toBody() on update: PUT takes `add*`/`remove*` lists instead of full lists, Update() builds them from state vs. plan
+# -> toBody(): `destinations` is required on create, also if there are none
 # -> fromBody(), fromBodyPartial(): `decryptExceptionCategories` is a list of ids on write but a list of `{categoryId, name}` on read
+# -> Create(): at most 500 destinations are accepted on create, the rest is added with updates
+# -> Update(): PUT takes `add*`/`remove*` lists instead of full lists, Update() builds them from state vs. plan
+# -> ValidateConfig(): URLs, uppercase domain names and duplicates are rejected before a request is sent
 # APIBEHAVIOUR: GET does not return destinations and applications (only totals), they are tracked in the Terraform state
 # APIBEHAVIOUR: response JSON is not wrapped, list endpoint returns a bare array
+# APIBEHAVIOUR: adding a destination that exists updates its comment, adding it without a comment keeps the old comment
+# APIBEHAVIOUR: PUT cannot remove IP addresses and CIDR blocks ("destination not found"), they are removed by id from the destination list `exceptiondomainlistId`
+# APIBEHAVIOUR: domain names are stored in lowercase, URLs are rejected, a failed PUT does not change anything
 ---
 name: Do Not Decrypt List
 rest_endpoint: /policies/v2/doNotDecryptLists
@@ -20,11 +26,11 @@ attributes:
     string_max_length: 1024
   - model_name: destinations
     type: Set
-    description: Destinations (domain names, URLs or IP addresses) that are excluded from decryption. At most 500 destinations can be sent in a single request, larger lists are split automatically.
+    description: Destinations that are excluded from decryption, domain names (in lowercase), IPv4 addresses or CIDR blocks. URLs are not supported. Large lists are split into multiple requests automatically.
     attributes:
       - model_name: destination
         type: String
-        description: The destination value (domain name, URL, IP address or CIDR block).
+        description: The destination value (domain name in lowercase, IPv4 address or CIDR block).
         example: example.com
         id: true
         mandatory: true

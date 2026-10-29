@@ -95,6 +95,29 @@ func TestDoNotDecryptListChangeStepsChunking(t *testing.T) {
 	}
 }
 
+func TestDoNotDecryptListDestinationChanges(t *testing.T) {
+	state := []DoNotDecryptListDestinations{dndDestination("same.com", "x"), dndDestination("changed.com", "x"), dndDestination("cleared.com", "x"), dndDestination("gets-comment.com", ""), dndDestination("gone.com", "x")}
+	plan := []DoNotDecryptListDestinations{dndDestination("same.com", "x"), dndDestination("changed.com", "y"), dndDestination("cleared.com", ""), dndDestination("gets-comment.com", "z"), dndDestination("new.com", "")}
+
+	upsert, remove, readd := doNotDecryptListDestinationChanges(state, plan)
+	names := func(items []DoNotDecryptListDestinations) []string {
+		var out []string
+		for _, item := range items {
+			out = append(out, item.Destination.ValueString())
+		}
+		return out
+	}
+	if got, want := names(upsert), []string{"changed.com", "gets-comment.com", "new.com"}; !slices.Equal(got, want) {
+		t.Errorf("upsert = %v, want %v (a new comment is set by adding the destination again, without removing it)", got, want)
+	}
+	if got, want := names(remove), []string{"cleared.com", "gone.com"}; !slices.Equal(got, want) {
+		t.Errorf("remove = %v, want %v", got, want)
+	}
+	if got, want := names(readd), []string{"cleared.com"}; !slices.Equal(got, want) {
+		t.Errorf("readd = %v, want %v (adding without a comment does not clear an existing one)", got, want)
+	}
+}
+
 func TestDoNotDecryptListToUpdateSteps(t *testing.T) {
 	ctx := context.Background()
 	state := DoNotDecryptList{
@@ -108,12 +131,12 @@ func TestDoNotDecryptListToUpdateSteps(t *testing.T) {
 		plan := state
 		plan.Name = types.StringValue("new")
 		steps := plan.toUpdateSteps(ctx, state)
-		if len(steps) != 1 || steps[0].body != `{"name":"new"}` {
+		if len(steps) != 1 || steps[0].body != `{"name":"new"}` || steps[0].viaList {
 			t.Fatalf("got %+v", steps)
 		}
 	})
 
-	t.Run("removals are sent before additions, removals carry no comment", func(t *testing.T) {
+	t.Run("additions come first and update comments, removals carry no comment", func(t *testing.T) {
 		plan := state
 		plan.Name = types.StringValue("new")
 		// a.com: comment changed, b.com: removed, c.com: added, keep.com: unchanged
@@ -124,9 +147,21 @@ func TestDoNotDecryptListToUpdateSteps(t *testing.T) {
 		if len(steps) != 2 {
 			t.Fatalf("got %d requests, want 2: %+v", len(steps), steps)
 		}
-		remove, add := steps[0].body, steps[1].body
-		if got := gjson.Get(remove, "removeDestinations.#.destination").Raw; got != `["a.com","b.com"]` {
-			t.Errorf("removed destinations = %s", got)
+		add, remove := steps[0].body, steps[1].body
+		if got := gjson.Get(add, "addDestinations.#.destination").Raw; got != `["a.com","c.com"]` {
+			t.Errorf("added destinations = %s", got)
+		}
+		if got := gjson.Get(add, "addDestinations.0.comment").String(); got != "changed" {
+			t.Errorf("added destination comment = %q", got)
+		}
+		if got := gjson.Get(add, "addApplications").Raw; got != `[3]` {
+			t.Errorf("added applications = %s", got)
+		}
+		if gjson.Get(add, "removeDestinations").Exists() || gjson.Get(remove, "addDestinations").Exists() {
+			t.Errorf("additions and removals must be in separate requests: %s / %s", add, remove)
+		}
+		if got := gjson.Get(remove, "removeDestinations.#.destination").Raw; got != `["b.com"]` {
+			t.Errorf("removed destinations = %s (a changed comment must not remove the destination)", got)
 		}
 		if gjson.Get(remove, "removeDestinations.0.comment").Exists() {
 			t.Errorf("removal must not carry a comment: %s", remove)
@@ -137,26 +172,91 @@ func TestDoNotDecryptListToUpdateSteps(t *testing.T) {
 		if got := gjson.Get(remove, "removeDecryptExceptionCategories").Raw; got != `[10]` {
 			t.Errorf("a null set in the plan must remove the categories, got %s", got)
 		}
-		if gjson.Get(remove, "addDestinations").Exists() || gjson.Get(add, "removeDestinations").Exists() {
-			t.Errorf("additions and removals must be in separate requests: %s / %s", remove, add)
+	})
+
+	t.Run("IP addresses and CIDR blocks are removed through the destination list, after the PUTs", func(t *testing.T) {
+		state := state
+		state.Destinations = []DoNotDecryptListDestinations{dndDestination("a.com", ""), dndDestination("10.10.10.10", ""), dndDestination("192.0.2.0/24", "x"), dndDestination("keep.com", "")}
+		plan := state
+		plan.Destinations = []DoNotDecryptListDestinations{dndDestination("keep.com", ""), dndDestination("new.com", "")}
+		steps := plan.toUpdateSteps(ctx, state)
+		if len(steps) != 3 {
+			t.Fatalf("got %d requests, want 3: %+v", len(steps), steps)
 		}
-		if got := gjson.Get(add, "addDestinations.#.destination").Raw; got != `["a.com","c.com"]` {
-			t.Errorf("added destinations = %s", got)
+		if steps[0].viaList || gjson.Get(steps[0].body, "addDestinations.#.destination").Raw != `["new.com"]` {
+			t.Errorf("request 0 must add new.com: %+v", steps[0])
 		}
-		if got := gjson.Get(add, "addDestinations.0.comment").String(); got != "changed" {
-			t.Errorf("added destination comment = %q", got)
+		if steps[1].viaList || gjson.Get(steps[1].body, "removeDestinations.#.destination").Raw != `["a.com"]` {
+			t.Errorf("request 1 must remove the domain with the update request: %+v", steps[1])
 		}
-		if got := gjson.Get(add, "addApplications").Raw; got != `[3]` {
-			t.Errorf("added applications = %s", got)
+		if !steps[2].viaList || steps[2].body != "" || len(steps[2].removeDestinations) != 2 ||
+			steps[2].removeDestinations[0].Destination.ValueString() != "10.10.10.10" || steps[2].removeDestinations[1].Destination.ValueString() != "192.0.2.0/24" {
+			t.Errorf("request 2 must remove both IP destinations through the destination list: %+v", steps[2])
+		}
+	})
+
+	t.Run("a removed comment is removed and added again last", func(t *testing.T) {
+		state := state
+		state.Destinations = []DoNotDecryptListDestinations{dndDestination("a.com", "x"), dndDestination("10.10.10.10", "y")}
+		plan := state
+		plan.Destinations = []DoNotDecryptListDestinations{dndDestination("a.com", ""), dndDestination("10.10.10.10", "")}
+		steps := plan.toUpdateSteps(ctx, state)
+		if len(steps) != 3 {
+			t.Fatalf("got %d requests, want 3: %+v", len(steps), steps)
+		}
+		if steps[0].viaList || gjson.Get(steps[0].body, "removeDestinations.#.destination").Raw != `["a.com"]` {
+			t.Errorf("request 0 must remove a.com: %+v", steps[0])
+		}
+		if !steps[1].viaList || len(steps[1].removeDestinations) != 1 || steps[1].removeDestinations[0].Destination.ValueString() != "10.10.10.10" {
+			t.Errorf("request 1 must remove 10.10.10.10 through the destination list: %+v", steps[1])
+		}
+		if steps[2].viaList || gjson.Get(steps[2].body, "addDestinations.#.destination").Raw != `["a.com","10.10.10.10"]` || gjson.Get(steps[2].body, "addDestinations.0.comment").Exists() {
+			t.Errorf("request 2 must add both again without a comment: %+v", steps[2])
+		}
+	})
+
+	t.Run("a new name is sent even if the only other change is an IP removal", func(t *testing.T) {
+		state := state
+		state.Destinations = []DoNotDecryptListDestinations{dndDestination("10.10.10.10", "")}
+		plan := state
+		plan.Name = types.StringValue("new")
+		plan.Destinations = nil
+		steps := plan.toUpdateSteps(ctx, state)
+		if len(steps) != 2 || steps[0].viaList || steps[0].body != `{"name":"new"}` || !steps[1].viaList {
+			t.Fatalf("got %+v", steps)
 		}
 	})
 
 	t.Run("null destinations in the plan remove all", func(t *testing.T) {
+		state := state
+		state.Destinations = []DoNotDecryptListDestinations{dndDestination("a.com", ""), dndDestination("b.com", ""), dndDestination("10.10.10.10", "")}
 		plan := state
 		plan.Destinations = nil
 		steps := plan.toUpdateSteps(ctx, state)
-		if len(steps) != 1 || len(gjson.Get(steps[0].body, "removeDestinations").Array()) != 3 {
+		if len(steps) != 2 || len(gjson.Get(steps[0].body, "removeDestinations").Array()) != 2 || !steps[1].viaList || len(steps[1].removeDestinations) != 1 {
 			t.Fatalf("got %+v", steps)
+		}
+	})
+
+	t.Run("removals are split into chunks", func(t *testing.T) {
+		state := state
+		state.Destinations = dndDestinations(501)
+		for i := 0; i < 500; i++ {
+			state.Destinations = append(state.Destinations, dndDestination(fmt.Sprintf("10.1.%d.%d", i/200, i%200), ""))
+		}
+		plan := state
+		plan.Destinations = nil
+		steps := plan.toUpdateSteps(ctx, state)
+		var put, list []int
+		for _, step := range steps {
+			if step.viaList {
+				list = append(list, len(step.removeDestinations))
+			} else {
+				put = append(put, len(gjson.Get(step.body, "removeDestinations").Array()))
+			}
+		}
+		if !slices.Equal(put, []int{500, 1}) || !slices.Equal(list, []int{destinationListMaxDestinationsPerRequest, 500 - destinationListMaxDestinationsPerRequest}) {
+			t.Errorf("PUT removals = %v, destination list removals = %v", put, list)
 		}
 	})
 }
@@ -165,7 +265,7 @@ func TestDoNotDecryptListApplyStep(t *testing.T) {
 	ctx := context.Background()
 	state := DoNotDecryptList{
 		Name:                       types.StringValue("old"),
-		Destinations:               []DoNotDecryptListDestinations{dndDestination("a.com", "x"), dndDestination("b.com", "y")},
+		Destinations:               []DoNotDecryptListDestinations{dndDestination("a.com", "x"), dndDestination("b.com", "y"), dndDestination("10.10.10.10", "")},
 		Applications:               dndInt64Set(1, 2),
 		DecryptExceptionCategories: dndInt64Set(10),
 	}
@@ -175,32 +275,83 @@ func TestDoNotDecryptListApplyStep(t *testing.T) {
 	plan.Applications = dndInt64Set(2, 3)
 	plan.DecryptExceptionCategories = types.SetNull(types.Int64Type)
 
-	steps := plan.toUpdateSteps(ctx, state)
+	steps := plan.toUpdateSteps(ctx, state) // add, remove (b.com), remove through the list (10.10.10.10)
+	if len(steps) != 3 {
+		t.Fatalf("got %d requests, want 3: %+v", len(steps), steps)
+	}
 	original := slices.Clone(state.Destinations)
 	interim := state
-	interim.applyStep(ctx, plan.Name, steps[0]) // only the removal request was accepted
+	interim.applyStep(ctx, plan.Name, steps[0]) // only the addition request was accepted
 
 	if interim.Name.ValueString() != "new" {
 		t.Errorf("name = %q", interim.Name.ValueString())
 	}
-	if len(interim.Destinations) != 0 {
-		t.Errorf("after the removal request no destination is left, got %+v", interim.Destinations)
+	var got []string
+	for _, item := range interim.Destinations {
+		got = append(got, item.Destination.ValueString()+"="+item.Comment.ValueString())
 	}
-	if got := doNotDecryptListInt64Values(ctx, interim.Applications); !slices.Equal(got, []int64{2}) {
-		t.Errorf("applications = %v, want [2]", got)
+	if want := []string{"b.com=y", "10.10.10.10=", "a.com=changed", "c.com="}; !slices.Equal(got, want) {
+		t.Errorf("after the addition request destinations = %v, want %v (an existing destination is updated, not duplicated)", got, want)
 	}
-	if !interim.DecryptExceptionCategories.IsNull() {
-		t.Errorf("categories = %v, want null", interim.DecryptExceptionCategories)
+	if got := doNotDecryptListInt64Values(ctx, interim.Applications); !slices.Equal(got, []int64{1, 2, 3}) {
+		t.Errorf("applications = %v, want [1 2 3]", got)
 	}
 	if !slices.EqualFunc(original, state.Destinations, func(a, b DoNotDecryptListDestinations) bool { return a == b }) {
 		t.Errorf("the state the interim copy was made from must not be modified")
 	}
 
-	interim.applyStep(ctx, plan.Name, steps[1]) // the addition request
-	if len(interim.Destinations) != 2 || interim.Destinations[0].Destination.ValueString() != "a.com" || interim.Destinations[0].Comment.ValueString() != "changed" || interim.Destinations[1].Destination.ValueString() != "c.com" {
-		t.Errorf("destinations = %+v", interim.Destinations)
-	}
+	interim.applyStep(ctx, plan.Name, steps[1]) // the removal request
 	if got := doNotDecryptListInt64Values(ctx, interim.Applications); !slices.Equal(got, []int64{2, 3}) {
 		t.Errorf("applications = %v, want [2 3]", got)
+	}
+	if !interim.DecryptExceptionCategories.IsNull() {
+		t.Errorf("categories = %v, want null", interim.DecryptExceptionCategories)
+	}
+
+	interim.Name = types.StringValue("not touched by the destination list")
+	interim.applyStep(ctx, plan.Name, steps[2]) // removal through the destination list does not carry the name
+	if interim.Name.ValueString() != "not touched by the destination list" {
+		t.Errorf("a removal through the destination list must not change the name, got %q", interim.Name.ValueString())
+	}
+	got = nil
+	for _, item := range interim.Destinations {
+		got = append(got, item.Destination.ValueString())
+	}
+	if want := []string{"a.com", "c.com"}; !slices.Equal(got, want) {
+		t.Errorf("destinations = %v, want %v", got, want)
+	}
+}
+
+func TestDoNotDecryptListDestinationProblem(t *testing.T) {
+	for destination, wantProblem := range map[string]bool{
+		"example.com":          false,
+		"sub.example.com":      false,
+		"10.10.10.10":          false,
+		"192.0.2.0/24":         false,
+		"https://foo.bar/path": true,
+		"foo.bar/path":         true,
+		"ftp://10.0.0.1":       true,
+		"Example.com":          true,
+		"EXAMPLE.COM":          true,
+	} {
+		if got := doNotDecryptListDestinationProblem(destination) != ""; got != wantProblem {
+			t.Errorf("%q: problem = %q, want a problem: %v", destination, doNotDecryptListDestinationProblem(destination), wantProblem)
+		}
+	}
+}
+
+func TestDoNotDecryptListIsIP(t *testing.T) {
+	for destination, want := range map[string]bool{
+		"10.10.10.10":     true,
+		"203.0.113.5":     true,
+		"192.0.2.0/24":    true,
+		"example.com":     false,
+		"1.2.3":           false,
+		"a.b.c.d":         false,
+		"sub.example.com": false,
+	} {
+		if got := doNotDecryptListIsIP(destination); got != want {
+			t.Errorf("%q: IP = %v, want %v", destination, got, want)
+		}
 	}
 }

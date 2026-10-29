@@ -20,6 +20,7 @@ package provider
 // Section below is generated&owned by "gen/generator.go". //template:begin imports
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -83,12 +84,12 @@ func (r *DoNotDecryptListResource) Schema(ctx context.Context, req resource.Sche
 				},
 			},
 			"destinations": schema.SetNestedAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Destinations (domain names, URLs or IP addresses) that are excluded from decryption. At most 500 destinations can be sent in a single request, larger lists are split automatically.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Destinations that are excluded from decryption, domain names (in lowercase), IPv4 addresses or CIDR blocks. URLs are not supported. Large lists are split into multiple requests automatically.").String,
 				Optional:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"destination": schema.StringAttribute{
-							MarkdownDescription: helpers.NewAttributeDescription("The destination value (domain name, URL, IP address or CIDR block).").String,
+							MarkdownDescription: helpers.NewAttributeDescription("The destination value (domain name in lowercase, IPv4 address or CIDR block).").String,
 							Required:            true,
 						},
 						"comment": schema.StringAttribute{
@@ -169,6 +170,10 @@ func (r *DoNotDecryptListResource) Create(ctx context.Context, req resource.Crea
 	res, err := r.client.Post(ctx, plan.getPath(), body, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST), got error: %s, %s", err, res.String()))
+		return
+	}
+	if res.Get("id").String() == "" {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST), the response has no id: %s", res.String()))
 		return
 	}
 	plan.Id = types.StringValue(res.Get("id").String())
@@ -266,12 +271,23 @@ func (r *DoNotDecryptListResource) Update(ctx context.Context, req resource.Upda
 	// return destinations and applications, so Terraform could not find out about the difference otherwise.
 	steps := plan.toUpdateSteps(ctx, state)
 	interim := state
+	objectPath := plan.getPath() + "/" + url.QueryEscape(plan.Id.ValueString())
 	var res gjson.Result
 	for i, step := range steps {
 		var err error
-		res, err = r.client.Put(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), step.body, reqMods...)
+		if step.viaList {
+			res, err = r.removeThroughDestinationList(ctx, objectPath, step.removeDestinations, reqMods...)
+			if err != nil {
+				err = fmt.Errorf("failed to remove IP addresses through the destination list: %w", err)
+			}
+		} else {
+			res, err = r.client.Put(ctx, objectPath, step.body, reqMods...)
+			if err != nil {
+				err = fmt.Errorf("%w, %s", err, res.String())
+			}
+		}
 		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PUT %d of %d), got error: %s, %s", i+1, len(steps), err, res.String()))
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (request %d of %d), got error: %s", i+1, len(steps), err))
 			if i > 0 {
 				resp.Diagnostics.Append(resp.State.Set(ctx, &interim)...)
 			}
@@ -336,8 +352,68 @@ func (r *DoNotDecryptListResource) ImportState(ctx context.Context, req resource
 
 var _ resource.ResourceWithValidateConfig = &DoNotDecryptListResource{}
 
-// ValidateConfig rejects a destination that is listed more than once. Destinations are removed by their value without
-// the comment, so two entries with the same value and different comments could not be managed independently.
+// removeThroughDestinationList removes IP addresses and CIDR blocks. The update request of the API cannot remove them
+// ("destination not found"), but the destinations of the object are also available as a destination list
+// (exceptiondomainlistId), from which they can be removed by id. A destination that is not in the list anymore is
+// skipped, as it is gone already. Returns the object as it is afterwards.
+func (r *DoNotDecryptListResource) removeThroughDestinationList(ctx context.Context, objectPath string, items []DoNotDecryptListDestinations, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
+	res, err := r.client.Get(ctx, objectPath, reqMods...)
+	if err != nil {
+		return res, fmt.Errorf("failed to retrieve object (GET): %w, %s", err, res.String())
+	}
+	listId := res.Get("exceptiondomainlistId").String()
+	if listId == "" || listId == "0" {
+		return res, fmt.Errorf("the object has no destination list (exceptiondomainlistId), got: %s", res.String())
+	}
+
+	// Find the ids of the destinations, the list is read page by page until all of them are found
+	wanted := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		wanted[item.Destination.ValueString()] = struct{}{}
+	}
+	found := make(map[string]int64, len(items))
+	for page := 1; len(found) < len(wanted); page++ {
+		urlPath := fmt.Sprintf("%s?page=%d&limit=%d", destinationListDestinationsPath(listId), page, destinationListDestinationsPageLimit)
+		resDest, err := r.client.Get(ctx, urlPath, reqMods...)
+		if err != nil {
+			return res, fmt.Errorf("failed to retrieve destinations page %d (GET): %w, %s", page, err, resDest.String())
+		}
+		data := resDest.Get("data").Array()
+		for _, item := range data {
+			destination := item.Get("destination").String()
+			if _, ok := wanted[destination]; ok {
+				found[destination] = item.Get("id").Int()
+			}
+		}
+		if len(data) < destinationListDestinationsPageLimit {
+			break
+		}
+	}
+	var ids []int64
+	for _, item := range items {
+		if id, ok := found[item.Destination.ValueString()]; ok {
+			ids = append(ids, id)
+		} else {
+			tflog.Warn(ctx, fmt.Sprintf("%s: %s is not in the destination list anymore, skipping its removal", objectPath, item.Destination.ValueString()))
+		}
+	}
+
+	for i := 0; i < len(ids); i += destinationListMaxDestinationsPerRequest {
+		end := min(i+destinationListMaxDestinationsPerRequest, len(ids))
+		tflog.Debug(ctx, fmt.Sprintf("%s: Removing destinations %d-%d of %d from destination list %s", objectPath, i, end, len(ids), listId))
+		body, _ := json.Marshal(ids[i:end])
+		resDel, err := r.client.DeleteWithBody(ctx, destinationListDestinationsPath(listId)+"/remove", string(body), reqMods...)
+		if err != nil {
+			return res, fmt.Errorf("failed to remove destinations %d-%d (DELETE): %w, %s", i, end, err, resDel.String())
+		}
+	}
+	return r.client.Get(ctx, objectPath, reqMods...)
+}
+
+// ValidateConfig rejects destinations that the API cannot store as they are (URLs, domain names with uppercase
+// letters, which the API stores in lowercase), and a destination that is listed more than once. Destinations are
+// removed by their value without the comment, so two entries with the same value and different comments could not be
+// managed independently.
 func (r *DoNotDecryptListResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
 	var destinations types.Set
 	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("destinations"), &destinations)...)
@@ -354,11 +430,17 @@ func (r *DoNotDecryptListResource) ValidateConfig(ctx context.Context, req resou
 		if !ok || destination.IsNull() || destination.IsUnknown() {
 			continue
 		}
-		if _, exists := seen[destination.ValueString()]; exists {
+		if problem := doNotDecryptListDestinationProblem(destination.ValueString()); problem != "" {
+			resp.Diagnostics.AddAttributeError(path.Root("destinations"), "Invalid destination",
+				fmt.Sprintf("The destination %q cannot be used. %s", destination.ValueString(), problem))
+			return
+		}
+		key := strings.ToLower(destination.ValueString())
+		if _, exists := seen[key]; exists {
 			resp.Diagnostics.AddAttributeError(path.Root("destinations"), "Duplicate destination",
 				fmt.Sprintf("The destination %q is listed more than once. A destination can only be listed once, with a single comment.", destination.ValueString()))
 			return
 		}
-		seen[destination.ValueString()] = struct{}{}
+		seen[key] = struct{}{}
 	}
 }

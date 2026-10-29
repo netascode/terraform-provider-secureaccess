@@ -89,8 +89,9 @@ func testAccSecureAccessDoNotDecryptListConfig_all() string {
 
 // End of section. //template:end testAccConfigAll
 
-// Manual test: adding, changing and removing destinations is done with separate add/remove lists in the API,
-// as it does not return the destinations, only the totals
+// Manual test: adding, changing and removing destinations is done with separate add/remove lists in the API, as it does
+// not return the destinations, only the totals. IP addresses and CIDR blocks cannot be removed with the update request
+// of the API, they are removed through the destination list behind the object.
 func TestAccSecureAccessDoNotDecryptList_Sequential(t *testing.T) {
 	config := func(name string, destinations ...string) string {
 		cfg := `resource "secureaccess_do_not_decrypt_list" "test" {` + "\n" +
@@ -110,40 +111,48 @@ func TestAccSecureAccessDoNotDecryptList_Sequential(t *testing.T) {
 		cfg += `}` + "\n"
 		return cfg
 	}
+	totals := func(destinations, domains, ips string) resource.TestCheckFunc {
+		return resource.ComposeTestCheckFunc(
+			resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "destinations.#", destinations),
+			resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "total_domains", domains),
+			resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "total_ips", ips),
+		)
+	}
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				// create with a comment and without one
-				Config: config("my_do_not_decrypt_list_seq", "example.com", "first comment", "10.10.10.10", ""),
+				// create with and without comments: a domain, a private and a public IP address, a CIDR block
+				Config: config("my_do_not_decrypt_list_seq", "example.com", "first comment", "10.10.10.10", "", "203.0.113.5", "ip comment", "192.0.2.0/24", ""),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttrSet("secureaccess_do_not_decrypt_list.test", "id"),
-					resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "destinations.#", "2"),
+					totals("4", "1", "3"),
 				),
 			},
 			{
-				// change a comment, remove a destination and add two others
-				Config: config("my_do_not_decrypt_list_seq", "example.com", "changed comment", "example2.com", "second", "https://foo.bar/path", "url"),
-				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "destinations.#", "3"),
-				),
+				// change a comment, set a comment, add a domain, remove an IP address (through the destination list)
+				Config: config("my_do_not_decrypt_list_seq", "example.com", "changed comment", "example2.com", "second", "10.10.10.10", "now with a comment", "192.0.2.0/24", ""),
+				Check:  totals("4", "2", "2"),
+			},
+			{
+				// remove a comment (the destination is removed and added again), remove an IP address and a CIDR block
+				Config: config("my_do_not_decrypt_list_seq", "example.com", "", "example2.com", "second"),
+				Check:  totals("2", "2", "0"),
 			},
 			{
 				// rename only
-				Config: config("my_do_not_decrypt_list_seq_renamed", "example.com", "changed comment", "example2.com", "second", "https://foo.bar/path", "url"),
+				Config: config("my_do_not_decrypt_list_seq_renamed", "example.com", "", "example2.com", "second"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "name", "my_do_not_decrypt_list_seq_renamed"),
-					resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "destinations.#", "3"),
+					totals("2", "2", "0"),
 				),
 			},
 			{
 				// remove all destinations
 				Config: config("my_do_not_decrypt_list_seq_renamed"),
-				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "destinations.#", "0"),
-				),
+				Check:  totals("0", "0", "0"),
 			},
 		},
 	})
@@ -165,6 +174,24 @@ func TestAccSecureAccessDoNotDecryptList_DuplicateDestination(t *testing.T) {
 					`}` + "\n",
 				ExpectError: regexp.MustCompile(`Duplicate destination`),
 			},
+		},
+	})
+}
+
+// Manual test: destinations that the API cannot store as they are are rejected before any request is sent
+func TestAccSecureAccessDoNotDecryptList_InvalidDestination(t *testing.T) {
+	config := func(destination string) string {
+		return `resource "secureaccess_do_not_decrypt_list" "test" {` + "\n" +
+			`	name = "my_do_not_decrypt_list_invalid"` + "\n" +
+			`	destinations = [{ destination = "` + destination + `" }]` + "\n" +
+			`}` + "\n"
+	}
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{Config: config("https://foo.bar/path"), ExpectError: regexp.MustCompile(`Invalid destination`)},
+			{Config: config("Example.com"), ExpectError: regexp.MustCompile(`Invalid destination`)},
 		},
 	})
 }
