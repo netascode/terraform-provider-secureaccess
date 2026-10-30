@@ -28,7 +28,8 @@ data "secureaccess_registered_network" "example" {
 
 ### Read-Only
 
+- `ipv4_prefix` (String) IPv4 subnet prefix.
+- `ipv4_prefix_length` (Number) IPv4 subnet prefix length.
 - `is_dynamic` (Boolean) Specifies whether the IP is dynamic.
-- `prefix` (String) Subnet prefix.
-- `prefix_length` (Number) Subnet prefix length.
+- `is_verified` (Boolean) Specifies whether the IP is verified.
 - `status` (String) Status of the Network.

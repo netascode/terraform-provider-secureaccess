@@ -1,6 +1,6 @@
 ---
 name: Content Categories
-rest_endpoint: /policies/v2/categories
+rest_endpoint: /reports/v2/categories
 doc_category: Resources
 no_resource: true
 no_import: true
@@ -23,11 +23,20 @@ attributes:
     description: >-
       Map of Content Categories. The key of the map is the name of the individual Content Category.
     map_key_example: Animals and Pets
+    map_key_model_name: label
     attributes:
-      - model_name: categoryId
+      - model_name: id
         tf_name: id
-        type: String
+        type: Int64
         resource_id: true
         description: Id of the Content Category.
         exclude_example: true
         exclude_test: true
+      - model_name: deprecated
+        type: Bool
+        description: Indicates if the Content Category is deprecated.
+        computed: true
+      - model_name: type
+        type: String
+        description: Type of the Content Category.
+        computed: true

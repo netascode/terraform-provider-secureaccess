@@ -70,8 +70,16 @@ func (d *ContentCategoriesDataSource) Schema(ctx context.Context, req datasource
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"id": schema.StringAttribute{
+						"id": schema.Int64Attribute{
 							MarkdownDescription: "Id of the Content Category.",
+							Computed:            true,
+						},
+						"deprecated": schema.BoolAttribute{
+							MarkdownDescription: "Indicates if the Content Category is deprecated.",
+							Computed:            true,
+						},
+						"type": schema.StringAttribute{
+							MarkdownDescription: "Type of the Content Category.",
 							Computed:            true,
 						},
 					},
@@ -124,7 +132,7 @@ func (d *ContentCategoriesDataSource) Read(ctx context.Context, req datasource.R
 	if len(config.Items) == 0 {
 		config.Items = map[string]ContentCategoriesItems{}
 		res.ForEach(func(_, v gjson.Result) bool {
-			if name := v.Get("name").String(); name != "" {
+			if name := v.Get("label").String(); name != "" {
 				config.Items[name] = ContentCategoriesItems{}
 			}
 			return true

@@ -23,11 +23,15 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/datasourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
+	"github.com/tidwall/gjson"
 )
 
 // End of section. //template:end imports
@@ -60,10 +64,12 @@ func (d *SiteDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "Id of the object",
-				Required:            true,
+				Optional:            true,
+				Computed:            true,
 			},
 			"name": schema.StringAttribute{
 				MarkdownDescription: "Name of the Site.",
+				Optional:            true,
 				Computed:            true,
 			},
 			"internal_network_count": schema.Int64Attribute{
@@ -87,6 +93,14 @@ func (d *SiteDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 				Computed:            true,
 			},
 		},
+	}
+}
+func (d *SiteDataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
+	return []datasource.ConfigValidator{
+		datasourcevalidator.ExactlyOneOf(
+			path.MatchRoot("id"),
+			path.MatchRoot("name"),
+		),
 	}
 }
 
@@ -117,11 +131,43 @@ func (d *SiteDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", config.Id.String()))
 
-	urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
-	res, err := d.client.Get(ctx, urlPath, reqMods...)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
-		return
+	// Object found by a query attribute, it is not retrieved again by ID
+	var res secureaccess.Res
+	if config.Id.IsNull() && !config.Name.IsNull() {
+		// Client handles pagination and returns all items merged into a single list
+		items, err := d.client.GetAll(ctx, config.getPath(), reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, got error: %s", err))
+			return
+		}
+		if !items.IsArray() {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, expected a list, got: %s", items.Type))
+			return
+		}
+		items.ForEach(func(k, v gjson.Result) bool {
+			if config.Name.ValueString() == v.Get("name").String() {
+				config.Id = types.StringValue(v.Get("siteId").String())
+				res.Result = v
+				tflog.Debug(ctx, fmt.Sprintf("%s: Found object with name '%v', id: %v", config.Id.ValueString(), config.Name.ValueString(), config.Id.ValueString()))
+				return false
+			}
+			return true
+		})
+
+		if config.Id.IsNull() {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to find object with name: %v", config.Name.ValueString()))
+			return
+		}
+	}
+
+	if !res.Exists() {
+		urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
+		var err error
+		res, err = d.client.Get(ctx, urlPath, reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
+			return
+		}
 	}
 
 	config.fromBody(ctx, res.Result)

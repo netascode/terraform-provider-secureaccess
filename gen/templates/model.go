@@ -192,13 +192,21 @@ func (data {{camelCase .Name}}) toBody(ctx context.Context, state {{camelCase .N
 	{{- else if not .Reference}}
 	{{- if or (eq .Type "String") (eq .Type "Int64") (eq .Type "Float64") (eq .Type "Bool")}}
 	if !data.{{toGoName .TfName}}.IsNull() {{if .WriteChangesOnly}}&& data.{{toGoName .TfName}} != state.{{toGoName .TfName}}{{end}} {{if .ComputedBodyParam}} && !data.{{toGoName .TfName}}.IsUnknown(){{end}} {
+		{{- if isListEntry .}}
+		body, _ = sjson.Set(body, "{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}.-1", {{listEntryMap . (printf "data.%s.Value%s()" (toGoName .TfName) .Type)}})
+		{{- else}}
 		body, _ = sjson.Set(body, "{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}", data.{{toGoName .TfName}}.Value{{.Type}}())
+		{{- end}}
 	}
 	{{- else if isListSet .}}
 	if !data.{{toGoName .TfName}}.IsNull() {
 		var values []{{if isStringListSet .}}string{{else if isInt64ListSet .}}int64{{end}}
 		data.{{toGoName .TfName}}.ElementsAs(ctx, &values, false)
+		{{- if isListEntry .}}
+		body, _ = sjson.Set(body, "{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}.-1", {{listEntryMap . "values"}})
+		{{- else}}
 		body, _ = sjson.Set(body, "{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}", values)
+		{{- end}}
 	}
 	{{- else if isNestedListMapSet .}}
 	{{- $listBld := printf "%sBody" (lowerFirst (toGoName .TfName))}}
@@ -311,7 +319,12 @@ func (data {{camelCase .Name}}) toBody(ctx context.Context, state {{camelCase .N
 			}
 		}
 		{{$listBld}}.WriteString("]")
+		{{- if isListEntry .}}
+		entry, _ := sjson.SetRaw({{listEntryJson .}}, "{{listEntryValueKey .}}", {{$listBld}}.String())
+		body, _ = sjson.SetRaw(body, "{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}.-1", entry)
+		{{- else}}
 		body, _ = sjson.SetRaw(body, "{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}", {{$listBld}}.String())
+		{{- end}}
 	}
 	{{- end}}
 	{{- end}}
@@ -328,13 +341,13 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	{{- range .Attributes}}
 	{{- if .TfOnly}}
 	{{- if .DefaultValue}}
-	data.{{toGoName .TfName}} = types.{{.Type}}Value({{.DefaultValue}})
+	data.{{toGoName .TfName}} = types.{{.Type}}Value({{if eq .Type "String"}}"{{end}}{{.DefaultValue}}{{if eq .Type "String"}}"{{end}})
 	{{- end}}
 	{{- continue}}
 	{{- end}}
 	{{- if and (not .Value) (not .WriteOnly) (not .Reference)}}
 	{{- if or (eq .Type "String") (eq .Type "Int64") (eq .Type "Float64") (eq .Type "Bool")}}
-	if value := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"); value.Exists() {
+	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}} {
 		data.{{toGoName .TfName}} = types.{{.Type}}Value(value.{{if eq .Type "Int64"}}Int{{else if eq .Type "Float64"}}Float{{else}}{{.Type}}{{end}}())
 	} else {
 		{{- if .DefaultValue}}
@@ -344,7 +357,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 		{{- end}}
 	}
 	{{- else if isListSet .}}
-	if value := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"); value.Exists() {
+	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}} {
 		data.{{toGoName .TfName}} = helpers.Get{{.ElementType}}{{.Type}}(value.Array())
 	} else {
 		data.{{toGoName .TfName}} = types.{{.Type}}Null(types.{{.ElementType}}Type)
@@ -352,7 +365,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	{{- else if isComputedNestedList .}}
 	data.fromBody{{toGoName .TfName}}(ctx, res)
 	{{- else if isNestedListSet .}}
-	if value := res{{if .ModelName}}.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"){{end}}; value.Exists() {
+	if value := res{{if isListEntry .}}.Get(`{{listEntryPath .}}`){{else if .ModelName}}.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"){{end}}; value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}} {
 		data.{{toGoName .TfName}} = make([]{{.GoTypeName}}, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -367,7 +380,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	{{- if or $.ImportNameQuery $.IsBulk}}
 	itemsByName := make(map[string]gjson.Result)
 	res.{{if .ModelName}}Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}").{{end}}ForEach(func(_, v gjson.Result) bool {
-		if name := v.Get("name").String(); name != "" {
+		if name := v.Get("{{.MapKeyModelName}}").String(); name != "" {
 			{{- if $.IsBulk}}
 			// Item names are matched case-insensitively
 			itemsByName[strings.ToLower(name)] = v
@@ -436,6 +449,9 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 {{- else}}
 {{- template "fromBodyTemplate" .}}
 {{- end}}
+{{- if .AdjustRead}}
+	data.adjustRead(ctx, res, nil)
+{{- end}}
 }
 {{- range .Attributes}}
 {{- if and (isComputedNestedList .) (not .Value) (not .WriteOnly) (not .Reference) (not .TfOnly)}}
@@ -472,19 +488,33 @@ func (data *{{camelCase $.Name}}) fromBody{{toGoName .TfName}}(ctx context.Conte
 	{{- if .TfOnly}}{{- continue}}{{- end}}
 	{{- if and (not .Value) (not .WriteOnly) (not .Reference)}}
 	{{- if or (eq .Type "String") (eq .Type "Int64") (eq .Type "Float64") (eq .Type "Bool")}}
-	if value := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"); value.Exists(){{if not .ResourceId}}{{if not .ComputedRefreshValue}} && !data.{{toGoName .TfName}}.IsNull(){{end}}{{end}} {
+	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}}{{if not .ResourceId}}{{if not .ComputedRefreshValue}} && !data.{{toGoName .TfName}}.IsNull(){{end}}{{end}} {
 		data.{{toGoName .TfName}} = types.{{.Type}}Value(value.{{if eq .Type "Int64"}}Int{{else if eq .Type "Float64"}}Float{{else}}{{.Type}}{{end}}())
 	} else {{if .DefaultValue}}if data.{{toGoName .TfName}}.Value{{.Type}}() != {{if eq .Type "String"}}"{{end}}{{.DefaultValue}}{{if eq .Type "String"}}"{{end}} {{end}}{
 		data.{{toGoName .TfName}} = types.{{.Type}}Null()
 	}
 	{{- else if isListSet .}}
-	if value := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"); value.Exists() && !data.{{toGoName .TfName}}.IsNull() {
+	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}} && !data.{{toGoName .TfName}}.IsNull() {
 		data.{{toGoName .TfName}} = helpers.Get{{.ElementType}}{{.Type}}(value.Array())
 	} else {
 		data.{{toGoName .TfName}} = types.{{.Type}}Null(types.{{.ElementType}}Type)
 	}
 	{{- else if isComputedNestedList .}}
 	data.fromBody{{toGoName .TfName}}(ctx, res)
+	{{- else if and (isListEntry .) (isNestedListSet .)}}
+	// The whole list is the value of a single list entry, it is read back as a whole
+	if value := res.Get(`{{listEntryPath .}}`); value.Exists() && value.Type != gjson.Null && len(data.{{toGoName .TfName}}) > 0 {
+		data.{{toGoName .TfName}} = make([]{{.GoTypeName}}, 0, int(value.Get("#").Int()))
+		value.ForEach(func(k, res gjson.Result) bool {
+			parent := &data
+			data := {{.GoTypeName}}{}
+			{{- template "fromBodyTemplate" .}}
+			(*parent).{{toGoName .TfName}} = append((*parent).{{toGoName .TfName}}, data)
+			return true
+		})
+	} else {
+		data.{{toGoName .TfName}} = nil
+	}
 	{{- else if isNestedListMapSet .}}
 	{{- $list := (toGoName .TfName)}}
 	{{- if isNestedMap .}}
@@ -574,6 +604,9 @@ func (data *{{camelCase $.Name}}) fromBody{{toGoName .TfName}}(ctx context.Conte
 // easily change across versions of the backend API.) For List/Set/Map attributes, the func only updates the
 // "managed" elements, instead of all elements.
 func (data *{{camelCase .Name}}) fromBodyPartial(ctx context.Context, res gjson.Result) {
+{{- if .AdjustRead}}
+	prior := *data
+{{- end}}
 {{- if .SettingsList}}
 	settings := helpers.GetSettings(res)
 	{{- range .Attributes}}
@@ -595,6 +628,9 @@ func (data *{{camelCase .Name}}) fromBodyPartial(ctx context.Context, res gjson.
 	{{- end}}
 {{- else}}
 {{- template "fromBodyPartialTemplate" .}}
+{{- end}}
+{{- if .AdjustRead}}
+	data.adjustRead(ctx, res, &prior)
 {{- end}}
 }
 {{end}}
@@ -666,7 +702,7 @@ func (data *{{camelCase .Name}}) fromBodyUnknowns(ctx context.Context, res gjson
 	itemsByName := make(map[string]gjson.Result)
 	itemsById := make(map[string]gjson.Result)
 	res.{{if .ModelName}}Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}").{{end}}ForEach(func(_, v gjson.Result) bool {
-		if name := v.Get("name").String(); name != "" {
+		if name := v.Get("{{.MapKeyModelName}}").String(); name != "" {
 			itemsByName[name] = v
 		}
 		if id := v.Get("id").String(); id != "" {
@@ -734,6 +770,16 @@ func (data {{camelCase .Name}}) adjustBody(ctx context.Context, req string) stri
 {{- end}}
 
 // End of section. //template:end adjustBody
+
+// Section below is generated&owned by "gen/generator.go". //template:begin adjustRead
+
+{{if .AdjustRead}}
+// adjustRead adjusts the values read from `res`, `prior` holds the values before a partial read (nil for a full read).
+func (data *{{camelCase .Name}}) adjustRead(ctx context.Context, res gjson.Result, prior *{{camelCase .Name}}) {
+}
+{{- end}}
+
+// End of section. //template:end adjustRead
 
 
 {{- range .Attributes}}

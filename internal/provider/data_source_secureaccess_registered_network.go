@@ -80,12 +80,16 @@ func (d *RegisteredNetworkDataSource) Schema(ctx context.Context, req datasource
 				MarkdownDescription: "Specifies whether the IP is dynamic.",
 				Computed:            true,
 			},
-			"prefix": schema.StringAttribute{
-				MarkdownDescription: "Subnet prefix.",
+			"is_verified": schema.BoolAttribute{
+				MarkdownDescription: "Specifies whether the IP is verified.",
 				Computed:            true,
 			},
-			"prefix_length": schema.Int64Attribute{
-				MarkdownDescription: "Subnet prefix length.",
+			"ipv4_prefix": schema.StringAttribute{
+				MarkdownDescription: "IPv4 subnet prefix.",
+				Computed:            true,
+			},
+			"ipv4_prefix_length": schema.Int64Attribute{
+				MarkdownDescription: "IPv4 subnet prefix length.",
 				Computed:            true,
 			},
 		},
@@ -142,7 +146,7 @@ func (d *RegisteredNetworkDataSource) Read(ctx context.Context, req datasource.R
 		}
 		items.ForEach(func(k, v gjson.Result) bool {
 			if config.Name.ValueString() == v.Get("name").String() {
-				config.Id = types.StringValue(v.Get("id").String())
+				config.Id = types.StringValue(v.Get("originId").String())
 				res.Result = v
 				tflog.Debug(ctx, fmt.Sprintf("%s: Found object with name '%v', id: %v", config.Id.ValueString(), config.Name.ValueString(), config.Id.ValueString()))
 				return false

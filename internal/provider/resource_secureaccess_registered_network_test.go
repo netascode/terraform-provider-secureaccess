@@ -30,24 +30,24 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin testAcc
 
 func TestAccSecureAccessRegisteredNetwork(t *testing.T) {
-	if os.Getenv("TF_VAR_REGISTERED_NETWORK") == "" {
-		t.Skip("skipping test, set environment variable TF_VAR_REGISTERED_NETWORK")
+	if os.Getenv("TF_VAR_registered_network_ipv4_prefix") == "" {
+		t.Skip("skipping test, set environment variable TF_VAR_registered_network_ipv4_prefix")
 	}
 	var checks []resource.TestCheckFunc
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_registered_network.test", "name", "my_network"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_registered_network.test", "status", "OPEN"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_registered_network.test", "is_dynamic", "true"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_registered_network.test", "prefix", "192.168.1.0"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_registered_network.test", "prefix_length", "30"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("secureaccess_registered_network.test", "is_verified"))
+	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_registered_network.test", "ipv4_prefix_length", "32"))
 
 	var steps []resource.TestStep
 	if os.Getenv("SKIP_MINIMUM_TEST") == "" {
 		steps = append(steps, resource.TestStep{
-			Config: testAccSecureAccessRegisteredNetworkConfig_minimum(),
+			Config: testAccSecureAccessRegisteredNetworkPrerequisitesConfig + testAccSecureAccessRegisteredNetworkConfig_minimum(),
 		})
 	}
 	steps = append(steps, resource.TestStep{
-		Config: testAccSecureAccessRegisteredNetworkConfig_all(),
+		Config: testAccSecureAccessRegisteredNetworkPrerequisitesConfig + testAccSecureAccessRegisteredNetworkConfig_all(),
 		Check:  resource.ComposeTestCheckFunc(checks...),
 	})
 	steps = append(steps, resource.TestStep{
@@ -65,6 +65,11 @@ func TestAccSecureAccessRegisteredNetwork(t *testing.T) {
 // End of section. //template:end testAcc
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testPrerequisites
+
+const testAccSecureAccessRegisteredNetworkPrerequisitesConfig = `
+variable "registered_network_ipv4_prefix" { default = null } // tests will set $TF_VAR_registered_network_ipv4_prefix
+`
+
 // End of section. //template:end testPrerequisites
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testAccConfigMinimal
@@ -74,7 +79,8 @@ func testAccSecureAccessRegisteredNetworkConfig_minimum() string {
 	config += `	name = "my_network"` + "\n"
 	config += `	status = "OPEN"` + "\n"
 	config += `	is_dynamic = true` + "\n"
-	config += `	prefix_length = 30` + "\n"
+	config += `	ipv4_prefix = var.registered_network_ipv4_prefix` + "\n"
+	config += `	ipv4_prefix_length = 32` + "\n"
 	config += `}` + "\n"
 	return config
 }
@@ -88,8 +94,8 @@ func testAccSecureAccessRegisteredNetworkConfig_all() string {
 	config += `	name = "my_network"` + "\n"
 	config += `	status = "OPEN"` + "\n"
 	config += `	is_dynamic = true` + "\n"
-	config += `	prefix = "192.168.1.0"` + "\n"
-	config += `	prefix_length = 30` + "\n"
+	config += `	ipv4_prefix = var.registered_network_ipv4_prefix` + "\n"
+	config += `	ipv4_prefix_length = 32` + "\n"
 	config += `}` + "\n"
 	return config
 }

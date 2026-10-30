@@ -41,6 +41,10 @@ func TestAccDataSourceSecureAccessSite(t *testing.T) {
 				Config: testAccDataSourceSecureAccessSiteConfig(),
 				Check:  resource.ComposeTestCheckFunc(checks...),
 			},
+			{
+				Config: testAccNamedDataSourceSecureAccessSiteConfig(),
+				Check:  resource.ComposeTestCheckFunc(checks...),
+			},
 		},
 	})
 }
@@ -60,6 +64,19 @@ func testAccDataSourceSecureAccessSiteConfig() string {
 	config += `
 		data "secureaccess_site" "test" {
 			id = secureaccess_site.test.id
+		}
+	`
+	return config
+}
+
+func testAccNamedDataSourceSecureAccessSiteConfig() string {
+	config := `resource "secureaccess_site" "test" {` + "\n"
+	config += `	name = "my_site"` + "\n"
+	config += `}` + "\n"
+
+	config += `
+		data "secureaccess_site" "test" {
+			name = secureaccess_site.test.name
 		}
 	`
 	return config

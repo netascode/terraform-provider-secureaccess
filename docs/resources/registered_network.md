@@ -3,22 +3,22 @@
 page_title: "secureaccess_registered_network Resource - terraform-provider-secureaccess"
 subcategory: "Resources"
 description: |-
-  This resource manages a Registered Network.
+  This resource manages a Registered Network. Please note that you cannot create a Registered Network using Terraform unless the prefix is pre-registered with support. Currently only /32 prefixes are supported.
 ---
 
 # secureaccess_registered_network (Resource)
 
-This resource manages a Registered Network.
+This resource manages a Registered Network. Please note that you cannot create a Registered Network using Terraform unless the prefix is pre-registered with support. Currently only /32 prefixes are supported.
 
 ## Example Usage
 
 ```terraform
 resource "secureaccess_registered_network" "example" {
-  name          = "my_network"
-  status        = "OPEN"
-  is_dynamic    = true
-  prefix        = "192.168.1.0"
-  prefix_length = 30
+  name               = "my_network"
+  status             = "OPEN"
+  is_dynamic         = true
+  ipv4_prefix        = "198.51.100.0"
+  ipv4_prefix_length = 32
 }
 ```
 
@@ -27,20 +27,18 @@ resource "secureaccess_registered_network" "example" {
 
 ### Required
 
+- `ipv4_prefix` (String) IPv4 subnet prefix.
+- `ipv4_prefix_length` (Number) IPv4 subnet prefix length.
+  - Range: `32`-`32`
 - `is_dynamic` (Boolean) Specifies whether the IP is dynamic.
 - `name` (String) Name of the Network.
-- `prefix_length` (Number) Subnet prefix length.
-  - Range: `16`-`32`
 - `status` (String) Status of the Network.
   - Choices: `OPEN`, `CLOSED`
-
-### Optional
-
-- `prefix` (String) Subnet prefix.
 
 ### Read-Only
 
 - `id` (String) Id of the object
+- `is_verified` (Boolean) Specifies whether the IP is verified.
 
 ## Import
 

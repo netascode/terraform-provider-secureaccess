@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -64,7 +65,7 @@ func (r *RegisteredNetworkResource) Metadata(ctx context.Context, req resource.M
 func (r *RegisteredNetworkResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Registered Network.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Registered Network. Please note that you cannot create a Registered Network using Terraform unless the prefix is pre-registered with support. Currently only /32 prefixes are supported.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -89,15 +90,22 @@ func (r *RegisteredNetworkResource) Schema(ctx context.Context, req resource.Sch
 				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the IP is dynamic.").String,
 				Required:            true,
 			},
-			"prefix": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Subnet prefix.").String,
-				Optional:            true,
+			"is_verified": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the IP is verified.").String,
+				Computed:            true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
-			"prefix_length": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Subnet prefix length.").AddIntegerRangeDescription(16, 32).String,
+			"ipv4_prefix": schema.StringAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("IPv4 subnet prefix.").String,
+				Required:            true,
+			},
+			"ipv4_prefix_length": schema.Int64Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("IPv4 subnet prefix length.").AddIntegerRangeDescription(32, 32).String,
 				Required:            true,
 				Validators: []validator.Int64{
-					int64validator.Between(16, 32),
+					int64validator.Between(32, 32),
 				},
 			},
 		},
@@ -137,7 +145,7 @@ func (r *RegisteredNetworkResource) Create(ctx context.Context, req resource.Cre
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST/PUT), got error: %s, %s", err, res.String()))
 		return
 	}
-	plan.Id = types.StringValue(res.Get("id").String())
+	plan.Id = types.StringValue(res.Get("originId").String())
 	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))

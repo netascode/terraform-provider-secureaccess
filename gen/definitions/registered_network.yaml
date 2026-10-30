@@ -1,9 +1,11 @@
-# Not tested
 ---
 name: Registered Network
 rest_endpoint: /deployments/v2/networks
 doc_category: Resources
-test_tags: ["TF_VAR_REGISTERED_NETWORK"]
+res_description: This resource manages a Registered Network. Please note that you cannot create a Registered Network using Terraform unless the prefix is pre-registered with support. Currently only /32 prefixes are supported.
+ds_description: This data source reads the Registered Network.
+resource_id_model_name: originId
+test_tags: ["TF_VAR_registered_network_ipv4_prefix"]
 attributes:
   - model_name: name
     type: String
@@ -22,15 +24,25 @@ attributes:
     mandatory: true
     description: Specifies whether the IP is dynamic.
     example: true
+  - model_name: isVerified
+    type: Bool
+    computed: true
+    description: Specifies whether the IP is verified.
   - model_name: ipAddress
     type: String
-    tf_name: prefix
-    description: Subnet prefix.
-    example: 192.168.1.0
+    tf_name: ipv4_prefix
+    mandatory: true
+    description: IPv4 subnet prefix.
+    example: 198.51.100.0
+    test_value: var.registered_network_ipv4_prefix
   - model_name: prefixLength
+    tf_name: ipv4_prefix_length
     type: Int64
-    min_int: 16
+    min_int: 32
     max_int: 32
     mandatory: true
-    description: Subnet prefix length.
-    example: 30
+    description: IPv4 subnet prefix length. 
+    example: 32
+
+test_prerequisites: |-
+  variable "registered_network_ipv4_prefix" { default = null } // tests will set $TF_VAR_registered_network_ipv4_prefix

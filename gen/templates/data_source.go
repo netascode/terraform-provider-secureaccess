@@ -300,7 +300,7 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 	if len(config.{{toGoName $items.TfName}}) == 0 {
 		config.{{toGoName $items.TfName}} = map[string]{{$items.GoTypeName}}{}
 		res.{{if $items.ModelName}}Get("{{range $items.DataPath}}{{.}}.{{end}}{{$items.ModelName}}").{{end}}ForEach(func(_, v gjson.Result) bool {
-			if name := v.Get("name").String(); name != "" {
+			if name := v.Get("{{$items.MapKeyModelName}}").String(); name != "" {
 				config.{{toGoName $items.TfName}}[name] = {{$items.GoTypeName}}{}
 			}
 			return true

@@ -115,6 +115,7 @@ type YamlConfig struct {
 	TestPrerequisites   string                `yaml:"test_prerequisites"`
 	ImportNameQuery     bool                  `yaml:"import_name_query"`
 	AdjustBody          bool                  `yaml:"adjust_body"`
+	AdjustRead          bool                  `yaml:"adjust_read"`
 	DeprecationMessage  string                `yaml:"deprecation_message"`
 	NoId                bool                  `yaml:"no_id"`
 	DelayOnDelete       int                   `yaml:"delay_on_delete"`
@@ -126,6 +127,8 @@ type YamlConfig struct {
 type YamlConfigAttribute struct {
 	ModelName                   string                `yaml:"model_name"`
 	SettingName                 string                `yaml:"setting_name"`
+	ConditionName               string                `yaml:"condition_name"`
+	ConditionOperator           string                `yaml:"condition_operator"`
 	TfName                      string                `yaml:"tf_name"`
 	Type                        string                `yaml:"type"`
 	ElementType                 string                `yaml:"element_type"`
@@ -150,6 +153,7 @@ type YamlConfigAttribute struct {
 	MinFloat                    float64               `yaml:"min_float"`
 	MaxFloat                    float64               `yaml:"max_float"`
 	MapKeyExample               string                `yaml:"map_key_example"`
+	MapKeyModelName             string                `yaml:"map_key_model_name"`
 	OrderedList                 bool                  `yaml:"ordered_list"`
 	StringPatterns              []string              `yaml:"string_patterns"`
 	StringMinLength             int64                 `yaml:"string_min_length"`
@@ -465,6 +469,52 @@ func Subtract(a, b int) int {
 	return a - b
 }
 
+// Templating helper function to return true if the attribute is an entry of a name/value list,
+// i.e. it has either `setting_name` or `condition_name`
+func IsListEntry(attr YamlConfigAttribute) bool {
+	return attr.SettingName != "" || attr.ConditionName != ""
+}
+
+// Templating helper function to return the gjson path of the value of an attribute with `setting_name` or `condition_name`,
+// located in the `{settingName, settingValue}` or `{attributeName, attributeOperator, attributeValue}` list
+// referenced by `data_path` and `model_name`
+func ListEntryPath(attr YamlConfigAttribute) string {
+	path := ""
+	for _, p := range attr.DataPath {
+		path += p + "."
+	}
+	if attr.ConditionName != "" {
+		return fmt.Sprintf(`%s%s.#(attributeName==%q).attributeValue`, path, attr.ModelName, attr.ConditionName)
+	}
+	return fmt.Sprintf(`%s%s.#(settingName==%q).settingValue`, path, attr.ModelName, attr.SettingName)
+}
+
+// Templating helper function to return the Go map literal of a name/value list entry of an attribute
+// with `setting_name` or `condition_name`, holding the Go expression `value`
+func ListEntryMap(attr YamlConfigAttribute, value string) string {
+	if attr.ConditionName != "" {
+		return fmt.Sprintf(`map[string]any{"attributeName": %q, "attributeOperator": %q, "attributeValue": %s}`, attr.ConditionName, attr.ConditionOperator, value)
+	}
+	return fmt.Sprintf(`map[string]any{"settingName": %q, "settingValue": %s}`, attr.SettingName, value)
+}
+
+// Templating helper function to return a Go raw string literal of the JSON name/value list entry of an attribute
+// with `setting_name` or `condition_name`, without its value
+func ListEntryJson(attr YamlConfigAttribute) string {
+	if attr.ConditionName != "" {
+		return fmt.Sprintf("`{\"attributeName\":%q,\"attributeOperator\":%q}`", attr.ConditionName, attr.ConditionOperator)
+	}
+	return fmt.Sprintf("`{\"settingName\":%q}`", attr.SettingName)
+}
+
+// Templating helper function to return the key of the value of a name/value list entry
+func ListEntryValueKey(attr YamlConfigAttribute) string {
+	if attr.ConditionName != "" {
+		return "attributeValue"
+	}
+	return "settingValue"
+}
+
 // Map of templating functions
 var functions = template.FuncMap{
 	"toGoName":                       ToGoName,
@@ -500,6 +550,11 @@ var functions = template.FuncMap{
 	"isNestedSet":                    IsNestedSet,
 	"importParts":                    ImportParts,
 	"subtract":                       Subtract,
+	"isListEntry":                    IsListEntry,
+	"listEntryPath":                  ListEntryPath,
+	"listEntryMap":                   ListEntryMap,
+	"listEntryJson":                  ListEntryJson,
+	"listEntryValueKey":              ListEntryValueKey,
 }
 
 func (attr *YamlConfigAttribute) init(parentGoTypeName string) error {
@@ -549,6 +604,10 @@ func (attr *YamlConfigAttribute) init(parentGoTypeName string) error {
 			attr.TfName)
 	}
 
+	if attr.Type == "Map" && attr.MapKeyModelName == "" {
+		attr.MapKeyModelName = "name"
+	}
+
 	if attr.LowercaseResponse && attr.Type != "String" {
 		return fmt.Errorf("%q: `lowercase_response: true` can only be used with `type: String`", attr.TfName)
 	}
@@ -595,23 +654,94 @@ func (attr *YamlConfigAttribute) init(parentGoTypeName string) error {
 	return nil
 }
 
+// validateSettingAttribute checks that an attribute with `setting_name` only uses features supported by the settings templates
+func validateSettingAttribute(attr YamlConfigAttribute) error {
+	if attr.SettingName == "" || attr.TfName == "" {
+		return fmt.Errorf("%q: `setting_name` and `tf_name` are required on setting attributes", attr.TfName)
+	}
+	if len(attr.Attributes) > 0 || attr.Type == "Map" || attr.Type == "Set" {
+		return fmt.Errorf("%q: only String, Int64, Float64, Bool and List of primitives are supported with `setting_name`", attr.TfName)
+	}
+	if attr.Id || attr.Reference || attr.ResourceId || attr.Computed || attr.Value != "" || attr.TfOnly {
+		return fmt.Errorf("%q: `id`, `reference`, `resource_id`, `computed`, `value` and `tf_only` are not supported with `setting_name`", attr.TfName)
+	}
+	return nil
+}
+
+// validateConditionAttribute checks that an attribute with `condition_name` only uses features supported by the templates
+func validateConditionAttribute(attr YamlConfigAttribute) error {
+	if attr.TfName == "" || attr.ConditionOperator == "" {
+		return fmt.Errorf("%q: `tf_name` and `condition_operator` are required with `condition_name`", attr.TfName)
+	}
+	if attr.SettingName != "" {
+		return fmt.Errorf("%q: `setting_name` and `condition_name` are mutually exclusive", attr.TfName)
+	}
+	if attr.Type == "Map" || attr.OrderedList {
+		return fmt.Errorf("%q: only String, Int64, Float64, Bool and List or Set are supported with `condition_name`", attr.TfName)
+	}
+	// Nested items are read back as a whole, they can only hold primitives and List or Set of primitives
+	for _, child := range attr.Attributes {
+		if len(child.Attributes) > 0 || child.Type == "Map" || child.Id || child.Reference || child.Computed || child.TfOnly {
+			return fmt.Errorf("%q: only String, Int64, Float64, Bool and List or Set of primitives without `id`, `reference`, `computed` and `tf_only` are supported in items of `condition_name` attributes", attr.TfName+"."+child.TfName)
+		}
+	}
+	if attr.Id || attr.Reference || attr.ResourceId || attr.Computed || attr.Value != "" || attr.TfOnly {
+		return fmt.Errorf("%q: `id`, `reference`, `resource_id`, `computed`, `value` and `tf_only` are not supported with `condition_name`", attr.TfName)
+	}
+	return nil
+}
+
 // validateSettingsList checks that a `settings_list` definition only uses features supported by the settings templates
 func validateSettingsList(config YamlConfig) error {
 	if config.NoId {
 		return fmt.Errorf("`settings_list: true` cannot be combined with `no_id: true`")
 	}
 	for _, attr := range config.Attributes {
-		if attr.SettingName == "" || attr.TfName == "" {
-			return fmt.Errorf("%q: `settings_list: true` requires `setting_name` and `tf_name` on every attribute", attr.TfName)
+		if attr.SettingName == "" {
+			return fmt.Errorf("%q: `settings_list: true` requires `setting_name` on every attribute", attr.TfName)
 		}
 		if attr.ModelName != "" || len(attr.DataPath) > 0 {
 			return fmt.Errorf("%q: `model_name` and `data_path` are not supported with `settings_list: true`, use `setting_name`", attr.TfName)
 		}
-		if len(attr.Attributes) > 0 || attr.Type == "Map" || attr.Type == "Set" {
-			return fmt.Errorf("%q: only String, Int64, Float64, Bool and List of primitives are supported with `settings_list: true`", attr.TfName)
+		if err := validateSettingAttribute(attr); err != nil {
+			return err
 		}
-		if attr.Id || attr.Reference || attr.ResourceId || attr.Computed || attr.Value != "" || attr.TfOnly {
-			return fmt.Errorf("%q: `id`, `reference`, `resource_id`, `computed`, `value` and `tf_only` are not supported with `settings_list: true`", attr.TfName)
+	}
+	return nil
+}
+
+// validateSettingAttributes checks attributes with `setting_name` or `condition_name` of a regular (non `settings_list`) definition.
+// Such attributes are mapped to an entry of the `{settingName, settingValue}` or `{attributeName, attributeOperator, attributeValue}`
+// list referenced by `model_name`.
+func validateSettingAttributes(config YamlConfig) error {
+	var checkNested func(attrs []YamlConfigAttribute) error
+	checkNested = func(attrs []YamlConfigAttribute) error {
+		for _, attr := range attrs {
+			if IsListEntry(attr) {
+				return fmt.Errorf("%q: `setting_name` and `condition_name` are only supported on top-level attributes", attr.TfName)
+			}
+			if err := checkNested(attr.Attributes); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	for _, attr := range config.Attributes {
+		if err := checkNested(attr.Attributes); err != nil {
+			return err
+		}
+		if !IsListEntry(attr) {
+			continue
+		}
+		if attr.ModelName == "" {
+			return fmt.Errorf("%q: `setting_name` and `condition_name` require `model_name` of the list", attr.TfName)
+		}
+		if attr.ConditionName != "" {
+			if err := validateConditionAttribute(attr); err != nil {
+				return err
+			}
+		} else if err := validateSettingAttribute(attr); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -649,6 +779,8 @@ func NewYamlConfig(bytes []byte) (YamlConfig, error) {
 		if err := validateSettingsList(config); err != nil {
 			return YamlConfig{}, err
 		}
+	} else if err := validateSettingAttributes(config); err != nil {
+		return YamlConfig{}, err
 	}
 
 	for i := range config.Attributes {

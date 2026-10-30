@@ -30,25 +30,25 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin testAccDataSource
 
 func TestAccDataSourceSecureAccessRegisteredNetwork(t *testing.T) {
-	if os.Getenv("TF_VAR_REGISTERED_NETWORK") == "" {
-		t.Skip("skipping test, set environment variable TF_VAR_REGISTERED_NETWORK")
+	if os.Getenv("TF_VAR_registered_network_ipv4_prefix") == "" {
+		t.Skip("skipping test, set environment variable TF_VAR_registered_network_ipv4_prefix")
 	}
 	var checks []resource.TestCheckFunc
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_registered_network.test", "name", "my_network"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_registered_network.test", "status", "OPEN"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_registered_network.test", "is_dynamic", "true"))
-	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_registered_network.test", "prefix", "192.168.1.0"))
-	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_registered_network.test", "prefix_length", "30"))
+	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_registered_network.test", "is_verified"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_registered_network.test", "ipv4_prefix_length", "32"))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDataSourceSecureAccessRegisteredNetworkConfig(),
+				Config: testAccDataSourceSecureAccessRegisteredNetworkPrerequisitesConfig + testAccDataSourceSecureAccessRegisteredNetworkConfig(),
 				Check:  resource.ComposeTestCheckFunc(checks...),
 			},
 			{
-				Config: testAccNamedDataSourceSecureAccessRegisteredNetworkConfig(),
+				Config: testAccDataSourceSecureAccessRegisteredNetworkPrerequisitesConfig + testAccNamedDataSourceSecureAccessRegisteredNetworkConfig(),
 				Check:  resource.ComposeTestCheckFunc(checks...),
 			},
 		},
@@ -58,6 +58,11 @@ func TestAccDataSourceSecureAccessRegisteredNetwork(t *testing.T) {
 // End of section. //template:end testAccDataSource
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testPrerequisites
+
+const testAccDataSourceSecureAccessRegisteredNetworkPrerequisitesConfig = `
+variable "registered_network_ipv4_prefix" { default = null } // tests will set $TF_VAR_registered_network_ipv4_prefix
+`
+
 // End of section. //template:end testPrerequisites
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testAccDataSourceConfig
@@ -67,8 +72,8 @@ func testAccDataSourceSecureAccessRegisteredNetworkConfig() string {
 	config += `	name = "my_network"` + "\n"
 	config += `	status = "OPEN"` + "\n"
 	config += `	is_dynamic = true` + "\n"
-	config += `	prefix = "192.168.1.0"` + "\n"
-	config += `	prefix_length = 30` + "\n"
+	config += `	ipv4_prefix = var.registered_network_ipv4_prefix` + "\n"
+	config += `	ipv4_prefix_length = 32` + "\n"
 	config += `}` + "\n"
 
 	config += `
@@ -84,8 +89,8 @@ func testAccNamedDataSourceSecureAccessRegisteredNetworkConfig() string {
 	config += `	name = "my_network"` + "\n"
 	config += `	status = "OPEN"` + "\n"
 	config += `	is_dynamic = true` + "\n"
-	config += `	prefix = "192.168.1.0"` + "\n"
-	config += `	prefix_length = 30` + "\n"
+	config += `	ipv4_prefix = var.registered_network_ipv4_prefix` + "\n"
+	config += `	ipv4_prefix_length = 32` + "\n"
 	config += `}` + "\n"
 
 	config += `
