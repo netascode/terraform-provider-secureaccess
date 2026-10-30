@@ -292,6 +292,7 @@ func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.
 		NewAccessRuleResource,
 		NewApplicationListResource,
 		NewDestinationListResource,
+		NewDoNotDecryptListResource,
 		NewInternalDomainResource,
 		NewInternalNetworkResource,
 		NewNetworkObjectResource,

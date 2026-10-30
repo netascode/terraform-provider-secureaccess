@@ -1,0 +1,80 @@
+# Manual resource
+# -> toBody(): `destinations` is required on create, also if there are none
+# -> fromBody(), fromBodyPartial(): `decryptExceptionCategories` is a list of ids on write but a list of `{categoryId, name}` on read
+# -> Create(): at most 500 destinations are accepted on create, the rest is added with updates
+# -> Update(): PUT takes `add*`/`remove*` lists instead of full lists, Update() builds them from state vs. plan
+# -> ValidateConfig(): URLs, uppercase domain names, malformed IPv4 addresses, empty or padded values and duplicates are rejected before a request is sent
+# APIBEHAVIOUR: GET does not return destinations and applications (only totals), they are tracked in the Terraform state
+# APIBEHAVIOUR: response JSON is not wrapped, list endpoint returns a bare array
+# APIBEHAVIOUR: adding a destination that exists updates its comment, adding it without a comment keeps the old comment
+# APIBEHAVIOUR: PUT removal of a private IP address and of a CIDR block answered "destination not found", so all IP addresses and CIDR blocks are removed by id from the destination list `exceptiondomainlistId`
+# APIBEHAVIOUR: removing a destination that does not exist is an error, Update() checks the destination list and leaves such destinations out
+# APIBEHAVIOUR: domain names are stored in lowercase, URLs are rejected, a failed PUT does not change anything
+---
+name: Do Not Decrypt List
+rest_endpoint: /policies/v2/doNotDecryptLists
+doc_category: Resources
+no_data_source: true
+res_description: >-
+  This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list,
+  therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`.
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Do Not Decrypt List.
+    example: my_do_not_decrypt_list
+    string_max_length: 1024
+  - model_name: destinations
+    type: Set
+    description: Destinations that are excluded from decryption, domain names (in lowercase), IPv4 addresses or CIDR blocks. URLs are not supported. Large lists are split into multiple requests automatically.
+    attributes:
+      - model_name: destination
+        type: String
+        description: The destination value (domain name in lowercase, IPv4 address or CIDR block).
+        example: example.com
+        id: true
+        mandatory: true
+      - model_name: comment
+        type: String
+        description: Comment for the destination.
+        example: This is a comment for the destination.
+        string_min_length: 1
+        string_max_length: 255
+  - model_name: applications
+    type: Set
+    element_type: Int64
+    description: IDs of the applications that are excluded from decryption.
+    example: 101
+    exclude_test: true
+  - model_name: decryptExceptionCategories
+    tf_name: decrypt_exception_categories
+    type: Set
+    element_type: Int64
+    description: IDs of the content categories that are excluded from decryption.
+    example: 12
+    exclude_test: true
+  # RO
+  - model_name: isDefault
+    type: Bool
+    description: Specifies whether this is the default Do Not Decrypt List.
+    computed: true
+    exclude_test: true
+  - model_name: totalDomains
+    type: Int64
+    description: Number of domains in the Do Not Decrypt List.
+    computed: true
+    computed_refresh_value: true
+    exclude_test: true
+  - model_name: totalIps
+    type: Int64
+    description: Number of IP addresses in the Do Not Decrypt List.
+    computed: true
+    computed_refresh_value: true
+    exclude_test: true
+  - model_name: totalApplications
+    type: Int64
+    description: Number of applications in the Do Not Decrypt List.
+    computed: true
+    computed_refresh_value: true
+    exclude_test: true
