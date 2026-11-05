@@ -197,7 +197,7 @@ func (r *DoNotDecryptListResource) Create(ctx context.Context, req resource.Crea
 			return
 		}
 	}
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
@@ -240,9 +240,9 @@ func (r *DoNotDecryptListResource) Read(ctx context.Context, req resource.ReadRe
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res)
+		state.fromBody(ctx, res.Result)
 	} else {
-		state.fromBodyPartial(ctx, res)
+		state.fromBodyPartial(ctx, res.Result)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))
@@ -281,7 +281,7 @@ func (r *DoNotDecryptListResource) Update(ctx context.Context, req resource.Upda
 	steps := plan.toUpdateSteps(ctx, state)
 	interim := state
 	objectPath := plan.getPath() + "/" + url.QueryEscape(plan.Id.ValueString())
-	var res gjson.Result
+	var res secureaccess.Res
 	var skipped []string
 	warnSkipped := func() {
 		if len(skipped) > 0 {
@@ -310,10 +310,10 @@ func (r *DoNotDecryptListResource) Update(ctx context.Context, req resource.Upda
 			return
 		}
 		interim.applyStep(ctx, plan.Name, step)
-		interim.fromBodyUnknowns(ctx, res)
+		interim.fromBodyUnknowns(ctx, res.Result)
 	}
 	warnSkipped()
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
 
@@ -371,7 +371,7 @@ var _ resource.ResourceWithValidateConfig = &DoNotDecryptListResource{}
 
 // readDestinationList reads the object and the destinations of the destination list behind it (exceptiondomainlistId).
 // The API does not return them with the object.
-func (r *DoNotDecryptListResource) readDestinationList(ctx context.Context, objectPath string, reqMods ...func(*secureaccess.Req)) (gjson.Result, string, []gjson.Result, error) {
+func (r *DoNotDecryptListResource) readDestinationList(ctx context.Context, objectPath string, reqMods ...func(*secureaccess.Req)) (secureaccess.Res, string, []gjson.Result, error) {
 	object, err := r.client.Get(ctx, objectPath, reqMods...)
 	if err != nil {
 		return object, "", nil, fmt.Errorf("failed to retrieve object (GET): %w, %s", err, object.String())
@@ -393,7 +393,7 @@ func (r *DoNotDecryptListResource) readDestinationList(ctx context.Context, obje
 // the request is sent again: they are gone, which is what the plan asks for. The destinations that were left out are
 // returned. If the destination that the API reports is in the list, or any other error occurs, the error is returned
 // with the response of the API.
-func (r *DoNotDecryptListResource) putSkippingMissing(ctx context.Context, objectPath string, step doNotDecryptListStep, reqMods ...func(*secureaccess.Req)) (gjson.Result, []string, error) {
+func (r *DoNotDecryptListResource) putSkippingMissing(ctx context.Context, objectPath string, step doNotDecryptListStep, reqMods ...func(*secureaccess.Req)) (secureaccess.Res, []string, error) {
 	body := step.body
 	var skipped []string
 	for attempt := 0; ; attempt++ {
@@ -437,7 +437,7 @@ func (r *DoNotDecryptListResource) putSkippingMissing(ctx context.Context, objec
 // "destination not found" for some of them, but the destinations of the object are also available as a destination list
 // (exceptiondomainlistId), from which they can be removed by id. A destination that is not in the list anymore is
 // skipped and returned, as it is gone already. Returns the object as it is afterwards.
-func (r *DoNotDecryptListResource) removeThroughDestinationList(ctx context.Context, objectPath string, items []DoNotDecryptListDestinations, reqMods ...func(*secureaccess.Req)) (gjson.Result, []string, error) {
+func (r *DoNotDecryptListResource) removeThroughDestinationList(ctx context.Context, objectPath string, items []DoNotDecryptListDestinations, reqMods ...func(*secureaccess.Req)) (secureaccess.Res, []string, error) {
 	object, listId, destinations, err := r.readDestinationList(ctx, objectPath, reqMods...)
 	if err != nil {
 		return object, nil, err
