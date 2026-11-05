@@ -3,12 +3,12 @@
 page_title: "secureaccess_do_not_decrypt_list Resource - terraform-provider-secureaccess"
 subcategory: "Resources"
 description: |-
-  This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, therefore changes made to them outside of Terraform are not detected and they are not populated by terraform import.
+  This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by terraform import.
 ---
 
 # secureaccess_do_not_decrypt_list (Resource)
 
-This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`.
+This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`.
 
 ## Example Usage
 
@@ -52,7 +52,7 @@ resource "secureaccess_do_not_decrypt_list" "example" {
 
 Required:
 
-- `destination` (String) The destination value (domain name in lowercase, IPv4 address or CIDR block).
+- `destination` (String) The destination value, a domain name in lowercase, an IPv4 address or an IPv4 CIDR block. URLs, whitespace and a trailing dot are not allowed.
 
 Optional:
 

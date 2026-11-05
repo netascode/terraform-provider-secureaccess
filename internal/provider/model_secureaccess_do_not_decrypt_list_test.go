@@ -26,7 +26,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
 	"github.com/tidwall/gjson"
 )
 
@@ -348,7 +354,7 @@ func TestDoNotDecryptListApplyStep(t *testing.T) {
 	if want := []string{"b.com=y", "10.10.10.10=", "a.com=changed", "c.com="}; !slices.Equal(got, want) {
 		t.Errorf("after the addition request destinations = %v, want %v (an existing destination is updated, not duplicated)", got, want)
 	}
-	if got := doNotDecryptListInt64Values(ctx, interim.Applications); !slices.Equal(got, []int64{1, 2, 3}) {
+	if got := helpers.Int64SetElements(ctx, interim.Applications); !slices.Equal(got, []int64{1, 2, 3}) {
 		t.Errorf("applications = %v, want [1 2 3]", got)
 	}
 	if !slices.EqualFunc(original, state.Destinations, func(a, b DoNotDecryptListDestinations) bool { return a == b }) {
@@ -356,7 +362,7 @@ func TestDoNotDecryptListApplyStep(t *testing.T) {
 	}
 
 	interim.applyStep(ctx, plan.Name, steps[1]) // the removal request
-	if got := doNotDecryptListInt64Values(ctx, interim.Applications); !slices.Equal(got, []int64{2, 3}) {
+	if got := helpers.Int64SetElements(ctx, interim.Applications); !slices.Equal(got, []int64{2, 3}) {
 		t.Errorf("applications = %v, want [2 3]", got)
 	}
 	if !interim.DecryptExceptionCategories.IsNull() {
@@ -377,29 +383,66 @@ func TestDoNotDecryptListApplyStep(t *testing.T) {
 	}
 }
 
-func TestDoNotDecryptListDestinationProblem(t *testing.T) {
-	for destination, wantProblem := range map[string]bool{
-		"example.com":          false,
-		"sub.example.com":      false,
-		"10.10.10.10":          false,
-		"192.0.2.0/24":         false,
-		"https://foo.bar/path": true,
-		"foo.bar/path":         true,
-		"ftp://10.0.0.1":       true,
-		"Example.com":          true,
-		"EXAMPLE.COM":          true,
-		"":                     true,
-		" example.com":         true,
-		"example.com ":         true,
-		"example.com.":         true,
-		"10.10.10.010":         true,
-		"127.1":                true,
-		"256.1.1.1":            true,
-		"1.2.3.4/33":           true,
-		"203.0.113.5":          false,
+// The values of the destinations are checked by the validators that the generator creates from `string_patterns`.
+func TestDoNotDecryptListDestinationValidators(t *testing.T) {
+	ctx := context.Background()
+	var schemaResp resource.SchemaResponse
+	NewDoNotDecryptListResource().Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+	destinations, ok := schemaResp.Schema.Attributes["destinations"].(schema.SetNestedAttribute)
+	if !ok {
+		t.Fatalf("destinations is not a nested set attribute")
+	}
+	destination, ok := destinations.NestedObject.Attributes["destination"].(schema.StringAttribute)
+	if !ok || len(destination.Validators) == 0 {
+		t.Fatalf("the destination attribute has no validators, string_patterns of the definition are missing")
+	}
+
+	for value, valid := range map[string]bool{
+		"example.com":           true,
+		"sub.example.com":       true,
+		"10.10.10.10":           true,
+		"203.0.113.5":           true,
+		"192.0.2.0/24":          true,
+		"10.0.0.0/8":            true,
+		"1.2.3.4/32":            true,
+		"xn--bcher-kva.example": true,
+		"my_host.example.com":   true,
+		"*.example.com":         true,
+		"https://foo.bar/path":  false,
+		"foo.bar/path":          false,
+		"ftp://10.0.0.1":        false,
+		"Example.com":           false,
+		"EXAMPLE.COM":           false,
+		"":                      false,
+		" example.com":          false,
+		"example.com ":          false,
+		"example.com.":          false,
+		"10.10.10.010":          false,
+		"127.1":                 false,
+		"256.1.1.1":             false,
+		"1.2.3.4/33":            false,
+		"1.2.3.4/032":           false,
+		"1.2.3.249":             true,
+		"1.2.3.256":             false,
+		"01.2.3.4":              false,
+		"1234567890":            false,
+		"exaMple.com":           false,
+		"example.com\n":         false,
+		"example.com\t":         false,
+		"example.com\u00a0":     false,
+		"example\u2003.com":     false,
+		"É.com":                 false,
+		"ЯНДЕКС.рф":             false,
+		"bücher.example":        true,
 	} {
-		if got := doNotDecryptListDestinationProblem(destination) != ""; got != wantProblem {
-			t.Errorf("%q: problem = %q, want a problem: %v", destination, doNotDecryptListDestinationProblem(destination), wantProblem)
+		var diags diag.Diagnostics
+		for _, v := range destination.Validators {
+			resp := validator.StringResponse{}
+			v.ValidateString(ctx, validator.StringRequest{Path: path.Root("destination"), ConfigValue: types.StringValue(value)}, &resp)
+			diags.Append(resp.Diagnostics...)
+		}
+		if got := !diags.HasError(); got != valid {
+			t.Errorf("%q: accepted = %v, want %v", value, got, valid)
 		}
 	}
 }
@@ -491,5 +534,93 @@ func TestDoNotDecryptListMissingDestination(t *testing.T) {
 	body := steps[0].bodyWithout(map[string]struct{}{"a.com": {}, "b.com": {}, "c.com": {}})
 	if body != `{"name":"n"}` {
 		t.Errorf("without all destinations the request only carries the name, got %s", body)
+	}
+}
+
+// The request body of create is generated, adjustBody adds what the API requires on top of it.
+func TestDoNotDecryptListCreateBody(t *testing.T) {
+	ctx := context.Background()
+	body := func(plan DoNotDecryptList) string {
+		return plan.adjustBody(ctx, plan.toBody(ctx, DoNotDecryptList{}))
+	}
+
+	t.Run("only a name: destinations are sent as an empty list", func(t *testing.T) {
+		plan := DoNotDecryptList{
+			Name:                       types.StringValue("n"),
+			Applications:               types.SetNull(types.Int64Type),
+			DecryptExceptionCategories: types.SetNull(types.Int64Type),
+		}
+		if got := body(plan); got != `{"name":"n","destinations":[]}` {
+			t.Errorf("got %s", got)
+		}
+	})
+
+	t.Run("everything set", func(t *testing.T) {
+		plan := DoNotDecryptList{
+			Name:                       types.StringValue("n"),
+			Destinations:               []DoNotDecryptListDestinations{dndDestination("a.com", "x"), dndDestination("10.10.10.10", "")},
+			Applications:               dndInt64Set(101),
+			DecryptExceptionCategories: dndInt64Set(12),
+		}
+		got := body(plan)
+		if gjson.Get(got, "destinations.#.destination").Raw != `["a.com","10.10.10.10"]` ||
+			gjson.Get(got, "destinations.0.comment").String() != "x" || gjson.Get(got, "destinations.1.comment").Exists() ||
+			gjson.Get(got, "applications").Raw != `[101]` || gjson.Get(got, "decryptExceptionCategories").Raw != `[12]` {
+			t.Errorf("got %s", got)
+		}
+	})
+}
+
+// Destinations, applications and categories are not returned in the form that is written, so they are write only:
+// the generated fromBody and fromBodyPartial never touch them.
+func TestDoNotDecryptListWriteOnlyAttributes(t *testing.T) {
+	ctx := context.Background()
+	response := gjson.Parse(`{"name":"n","isDefault":false,"decryptExceptionCategories":[{"categoryId":12,"name":"A"}],"totalDomains":1,"totalIps":0,"totalApplications":0}`)
+
+	t.Run("a refresh keeps what is in the state", func(t *testing.T) {
+		state := DoNotDecryptList{
+			Name:                       types.StringValue("n"),
+			Destinations:               []DoNotDecryptListDestinations{dndDestination("a.com", "x")},
+			Applications:               dndInt64Set(101),
+			DecryptExceptionCategories: dndInt64Set(12, 27),
+			IsDefault:                  types.BoolValue(false),
+		}
+		state.fromBodyPartial(ctx, response)
+		if len(state.Destinations) != 1 || !slices.Equal(helpers.Int64SetElements(ctx, state.Applications), []int64{101}) ||
+			!slices.Equal(helpers.Int64SetElements(ctx, state.DecryptExceptionCategories), []int64{12, 27}) {
+			t.Errorf("write only attributes changed by a refresh: %+v", state)
+		}
+		if state.TotalDomains.ValueInt64() != 1 {
+			t.Errorf("the totals are read: %v", state.TotalDomains)
+		}
+	})
+
+	t.Run("an import leaves them empty", func(t *testing.T) {
+		var imported DoNotDecryptList
+		imported.fromBody(ctx, response)
+		if imported.Destinations != nil || !imported.Applications.IsNull() || !imported.DecryptExceptionCategories.IsNull() {
+			t.Errorf("got %+v", imported)
+		}
+		if imported.Name.ValueString() != "n" || imported.TotalDomains.ValueInt64() != 1 {
+			t.Errorf("name and totals must be read: %+v", imported)
+		}
+	})
+}
+
+func TestDoNotDecryptListFirstDuplicate(t *testing.T) {
+	for name, tc := range map[string]struct {
+		in   []string
+		want string
+	}{
+		"none":                        {[]string{"a.com", "b.com", "10.10.10.10"}, ""},
+		"empty":                       {nil, ""},
+		"the same one twice":          {[]string{"a.com", "b.com", "a.com"}, "a.com"},
+		"an IP address twice":         {[]string{"10.10.10.10", "a.com", "10.10.10.10"}, "10.10.10.10"},
+		"a different case is another": {[]string{"a.com", "A.com"}, ""},
+	} {
+		got, found := doNotDecryptListFirstDuplicate(tc.in)
+		if got != tc.want || found != (tc.want != "") {
+			t.Errorf("%s: got %q, %v, want %q", name, got, found, tc.want)
+		}
 	}
 }

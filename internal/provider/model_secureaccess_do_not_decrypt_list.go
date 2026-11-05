@@ -64,13 +64,37 @@ func (data DoNotDecryptList) getPath() string {
 
 // End of section. //template:end getPath
 
-// toBody builds the POST payload. The API requires `destinations` to be present, also if there are none.
+// Section below is generated&owned by "gen/generator.go". //template:begin toBody
+
 func (data DoNotDecryptList) toBody(ctx context.Context, state DoNotDecryptList) string {
 	body := ""
+	if data.Id.ValueString() != "" {
+		body, _ = sjson.Set(body, "id", data.Id.ValueString())
+	}
 	if !data.Name.IsNull() {
 		body, _ = sjson.Set(body, "name", data.Name.ValueString())
 	}
-	body, _ = sjson.SetRaw(body, "destinations", doNotDecryptListDestinationsBody(data.Destinations, true))
+	if len(data.Destinations) > 0 {
+		var destinationsBody strings.Builder
+		destinationsBody.WriteString("[")
+		for _, item := range data.Destinations {
+			itemBody := ""
+			if !item.Destination.IsNull() {
+				itemBody, _ = sjson.Set(itemBody, "destination", item.Destination.ValueString())
+			}
+			if !item.Comment.IsNull() {
+				itemBody, _ = sjson.Set(itemBody, "comment", item.Comment.ValueString())
+			}
+			if itemBody != "" {
+				if destinationsBody.Len() > 1 {
+					destinationsBody.WriteString(",")
+				}
+				destinationsBody.WriteString(itemBody)
+			}
+		}
+		destinationsBody.WriteString("]")
+		body, _ = sjson.SetRaw(body, "destinations", destinationsBody.String())
+	}
 	if !data.Applications.IsNull() {
 		var values []int64
 		data.Applications.ElementsAs(ctx, &values, false)
@@ -84,18 +108,15 @@ func (data DoNotDecryptList) toBody(ctx context.Context, state DoNotDecryptList)
 	return body
 }
 
-// fromBody reads a full response, used after `terraform import`. The API does not return destinations and
-// applications (only their totals), so those stay null. Categories are returned as `{categoryId, name}` objects.
+// End of section. //template:end toBody
+
+// Section below is generated&owned by "gen/generator.go". //template:begin fromBody
+
 func (data *DoNotDecryptList) fromBody(ctx context.Context, res gjson.Result) {
 	if value := res.Get("name"); value.Exists() {
 		data.Name = types.StringValue(value.String())
 	} else {
 		data.Name = types.StringNull()
-	}
-	if value := res.Get("decryptExceptionCategories.#.categoryId").Array(); len(value) > 0 {
-		data.DecryptExceptionCategories = helpers.GetInt64Set(value)
-	} else {
-		data.DecryptExceptionCategories = types.SetNull(types.Int64Type)
 	}
 	if value := res.Get("isDefault"); value.Exists() {
 		data.IsDefault = types.BoolValue(value.Bool())
@@ -119,17 +140,19 @@ func (data *DoNotDecryptList) fromBody(ctx context.Context, res gjson.Result) {
 	}
 }
 
+// End of section. //template:end fromBody
+
+// Section below is generated&owned by "gen/generator.go". //template:begin fromBodyPartial
+
 // fromBodyPartial reads values from a gjson.Result into a tfstate model. It ignores null attributes in order to
-// uncouple the provider from the exact values that the backend API might summon to replace nulls.
-// Destinations and applications are never returned by the API, so the values from the state are kept as they are.
+// uncouple the provider from the exact values that the backend API might summon to replace nulls. (Such behavior might
+// easily change across versions of the backend API.) For List/Set/Map attributes, the func only updates the
+// "managed" elements, instead of all elements.
 func (data *DoNotDecryptList) fromBodyPartial(ctx context.Context, res gjson.Result) {
 	if value := res.Get("name"); value.Exists() && !data.Name.IsNull() {
 		data.Name = types.StringValue(value.String())
 	} else {
 		data.Name = types.StringNull()
-	}
-	if !data.DecryptExceptionCategories.IsNull() {
-		data.DecryptExceptionCategories = helpers.GetInt64Set(res.Get("decryptExceptionCategories.#.categoryId").Array())
 	}
 	if value := res.Get("isDefault"); value.Exists() && !data.IsDefault.IsNull() {
 		data.IsDefault = types.BoolValue(value.Bool())
@@ -152,6 +175,8 @@ func (data *DoNotDecryptList) fromBodyPartial(ctx context.Context, res gjson.Res
 		data.TotalApplications = types.Int64Null()
 	}
 }
+
+// End of section. //template:end fromBodyPartial
 
 // Section below is generated&owned by "gen/generator.go". //template:begin fromBodyUnknowns
 
@@ -188,20 +213,27 @@ func (data *DoNotDecryptList) fromBodyUnknowns(ctx context.Context, res gjson.Re
 
 // End of section. //template:end toBodyPutDelete
 
-// Section below is generated&owned by "gen/generator.go". //template:begin adjustBody
-
-// End of section. //template:end adjustBody
+// adjustBody makes sure that `destinations` is part of the request, the API requires it also if there are none.
+func (data DoNotDecryptList) adjustBody(ctx context.Context, req string) string {
+	if !gjson.Get(req, "destinations").Exists() {
+		req, _ = sjson.SetRaw(req, "destinations", "[]")
+	}
+	return req
+}
 
 // doNotDecryptListMaxItemsPerRequest is the maximum number of destinations the API accepts in a single request,
 // for create as well as for the add and remove lists of an update.
 const doNotDecryptListMaxItemsPerRequest = 500
 
-// doNotDecryptListListRemovalChunk is the number of destinations that are removed from a destination list with a single
-// request, the same limit that applies to the destination lists themselves.
+// doNotDecryptListListRemovalChunk is the number of destinations that are removed from a destination list (see
+// doNotDecryptListDestinationListPath) with a single request, the same limit that applies to the destination lists
+// themselves.
 const doNotDecryptListListRemovalChunk = 499
 
-// doNotDecryptListDestinationListPath is the path of the destinations of the destination list (exceptiondomainlistId)
-// behind a Do Not Decrypt List.
+// doNotDecryptListDestinationListPath is the path of the destinations of a destination list. This is the destination
+// lists API (/policies/v2/destinationlists), not the Do Not Decrypt Lists API, which has no /destinations path.
+// The id to pass is `exceptiondomainlistId` of a Do Not Decrypt List, the destination list that holds its domains, IP
+// addresses and CIDR blocks. It is never the id of the Do Not Decrypt List itself.
 func doNotDecryptListDestinationListPath(listId string) string {
 	return "/policies/v2/destinationlists/" + url.QueryEscape(listId) + "/destinations"
 }
@@ -221,6 +253,19 @@ func doNotDecryptListDestinationsBody(items []DoNotDecryptListDestinations, with
 	return body
 }
 
+// doNotDecryptListFirstDuplicate returns the first destination that is listed more than once. The `string_patterns` reject
+// uppercase letters, so an exact comparison is enough.
+func doNotDecryptListFirstDuplicate(destinations []string) (string, bool) {
+	seen := make(map[string]struct{}, len(destinations))
+	for _, destination := range destinations {
+		if _, ok := seen[destination]; ok {
+			return destination, true
+		}
+		seen[destination] = struct{}{}
+	}
+	return "", false
+}
+
 // doNotDecryptListIsIP reports whether a destination is an IP address or a CIDR block, as opposed to a domain name.
 func doNotDecryptListIsIP(destination string) bool {
 	if _, err := netip.ParsePrefix(destination); err == nil {
@@ -228,38 +273,6 @@ func doNotDecryptListIsIP(destination string) bool {
 	}
 	_, err := netip.ParseAddr(destination)
 	return err == nil
-}
-
-// doNotDecryptListDestinationProblem returns why a destination cannot be managed by this resource, or an empty string.
-func doNotDecryptListDestinationProblem(destination string) string {
-	if destination == "" {
-		return "The destination must not be empty."
-	}
-	if destination != strings.TrimSpace(destination) {
-		return "The destination must not start or end with whitespace."
-	}
-	if strings.HasSuffix(destination, ".") {
-		return "The destination must not end with a dot."
-	}
-	if strings.Contains(destination, "://") {
-		return "URLs are not supported, use the domain name."
-	}
-	if strings.Trim(destination, "0123456789./") == "" {
-		// only digits, dots and slashes: it has to be an IPv4 address or a CIDR block
-		if !doNotDecryptListIsIP(destination) {
-			return "This is not a valid IPv4 address or CIDR block."
-		}
-		return ""
-	}
-	if strings.Contains(destination, "/") {
-		if _, err := netip.ParsePrefix(destination); err != nil {
-			return "URLs are not supported, use the domain name."
-		}
-	}
-	if destination != strings.ToLower(destination) {
-		return "Domain names must be lowercase, the API stores them in lowercase."
-	}
-	return ""
 }
 
 // doNotDecryptListDestinationChanges compares the destinations of the state and of the plan:
@@ -293,27 +306,6 @@ func doNotDecryptListDestinationChanges(state, plan []DoNotDecryptListDestinatio
 		}
 	}
 	return upsert, gone, cleared
-}
-
-// doNotDecryptListInt64Values returns the elements of an Int64 set, or nil if the set is null or unknown.
-func doNotDecryptListInt64Values(ctx context.Context, set types.Set) []int64 {
-	if set.IsNull() || set.IsUnknown() {
-		return nil
-	}
-	var values []int64
-	set.ElementsAs(ctx, &values, false)
-	return values
-}
-
-// doNotDecryptListInt64Diff returns the values that are in `a` but not in `b`.
-func doNotDecryptListInt64Diff(a, b []int64) []int64 {
-	var diff []int64
-	for _, v := range a {
-		if !slices.Contains(b, v) {
-			diff = append(diff, v)
-		}
-	}
-	return diff
 }
 
 // doNotDecryptListStep is one request of an update, together with the changes it makes. The changes are kept to be able
@@ -443,21 +435,21 @@ func doNotDecryptListSplitIPs(destinations []DoNotDecryptListDestinations) (doma
 // If nothing but the name changes, a single request with the name is returned.
 func (data DoNotDecryptList) toUpdateSteps(ctx context.Context, state DoNotDecryptList) []doNotDecryptListStep {
 	name := data.Name.ValueString()
-	planApplications := doNotDecryptListInt64Values(ctx, data.Applications)
-	stateApplications := doNotDecryptListInt64Values(ctx, state.Applications)
-	planCategories := doNotDecryptListInt64Values(ctx, data.DecryptExceptionCategories)
-	stateCategories := doNotDecryptListInt64Values(ctx, state.DecryptExceptionCategories)
+	planApplications := helpers.Int64SetElements(ctx, data.Applications)
+	stateApplications := helpers.Int64SetElements(ctx, state.Applications)
+	planCategories := helpers.Int64SetElements(ctx, data.DecryptExceptionCategories)
+	stateCategories := helpers.Int64SetElements(ctx, state.DecryptExceptionCategories)
 
 	upsert, gone, cleared := doNotDecryptListDestinationChanges(state.Destinations, data.Destinations)
 	goneDomains, goneIPs := doNotDecryptListSplitIPs(gone)
 	clearedDomains, clearedIPs := doNotDecryptListSplitIPs(cleared)
 
 	steps := doNotDecryptListChangeSteps(name, true, upsert,
-		doNotDecryptListInt64Diff(planApplications, stateApplications),
-		doNotDecryptListInt64Diff(planCategories, stateCategories))
+		helpers.DifferenceInt64(planApplications, stateApplications),
+		helpers.DifferenceInt64(planCategories, stateCategories))
 	steps = append(steps, doNotDecryptListChangeSteps(name, false, goneDomains,
-		doNotDecryptListInt64Diff(stateApplications, planApplications),
-		doNotDecryptListInt64Diff(stateCategories, planCategories))...)
+		helpers.DifferenceInt64(stateApplications, planApplications),
+		helpers.DifferenceInt64(stateCategories, planCategories))...)
 	steps = append(steps, doNotDecryptListListRemovalSteps(goneIPs)...)
 	steps = append(steps, doNotDecryptListChangeSteps(name, false, clearedDomains, nil, nil)...)
 	steps = append(steps, doNotDecryptListListRemovalSteps(clearedIPs)...)
@@ -474,7 +466,7 @@ func (data DoNotDecryptList) toUpdateSteps(ctx context.Context, state DoNotDecry
 
 // doNotDecryptListApplyInt64 removes and adds values to an Int64 set, the result is null if nothing is left.
 func doNotDecryptListApplyInt64(ctx context.Context, set types.Set, remove, add []int64) types.Set {
-	values := doNotDecryptListInt64Values(ctx, set)
+	values := helpers.Int64SetElements(ctx, set)
 	var result []attr.Value
 	for _, v := range values {
 		if !slices.Contains(remove, v) {

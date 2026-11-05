@@ -67,7 +67,7 @@ func (r *DoNotDecryptListResource) Metadata(ctx context.Context, req resource.Me
 func (r *DoNotDecryptListResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -90,8 +90,15 @@ func (r *DoNotDecryptListResource) Schema(ctx context.Context, req resource.Sche
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"destination": schema.StringAttribute{
-							MarkdownDescription: helpers.NewAttributeDescription("The destination value (domain name in lowercase, IPv4 address or CIDR block).").String,
+							MarkdownDescription: helpers.NewAttributeDescription("The destination value, a domain name in lowercase, an IPv4 address or an IPv4 CIDR block. URLs, whitespace and a trailing dot are not allowed.").String,
 							Required:            true,
+							Validators: []validator.String{
+								stringvalidator.RegexMatches(regexp.MustCompile(`^[^\s\v\p{Z}\x{85}]+$`), ""),
+								stringvalidator.RegexMatches(regexp.MustCompile(`^\P{Lu}+$`), ""),
+								stringvalidator.RegexMatches(regexp.MustCompile(`^[^/]+$|^[0-9.]+/[0-9]{1,2}$`), ""),
+								stringvalidator.RegexMatches(regexp.MustCompile(`[^.]$`), ""),
+								stringvalidator.RegexMatches(regexp.MustCompile(`[^0-9./]|^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:/(?:3[0-2]|[12]?[0-9]))?$`), ""),
+							},
 						},
 						"comment": schema.StringAttribute{
 							MarkdownDescription: helpers.NewAttributeDescription("Comment for the destination.").String,
@@ -168,6 +175,7 @@ func (r *DoNotDecryptListResource) Create(ctx context.Context, req resource.Crea
 		remaining = plan.Destinations[doNotDecryptListMaxItemsPerRequest:]
 	}
 	body := createPlan.toBody(ctx, DoNotDecryptList{})
+	body = createPlan.adjustBody(ctx, body)
 	res, err := r.client.Post(ctx, plan.getPath(), body, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST), got error: %s, %s", err, res.String()))
@@ -475,17 +483,17 @@ func (r *DoNotDecryptListResource) removeThroughDestinationList(ctx context.Cont
 	return res, skipped, nil
 }
 
-// ValidateConfig rejects destinations that the API cannot store as they are (URLs, domain names with uppercase
-// letters, which the API stores in lowercase), and a destination that is listed more than once. Destinations are
-// removed by their value without the comment, so two entries with the same value and different comments could not be
-// managed independently.
+// ValidateConfig rejects a destination that is listed more than once. A set only removes elements that are identical, so
+// the same destination with two different comments would pass, and destinations are removed by their value without the
+// comment: the two entries could not be managed independently. The values of the destinations are checked by the
+// `string_patterns` of the YAML definition.
 func (r *DoNotDecryptListResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
 	var destinations types.Set
 	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("destinations"), &destinations)...)
 	if resp.Diagnostics.HasError() || destinations.IsNull() || destinations.IsUnknown() {
 		return
 	}
-	seen := map[string]struct{}{}
+	var values []string
 	for _, element := range destinations.Elements() {
 		object, ok := element.(types.Object)
 		if !ok || object.IsNull() || object.IsUnknown() {
@@ -495,17 +503,10 @@ func (r *DoNotDecryptListResource) ValidateConfig(ctx context.Context, req resou
 		if !ok || destination.IsNull() || destination.IsUnknown() {
 			continue
 		}
-		if problem := doNotDecryptListDestinationProblem(destination.ValueString()); problem != "" {
-			resp.Diagnostics.AddAttributeError(path.Root("destinations"), "Invalid destination",
-				fmt.Sprintf("The destination %q cannot be used. %s", destination.ValueString(), problem))
-			return
-		}
-		key := strings.ToLower(destination.ValueString())
-		if _, exists := seen[key]; exists {
-			resp.Diagnostics.AddAttributeError(path.Root("destinations"), "Duplicate destination",
-				fmt.Sprintf("The destination %q is listed more than once. A destination can only be listed once, with a single comment.", destination.ValueString()))
-			return
-		}
-		seen[key] = struct{}{}
+		values = append(values, destination.ValueString())
+	}
+	if duplicate, found := doNotDecryptListFirstDuplicate(values); found {
+		resp.Diagnostics.AddAttributeError(path.Root("destinations"), "Duplicate destination",
+			fmt.Sprintf("The destination %q is listed more than once. A destination can only be listed once, with a single comment.", duplicate))
 	}
 }
