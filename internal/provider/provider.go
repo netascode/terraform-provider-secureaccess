@@ -261,7 +261,7 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 	))
 
 	// Create a new Secure Access client and set it to the provider client
-	var c secureaccess.Client
+	var c *secureaccess.Client
 
 	c, err = secureaccess.NewClient(
 		url,
@@ -281,7 +281,7 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 		return
 	}
 
-	data := SecureAccessProviderData{Client: &c}
+	data := SecureAccessProviderData{Client: c}
 	resp.DataSourceData = &data
 	resp.ResourceData = &data
 }
@@ -289,17 +289,18 @@ func (p *SecureAccessProvider) Configure(ctx context.Context, req provider.Confi
 func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewAccessPolicySettingsResource,
+		NewAccessRuleResource,
 		NewApplicationListResource,
 		NewDestinationListResource,
 		NewDoNotDecryptListResource,
 		NewInternalDomainResource,
 		NewInternalNetworkResource,
-		NewNetworkResource,
 		NewNetworkObjectResource,
 		NewNetworkObjectGroupResource,
 		NewNetworkTunnelGroupResource,
 		NewPrivateResourceResource,
 		NewPrivateResourceGroupResource,
+		NewRegisteredNetworkResource,
 		NewResourceConnectorResource,
 		NewResourceConnectorGroupResource,
 		NewRoamingComputerResource,
@@ -313,6 +314,7 @@ func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.
 func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewAccessPolicySettingsDataSource,
+		NewAccessRuleDataSource,
 		NewApplicationCategoriesDataSource,
 		NewApplicationListDataSource,
 		NewApplicationsDataSource,
@@ -324,12 +326,12 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewIdentitiesDataSource,
 		NewInternalDomainDataSource,
 		NewInternalNetworkDataSource,
-		NewNetworkDataSource,
 		NewNetworkObjectDataSource,
 		NewNetworkObjectGroupDataSource,
 		NewNetworkTunnelGroupDataSource,
 		NewPrivateResourceDataSource,
 		NewPrivateResourceGroupDataSource,
+		NewRegisteredNetworkDataSource,
 		NewResourceConnectorDataSource,
 		NewResourceConnectorGroupDataSource,
 		NewResourceConnectorGroupsDataSource,

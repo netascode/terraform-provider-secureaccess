@@ -122,16 +122,16 @@ func (d *ApplicationsDataSource) Read(ctx context.Context, req datasource.ReadRe
 		return
 	}
 	// Items are wrapped in {"data": {"applications": [...]}}
-	res = res.Get("data.applications")
-	if !res.IsArray() {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, expected a list, got: %s", res.Type))
+	resData := res.Get("data.applications")
+	if !resData.IsArray() {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, expected a list, got: %s", resData.Type))
 		return
 	}
 
 	// Read all items if user did not provide any specific item names in the config
 	if len(config.Items) == 0 {
 		config.Items = map[string]ApplicationsItems{}
-		res.ForEach(func(_, v gjson.Result) bool {
+		resData.ForEach(func(_, v gjson.Result) bool {
 			if name := v.Get("label").String(); name != "" {
 				config.Items[name] = ApplicationsItems{}
 			}
@@ -149,7 +149,7 @@ func (d *ApplicationsDataSource) Read(ctx context.Context, req datasource.ReadRe
 		}
 	}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, resData)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", "Applications"))
 

@@ -159,7 +159,7 @@ func (d *ApplicationListDataSource) Read(ctx context.Context, req datasource.Rea
 		return
 	}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", config.Id.ValueString()))
 

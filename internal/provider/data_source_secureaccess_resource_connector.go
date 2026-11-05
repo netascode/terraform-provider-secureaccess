@@ -31,7 +31,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
-	"github.com/tidwall/gjson"
 )
 
 // End of section. //template:end imports
@@ -137,7 +136,7 @@ func (d *ResourceConnectorDataSource) Read(ctx context.Context, req datasource.R
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", config.Id.String()))
 
-	var res gjson.Result
+	var res secureaccess.Res
 	if config.Id.IsNull() && !config.InstanceId.IsNull() {
 		obj, err := getResourceConnectorByInstanceId(ctx, d.client, config.InstanceId.ValueString(), reqMods...)
 		if err != nil {
@@ -157,7 +156,7 @@ func (d *ResourceConnectorDataSource) Read(ctx context.Context, req datasource.R
 		res = obj
 	}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", config.Id.ValueString()))
 

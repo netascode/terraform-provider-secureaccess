@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -45,26 +46,26 @@ import (
 
 // Ensure provider defined types fully satisfy framework interfaces
 var (
-	_ resource.Resource                = &NetworkResource{}
-	_ resource.ResourceWithImportState = &NetworkResource{}
+	_ resource.Resource                = &RegisteredNetworkResource{}
+	_ resource.ResourceWithImportState = &RegisteredNetworkResource{}
 )
 
-func NewNetworkResource() resource.Resource {
-	return &NetworkResource{}
+func NewRegisteredNetworkResource() resource.Resource {
+	return &RegisteredNetworkResource{}
 }
 
-type NetworkResource struct {
+type RegisteredNetworkResource struct {
 	client *secureaccess.Client
 }
 
-func (r *NetworkResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_network"
+func (r *RegisteredNetworkResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_registered_network"
 }
 
-func (r *NetworkResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *RegisteredNetworkResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Network.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Registered Network. Please note that you cannot create a Registered Network using Terraform unless the prefix is pre-registered with support. Currently only /32 prefixes are supported.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -89,22 +90,29 @@ func (r *NetworkResource) Schema(ctx context.Context, req resource.SchemaRequest
 				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the IP is dynamic.").String,
 				Required:            true,
 			},
-			"prefix": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Subnet prefix.").String,
-				Optional:            true,
+			"is_verified": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the IP is verified.").String,
+				Computed:            true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
-			"prefix_length": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Subnet prefix length.").AddIntegerRangeDescription(27, 32).String,
+			"ipv4_prefix": schema.StringAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("IPv4 subnet prefix.").String,
+				Required:            true,
+			},
+			"ipv4_prefix_length": schema.Int64Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("IPv4 subnet prefix length.").AddIntegerRangeDescription(32, 32).String,
 				Required:            true,
 				Validators: []validator.Int64{
-					int64validator.Between(27, 32),
+					int64validator.Between(32, 32),
 				},
 			},
 		},
 	}
 }
 
-func (r *NetworkResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
+func (r *RegisteredNetworkResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -116,8 +124,8 @@ func (r *NetworkResource) Configure(_ context.Context, req resource.ConfigureReq
 
 // Section below is generated&owned by "gen/generator.go". //template:begin create
 
-func (r *NetworkResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan Network
+func (r *RegisteredNetworkResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan RegisteredNetwork
 
 	// Read plan
 	diags := req.Plan.Get(ctx, &plan)
@@ -131,14 +139,14 @@ func (r *NetworkResource) Create(ctx context.Context, req resource.CreateRequest
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Create", plan.Id.ValueString()))
 
 	// Create object
-	body := plan.toBody(ctx, Network{})
+	body := plan.toBody(ctx, RegisteredNetwork{})
 	res, err := r.client.Post(ctx, plan.getPath(), body, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST/PUT), got error: %s, %s", err, res.String()))
 		return
 	}
-	plan.Id = types.StringValue(res.Get("id").String())
-	plan.fromBodyUnknowns(ctx, res)
+	plan.Id = types.StringValue(res.Get("originId").String())
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
@@ -152,8 +160,8 @@ func (r *NetworkResource) Create(ctx context.Context, req resource.CreateRequest
 
 // Section below is generated&owned by "gen/generator.go". //template:begin read
 
-func (r *NetworkResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state Network
+func (r *RegisteredNetworkResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state RegisteredNetwork
 
 	// Read state
 	diags := req.State.Get(ctx, &state)
@@ -183,9 +191,9 @@ func (r *NetworkResource) Read(ctx context.Context, req resource.ReadRequest, re
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res)
+		state.fromBody(ctx, res.Result)
 	} else {
-		state.fromBodyPartial(ctx, res)
+		state.fromBodyPartial(ctx, res.Result)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))
@@ -200,8 +208,8 @@ func (r *NetworkResource) Read(ctx context.Context, req resource.ReadRequest, re
 
 // Section below is generated&owned by "gen/generator.go". //template:begin update
 
-func (r *NetworkResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan, state Network
+func (r *RegisteredNetworkResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan, state RegisteredNetwork
 
 	// Read plan
 	diags := req.Plan.Get(ctx, &plan)
@@ -237,8 +245,8 @@ func (r *NetworkResource) Update(ctx context.Context, req resource.UpdateRequest
 
 // Section below is generated&owned by "gen/generator.go". //template:begin delete
 
-func (r *NetworkResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state Network
+func (r *RegisteredNetworkResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state RegisteredNetwork
 
 	// Read state
 	diags := req.State.Get(ctx, &state)
@@ -264,7 +272,7 @@ func (r *NetworkResource) Delete(ctx context.Context, req resource.DeleteRequest
 // End of section. //template:end delete
 
 // Section below is generated&owned by "gen/generator.go". //template:begin import
-func (r *NetworkResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *RegisteredNetworkResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Parse import ID
 	var inputPattern = regexp.MustCompile(`^(?P<id>[^\s,]+?)$`)
 	match := inputPattern.FindStringSubmatch(req.ID)

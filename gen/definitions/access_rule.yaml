@@ -1,0 +1,455 @@
+# Manual resource
+# -> ValidateConfig() - checks source/destination combinations against `traffic_type` and the logical operators
+#                     and rejects lists together with their individual entries (portal restriction): `destination_application_list_ids`
+#                     with applications or application categories (accepted by the API), `destination_content_category_list_ids`
+#                     with content categories
+# -> Create(), Update() - POST/PUT are retried 3 times (10s, 20s, 30s) if the API rejects referenced IDs (retryAccessRuleInvalidIds)
+# -> Update() - `rulePriority` is read from the API if `priority` is not configured
+# Manual model
+# -> adjustBody() - adds `umbrella.<side>.all` when no condition is set on a side, builds the
+#                   `umbrella.<side>.logical_operator` expressions (helpers_access_rule_conditions.go)
+# -> adjustRead() - merges `*_shared` source conditions into their attribute (managed ones only on refresh) and reads the
+#                   logical operators (helpers_access_rule_conditions.go)
+# APIBEHAVIOUR: conditions are a flat `ruleConditions` list, combined with OR unless a `logical_operator` condition
+#               (operator `AND`) holds an expression such as `umbrella.destination.category_ids && (A || B)`
+# APIBEHAVIOUR: the destination expression must be a single AND of terms, each term ORs conditions of one type
+#               (network, service, category, application), network and service may share a term
+# APIBEHAVIOUR: every condition has a fixed `attributeOperator` (`IN` for network/service objects, `INTERSECT` otherwise)
+# APIBEHAVIOUR: the portal writes the second operand of a source AND as `*_shared` (e.g. `identity_type_ids_shared`)
+# APIBEHAVIOUR: GET returns `ruleAccess` derived from `umbrella.default.traffic`, which is the only field sent
+# APIBEHAVIOUR: PUT requires `rulePriority`
+# APIBEHAVIOUR: `umbrella.destination.geolocations` is only accepted on internet rules with action `block`, as the only
+#               destination condition, and not together with source geolocations
+# APIBEHAVIOUR: IDs of objects created shortly before may be rejected (400 `the ID's provided for ... are not valid for org`), retry succeeds
+# APIBEHAVIOUR: invalid `private_resource_ids` are accepted
+# APIBEHAVIOUR: `umbrella.source.ip_address` accepts IPs and CIDRs (no ranges) and is rejected in a source AND
+# APIBEHAVIOUR: `umbrella.source.composite_inline_ip` holds at most one `{ip, port}` item (no `protocol`) and is supported
+#               in a source AND. The API accepts both source literal conditions on both traffic types, the portal uses
+#               `ip_address` for private and `composite_inline_ip` for internet rules, which ValidateConfig enforces
+# APIBEHAVIOUR: `umbrella.source.composite_inline_ip` is rejected with destination service objects or groups,
+#               with more than one destination `composite_inline_ip` item and with an ICMP destination item
+# APIBEHAVIOUR: `umbrella.destination.composite_inline_ip` items require `ip`, `port` and `protocol` (also for ICMP),
+#               accept IPs and CIDRs (no ranges), the item is rejected in a destination AND
+# APIBEHAVIOUR: `umbrella.destination.security_group_tag_ids` is private only and not supported in logical_operator,
+#   the portal sends it with operator `=` (`IN` and `INTERSECT` are accepted too)
+# APIBEHAVIOUR: the list endpoint returns `ruleConditions: null`, only GET by ID returns the conditions
+# APIBEHAVIOUR: Concurrent changes are not allowed
+---
+name: Access Rule
+res_description: >-
+  This resource manages an Access Rule.\n
+  ~> **Note:** This resource is under active development, its schema and behaviour may change in future releases.
+rest_endpoint: /policies/v2/rules
+doc_category: Secure
+resource_id_model_name: ruleId
+adjust_body: true
+adjust_read: true
+attributes:
+  - model_name: ruleName
+    tf_name: name
+    type: String
+    mandatory: true
+    description: Name of the Access Control Rule.
+    example: my_internal_network
+    string_min_length: 2
+    string_max_length: 50
+    # data_source_query: true
+  - model_name: ruleDescription
+    tf_name: description
+    type: String
+    description: Description of the Access Control Rule.
+    example: Allows access to internal network
+    string_max_length: 255
+  - model_name: ruleAction
+    tf_name: action
+    type: String
+    mandatory: true
+    description: Action of the Access Control Rule.
+    example: allow
+    enum_values: ["allow", "block", "warn", "isolate"]
+  - model_name: rulePriority
+    tf_name: priority
+    type: Int64
+    description: >-
+      Priority of the Access Control Rule.
+      This value is respected on creation, but not tracked afterwards.
+      All rules with lower priorities must be created before this rule.
+    example: 1
+    write_only: true
+  - model_name: ruleIsEnabled
+    tf_name: enabled
+    type: Bool
+    description: Indicates whether the Access Control Rule is enabled.
+    example: true
+  # Rule Conditions - Sources
+  - model_name: ruleConditions
+    condition_name: umbrella.source.identity_ids
+    condition_operator: INTERSECT
+    tf_name: source_identity_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the source identities (users, groups, devices). For Sites and Roaming Computers, use their `origin_id`, not their `id`.
+    example: 683051912
+    exclude_test: true
+  - model_name: ruleConditions
+    condition_name: umbrella.source.identity_type_ids
+    condition_operator: INTERSECT
+    tf_name: source_identity_type_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the source identity types.
+    example: 7
+    exclude_test: true
+  - model_name: ruleConditions
+    condition_name: umbrella.source.geolocations_shared
+    condition_operator: INTERSECT
+    tf_name: source_geolocations
+    type: Set
+    element_type: String
+    description: Country codes (ISO 3166-1 alpha-2, uppercase) of the source geolocations. Combined with identities, it requires `source_operator` `AND` and AD users or groups. Cannot be combined with `destination_geolocations`.
+    example: PL
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.source.networkObjectIds
+    condition_operator: IN
+    tf_name: source_network_object_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the source Network Objects. Not supported with `source_operator` `AND`.
+    example: 501078608
+    test_value: '[secureaccess_network_object.test.id]'
+  - model_name: ruleConditions
+    condition_name: umbrella.source.networkObjectGroupIds
+    condition_operator: IN
+    tf_name: source_network_object_group_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the source Network Object Groups. Not supported with `source_operator` `AND`.
+    example: 500018294
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.source.ip_address
+    condition_operator: IN
+    tf_name: source_private_literals
+    type: Set
+    element_type: String
+    description: Source IP addresses or networks in CIDR notation. Only for `PRIVATE_NETWORK` rules. Not supported with `source_operator` `AND`.
+    example: 192.168.0.1
+  - model_name: ruleConditions
+    condition_name: umbrella.source.composite_inline_ip
+    condition_operator: INTERSECT
+    tf_name: source_internet_literals
+    type: List
+    max_list: 1
+    description: Source IP addresses with ports. Only for `PUBLIC_INTERNET` rules. Cannot be combined with destination service objects or service object groups, more than one `destination_literals` item or `destination_literals` with protocol `ICMP`.
+    exclude_test: true
+    exclude_example: true
+    attributes:
+      - model_name: ip
+        tf_name: ips
+        type: Set
+        element_type: String
+        mandatory: true
+        description: IP addresses or networks in CIDR notation.
+        example: 192.168.1.1
+      - model_name: port
+        tf_name: ports
+        type: Set
+        element_type: String
+        mandatory: true
+        description: Ports or port ranges, e.g. `443` or `8000-8010`.
+        example: "443"
+  - model_name: ruleConditions
+    tf_name: source_operator
+    type: String
+    tf_only: true
+    enum_values: ["OR", "AND"]
+    default_value: OR
+    description: >-
+      Logical operator between the source conditions.
+      With `AND`, a source must match every configured attribute of `source_identity_ids`, `source_identity_type_ids`,
+      `source_geolocations` and `source_internet_literals`, at least two of them must be configured.
+      Source network objects and `source_private_literals` are not supported with `AND`.
+      See the [Managing Access Rules guide](../guides/managing_access_rules) for examples.
+    example: OR
+  # Rule Conditions - Destinations
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.networkObjectIds
+    condition_operator: IN
+    tf_name: destination_network_object_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the destination Network Objects.
+    example: 501078608
+    test_value: '[secureaccess_network_object.test.id]'
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.networkObjectGroupIds
+    condition_operator: IN
+    tf_name: destination_network_object_group_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the destination Network Object Groups.
+    example: 500018294
+    exclude_test: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.serviceObjectIds
+    condition_operator: IN
+    tf_name: destination_service_object_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the destination Service Objects.
+    example: 501078537
+    test_value: '[secureaccess_service_object.test.id]'
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.serviceObjectGroupIds
+    condition_operator: IN
+    tf_name: destination_service_object_group_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the destination Service Object Groups.
+    example: 500018292
+    exclude_test: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.private_resource_ids
+    condition_operator: INTERSECT
+    tf_name: destination_private_resource_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the destination Private Resources. Only for `PRIVATE_NETWORK` rules.
+    example: 801178
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.private_resource_group_ids
+    condition_operator: INTERSECT
+    tf_name: destination_private_resource_group_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the destination Private Resource Groups. Only for `PRIVATE_NETWORK` rules.
+    example: 73055
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.security_group_tag_ids
+    condition_operator: "="
+    tf_name: destination_security_group_tag_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the destination Security Group Tags, i.e. identities of type `sgt_id`. Only for `PRIVATE_NETWORK` rules.
+    example: 1442815231
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.category_ids
+    condition_operator: INTERSECT
+    tf_name: destination_content_category_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the destination Content Categories. Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_content_category_list_ids`.
+    example: 72
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.category_list_ids
+    condition_operator: INTERSECT
+    tf_name: destination_content_category_list_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the destination Content Category Lists. Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_content_category_ids`.
+    example: 12345
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.application_ids
+    condition_operator: INTERSECT
+    tf_name: destination_application_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the destination Applications. Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_application_list_ids`.
+    example: 1032865
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.application_category_ids
+    condition_operator: INTERSECT
+    tf_name: destination_application_category_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the destination Application Categories. Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_application_list_ids`.
+    example: 102
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.application_list_ids
+    condition_operator: INTERSECT
+    tf_name: destination_application_list_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the destination Application Lists. Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_application_ids` or `destination_application_category_ids`.
+    example: 65172
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.destination_list_ids
+    condition_operator: INTERSECT
+    tf_name: destination_list_ids
+    type: Set
+    element_type: Int64
+    description: IDs of the Destination Lists. Only for `PUBLIC_INTERNET` rules.
+    example: 19028419
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.geolocations
+    condition_operator: INTERSECT
+    tf_name: destination_geolocations
+    type: Set
+    element_type: String
+    description: Country codes (ISO 3166-1 alpha-2, uppercase) of the destination geolocations. Only for `PUBLIC_INTERNET` rules with action `block`. Cannot be combined with other destinations or with `source_geolocations`.
+    example: PL
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.composite_inline_ip
+    condition_operator: IN
+    tf_name: destination_literals
+    type: Set
+    description: Destination IP addresses with ports and protocol. Not supported with `destination_operator` `AND`.
+    exclude_test: true
+    exclude_example: true
+    attributes:
+      - model_name: ip
+        tf_name: ips
+        type: Set
+        element_type: String
+        mandatory: true
+        description: IP addresses or networks in CIDR notation.
+        example: 192.168.1.1
+      - model_name: port
+        tf_name: ports
+        type: Set
+        element_type: String
+        mandatory: true
+        description: Ports or port ranges, e.g. `443` or `8000-8010`. Use `0-65535` for any port, also with `ICMP`.
+        example: "443"
+      - model_name: protocol
+        type: String
+        enum_values: ["TCP", "UDP", "ICMP", "ANY"]
+        mandatory: true
+        description: Protocol.
+        example: TCP
+  - model_name: ruleConditions
+    tf_name: destination_operator
+    type: String
+    tf_only: true
+    enum_values: ["OR", "AND"]
+    default_value: OR
+    description: >-
+      Logical operator between the destination conditions.
+      With `AND`, the conditions are grouped by type (network objects, service objects, content categories, applications),
+      a destination must match every group and any condition within a group. At least two groups must be configured.
+      Destination Lists, Private Resources, Private Resource Groups, `destination_security_group_tag_ids`, `destination_literals`
+      and `destination_geolocations` are not supported with `AND`.
+      See the [Managing Access Rules guide](../guides/managing_access_rules) for examples.
+    example: AND
+  - model_name: ruleConditions
+    tf_name: destination_operator_network_service
+    type: String
+    tf_only: true
+    enum_values: ["AND", "OR"]
+    default_value: AND
+    description: >-
+      Logical operator between the network object and service object groups, only relevant with `destination_operator` `AND`.
+      With `OR`, a destination must match any network or service object, and at least one other group must be configured
+      (e.g. `destination_content_category_ids`).
+    example: AND
+  # - model_name: ruleAccess
+  #   tf_name: rule_access
+  #   type: String
+  #   enum_values: ["private_network", "public_internet"]
+  #   mandatory: true
+  #   description: Create private network or public internet access rule.
+  #   requires_replace: true
+  #   example: private_network
+  # Rule Settings
+  - model_name: ruleSettings
+    setting_name: umbrella.logLevel
+    tf_name: log_level
+    type: String
+    mandatory: true
+    enum_values: ["LOG_ALL", "LOG_SECURITY", "LOG_NONE"]
+    description: Logging level for traffic matching the Access Control Rule.
+    example: LOG_ALL
+  - model_name: ruleSettings
+    setting_name: umbrella.default.traffic
+    tf_name: traffic_type
+    type: String
+    enum_values: ["PRIVATE_NETWORK", "PUBLIC_INTERNET"]
+    mandatory: true
+    description: >-
+      Type of the Access Control Rule, private access (`PRIVATE_NETWORK`) or internet access (`PUBLIC_INTERNET`).
+      The available sources, destinations and actions depend on it.
+    example: PRIVATE_NETWORK
+  # - model_name: ruleSettings
+  #   setting_name: sse.ztaAuthnTimeoutEnabled
+  #   tf_name: zero_trust_access_authentication
+  #   type: Bool
+  #   description: Enable ZTA authentication timeout.
+  #   example: true
+  # - model_name: ruleSettings
+  #   setting_name: sse.ztaAuthnTimeoutMinutes
+  #   tf_name: zero_trust_access_authentication_timeout
+  #   type: Int64
+  #   description: Set the ZTA authentication timeout in minutes.
+  #   example: 485
+  #   min_int: 1
+  #   max_int: 43200
+  # - model_name: ruleSettings
+  #   setting_name: umbrella.posture.profileIdClientbased
+  #   tf_name: zero_trust_access_client_based_profile_id
+  #   type: Int64
+  #   description: Set the client-based posture profile ID.
+  #   example: 789012
+  #   exclude_test: true
+  - model_name: ruleSettings
+    setting_name: umbrella.posture.webProfileId
+    tf_name: public_security_profile_id
+    type: Int64
+    description: Set the public security profile ID.
+    example: 15256616
+    exclude_test: true
+  - model_name: ruleSettings
+    setting_name: umbrella.posture.privateSecurityProfileId
+    tf_name: private_security_profile_id
+    type: Int64
+    description: Set the private security profile ID.
+    example: 15256616
+    exclude_test: true
+  - model_name: ruleSettings
+    setting_name: sse.tenantControlProfileId
+    tf_name: tenant_control_profile_id
+    type: Int64
+    description: Set the tenant control profile ID.
+    example: 1281818
+    exclude_test: true
+  - model_name: ruleSettings
+    setting_name: umbrella.posture.ipsProfileId
+    tf_name: ips_profile_id
+    type: Int64
+    description: Set the IPS posture profile ID.
+    example: 524837
+
+test_prerequisites: |-
+  resource "secureaccess_network_object" test {
+    name  = "my_access_rule_network_object"
+    type  = "network"
+    value = "192.168.1.0/24"
+  }
+
+  resource "secureaccess_service_object" test {
+    name     = "my_access_rule_service_object"
+    protocol = "tcp"
+    ports    = ["8080"]
+  }

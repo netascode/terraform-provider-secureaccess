@@ -131,7 +131,7 @@ func (r *ApplicationListResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 	plan.Id = types.StringValue(res.Get("applicationListId").String())
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
@@ -176,9 +176,9 @@ func (r *ApplicationListResource) Read(ctx context.Context, req resource.ReadReq
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res)
+		state.fromBody(ctx, res.Result)
 	} else {
-		state.fromBodyPartial(ctx, res)
+		state.fromBodyPartial(ctx, res.Result)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))

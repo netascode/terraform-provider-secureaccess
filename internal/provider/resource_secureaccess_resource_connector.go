@@ -34,7 +34,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
-	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
 
@@ -157,14 +156,14 @@ func (r *ResourceConnectorResource) Create(ctx context.Context, req resource.Cre
 
 	// Align the existing connector with the configuration
 	current := ResourceConnector{Id: plan.Id}
-	current.fromBody(ctx, obj)
+	current.fromBody(ctx, obj.Result)
 	res, err := r.patch(ctx, plan, current, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object, got error: %s, %s", err, res.String()))
 		return
 	}
 
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
@@ -207,9 +206,9 @@ func (r *ResourceConnectorResource) Read(ctx context.Context, req resource.ReadR
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res)
+		state.fromBody(ctx, res.Result)
 	} else {
-		state.fromBodyPartial(ctx, res)
+		state.fromBodyPartial(ctx, res.Result)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))
@@ -247,7 +246,7 @@ func (r *ResourceConnectorResource) Update(ctx context.Context, req resource.Upd
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object, got error: %s, %s", err, res.String()))
 		return
 	}
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
 
@@ -258,7 +257,7 @@ func (r *ResourceConnectorResource) Update(ctx context.Context, req resource.Upd
 // patch sends JSON Patch "replace" operations for enabled/confirmed values which differ between plan and current,
 // where current is the prior state or the object as retrieved from the backend.
 // Returns the full object, either from the PATCH response or, if no PATCH was needed, retrieved with GET.
-func (r *ResourceConnectorResource) patch(ctx context.Context, plan, current ResourceConnector, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
+func (r *ResourceConnectorResource) patch(ctx context.Context, plan, current ResourceConnector, reqMods ...func(*secureaccess.Req)) (secureaccess.Res, error) {
 	urlPath := plan.getPath() + "/" + url.QueryEscape(plan.Id.ValueString())
 
 	body := plan.toBodyPatch(ctx, current)
@@ -279,7 +278,7 @@ func (r *ResourceConnectorResource) patch(ctx context.Context, plan, current Res
 
 // getResourceConnectorByInstanceId retrieves the single Resource Connector matching the instance ID.
 // Returns an error if the lookup fails, or if no or multiple connectors match.
-func getResourceConnectorByInstanceId(ctx context.Context, client *secureaccess.Client, instanceId string, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
+func getResourceConnectorByInstanceId(ctx context.Context, client *secureaccess.Client, instanceId string, reqMods ...func(*secureaccess.Req)) (secureaccess.Res, error) {
 	filters, _ := sjson.Set("", "InstanceId", instanceId)
 	query := url.Values{}
 	query.Set("filters", filters)
@@ -291,12 +290,12 @@ func getResourceConnectorByInstanceId(ctx context.Context, client *secureaccess.
 
 	resArray := res.Get("data").Array()
 	if len(resArray) == 0 {
-		return gjson.Result{}, fmt.Errorf("Resource Connector with instance_id %s not found", instanceId)
+		return secureaccess.Res{}, fmt.Errorf("Resource Connector with instance_id %s not found", instanceId)
 	}
 	if len(resArray) > 1 {
-		return gjson.Result{}, fmt.Errorf("multiple Resource Connectors with instance_id %s found", instanceId)
+		return secureaccess.Res{}, fmt.Errorf("multiple Resource Connectors with instance_id %s found", instanceId)
 	}
-	return resArray[0], nil
+	return secureaccess.Res{Result: resArray[0], StatusCode: res.StatusCode}, nil
 }
 
 func (r *ResourceConnectorResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {

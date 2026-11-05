@@ -131,7 +131,7 @@ func (r *PrivateResourceGroupResource) Create(ctx context.Context, req resource.
 		return
 	}
 	plan.Id = types.StringValue(res.Get("resourceGroupId").String())
-	plan.fromBodyUnknowns(ctx, res)
+	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
@@ -176,9 +176,9 @@ func (r *PrivateResourceGroupResource) Read(ctx context.Context, req resource.Re
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res)
+		state.fromBody(ctx, res.Result)
 	} else {
-		state.fromBodyPartial(ctx, res)
+		state.fromBodyPartial(ctx, res.Result)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))

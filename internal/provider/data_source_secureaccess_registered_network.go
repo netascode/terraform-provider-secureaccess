@@ -40,26 +40,26 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ datasource.DataSource              = &NetworkDataSource{}
-	_ datasource.DataSourceWithConfigure = &NetworkDataSource{}
+	_ datasource.DataSource              = &RegisteredNetworkDataSource{}
+	_ datasource.DataSourceWithConfigure = &RegisteredNetworkDataSource{}
 )
 
-func NewNetworkDataSource() datasource.DataSource {
-	return &NetworkDataSource{}
+func NewRegisteredNetworkDataSource() datasource.DataSource {
+	return &RegisteredNetworkDataSource{}
 }
 
-type NetworkDataSource struct {
+type RegisteredNetworkDataSource struct {
 	client *secureaccess.Client
 }
 
-func (d *NetworkDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_network"
+func (d *RegisteredNetworkDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_registered_network"
 }
 
-func (d *NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *RegisteredNetworkDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This data source reads the Network.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This data source reads the Registered Network.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -80,18 +80,22 @@ func (d *NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 				MarkdownDescription: "Specifies whether the IP is dynamic.",
 				Computed:            true,
 			},
-			"prefix": schema.StringAttribute{
-				MarkdownDescription: "Subnet prefix.",
+			"is_verified": schema.BoolAttribute{
+				MarkdownDescription: "Specifies whether the IP is verified.",
 				Computed:            true,
 			},
-			"prefix_length": schema.Int64Attribute{
-				MarkdownDescription: "Subnet prefix length.",
+			"ipv4_prefix": schema.StringAttribute{
+				MarkdownDescription: "IPv4 subnet prefix.",
+				Computed:            true,
+			},
+			"ipv4_prefix_length": schema.Int64Attribute{
+				MarkdownDescription: "IPv4 subnet prefix length.",
 				Computed:            true,
 			},
 		},
 	}
 }
-func (d *NetworkDataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
+func (d *RegisteredNetworkDataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
 	return []datasource.ConfigValidator{
 		datasourcevalidator.ExactlyOneOf(
 			path.MatchRoot("id"),
@@ -100,7 +104,7 @@ func (d *NetworkDataSource) ConfigValidators(ctx context.Context) []datasource.C
 	}
 }
 
-func (d *NetworkDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
+func (d *RegisteredNetworkDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -112,8 +116,8 @@ func (d *NetworkDataSource) Configure(_ context.Context, req datasource.Configur
 
 // Section below is generated&owned by "gen/generator.go". //template:begin read
 
-func (d *NetworkDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var config Network
+func (d *RegisteredNetworkDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var config RegisteredNetwork
 
 	// Read config
 	diags := req.Config.Get(ctx, &config)
@@ -128,7 +132,7 @@ func (d *NetworkDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", config.Id.String()))
 
 	// Object found by a query attribute, it is not retrieved again by ID
-	var res gjson.Result
+	var res secureaccess.Res
 	if config.Id.IsNull() && !config.Name.IsNull() {
 		// Client handles pagination and returns all items merged into a single list
 		items, err := d.client.GetAll(ctx, config.getPath(), reqMods...)
@@ -142,8 +146,8 @@ func (d *NetworkDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		}
 		items.ForEach(func(k, v gjson.Result) bool {
 			if config.Name.ValueString() == v.Get("name").String() {
-				config.Id = types.StringValue(v.Get("id").String())
-				res = v
+				config.Id = types.StringValue(v.Get("originId").String())
+				res.Result = v
 				tflog.Debug(ctx, fmt.Sprintf("%s: Found object with name '%v', id: %v", config.Id.ValueString(), config.Name.ValueString(), config.Id.ValueString()))
 				return false
 			}
@@ -166,7 +170,7 @@ func (d *NetworkDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		}
 	}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", config.Id.ValueString()))
 

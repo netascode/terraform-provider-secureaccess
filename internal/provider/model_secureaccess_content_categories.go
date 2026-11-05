@@ -38,7 +38,9 @@ type ContentCategories struct {
 }
 
 type ContentCategoriesItems struct {
-	Id types.String `tfsdk:"id"`
+	Id         types.Int64  `tfsdk:"id"`
+	Deprecated types.Bool   `tfsdk:"deprecated"`
+	Type       types.String `tfsdk:"type"`
 }
 
 // End of section. //template:end types
@@ -46,7 +48,7 @@ type ContentCategoriesItems struct {
 // Section below is generated&owned by "gen/generator.go". //template:begin getPath
 
 func (data ContentCategories) getPath() string {
-	return "/policies/v2/categories"
+	return "/reports/v2/categories"
 }
 
 // End of section. //template:end getPath
@@ -61,7 +63,7 @@ func (data *ContentCategories) fromBody(ctx context.Context, res gjson.Result) {
 	// Build lookup map for O(1) access
 	itemsByName := make(map[string]gjson.Result)
 	res.ForEach(func(_, v gjson.Result) bool {
-		if name := v.Get("name").String(); name != "" {
+		if name := v.Get("label").String(); name != "" {
 			// Item names are matched case-insensitively
 			itemsByName[strings.ToLower(name)] = v
 		}
@@ -76,10 +78,20 @@ func (data *ContentCategories) fromBody(ctx context.Context, res gjson.Result) {
 			delete((*parent).Items, k)
 			continue
 		}
-		if value := res.Get("categoryId"); value.Exists() {
-			data.Id = types.StringValue(value.String())
+		if value := res.Get("id"); value.Exists() {
+			data.Id = types.Int64Value(value.Int())
 		} else {
-			data.Id = types.StringNull()
+			data.Id = types.Int64Null()
+		}
+		if value := res.Get("deprecated"); value.Exists() {
+			data.Deprecated = types.BoolValue(value.Bool())
+		} else {
+			data.Deprecated = types.BoolNull()
+		}
+		if value := res.Get("type"); value.Exists() {
+			data.Type = types.StringValue(value.String())
+		} else {
+			data.Type = types.StringNull()
 		}
 		(*parent).Items[k] = data
 	}

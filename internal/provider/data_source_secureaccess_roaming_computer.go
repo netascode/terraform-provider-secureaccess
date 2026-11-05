@@ -31,7 +31,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
-	"github.com/tidwall/gjson"
 )
 
 // End of section. //template:end imports
@@ -157,7 +156,7 @@ func (d *RoamingComputerDataSource) Read(ctx context.Context, req datasource.Rea
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", config.Id.String()))
 
-	var res gjson.Result
+	var res secureaccess.Res
 	if config.Id.IsNull() && !config.Name.IsNull() {
 		obj, err := getRoamingComputerByName(ctx, d.client, config.Name.ValueString(), reqMods...)
 		if err != nil {
@@ -177,7 +176,7 @@ func (d *RoamingComputerDataSource) Read(ctx context.Context, req datasource.Rea
 		res = obj
 	}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", config.Id.ValueString()))
 

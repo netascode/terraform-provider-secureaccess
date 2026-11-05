@@ -145,7 +145,7 @@ func (d *ApplicationCategoriesDataSource) Read(ctx context.Context, req datasour
 		}
 	}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", "Application Categories"))
 

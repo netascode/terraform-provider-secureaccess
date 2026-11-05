@@ -122,7 +122,7 @@ func (d *InternalDomainDataSource) Read(ctx context.Context, req datasource.Read
 		return
 	}
 
-	config.fromBody(ctx, res)
+	config.fromBody(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", config.Id.ValueString()))
 

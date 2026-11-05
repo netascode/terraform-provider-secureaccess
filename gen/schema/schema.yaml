@@ -19,6 +19,7 @@ test_prerequisites: str(required=False) # HCL code that is included in the accep
 import_name_query: bool(required=False) # Set to true if import should be done using object name
 bulk_size_create: int(required=False) # Number of resources to create in a single bulk create operation (overrides default 1000)
 adjust_body: bool(required=False) # Includes adjustBody funtion before Create/Update operations. This function gets defined in model.go template, however its body needs to be defined manually.
+adjust_read: bool(required=False) # Includes adjustRead function called at the end of fromBody/fromBodyPartial, with the values before a partial read (nil for fromBody). This function gets defined in model.go template, however its body needs to be defined manually.
 deprecation_message: str(required=False) # Message to be displayed in the documentation and acceptance tests if the resource is deprecated
 no_id: bool(required=False) # Set to true if the resource does not have an ID.
 delay_on_delete: int(required=False) # Number of seconds to wait after a DELETE request before considering the resource deleted
@@ -28,7 +29,9 @@ settings_list: bool(required=False) # Set to true if the endpoint is a singleton
 ---
 attribute:
   model_name: str(required=False) # Name of the attribute in the model (payload)
-  setting_name: str(required=False) # Name of the setting (`settingName`), only relevant if `settings_list` is true
+  setting_name: str(required=False) # Name of the setting (`settingName`). With `settings_list: true` the setting is an entry of the body list, otherwise of the `{settingName, settingValue}` list referenced by `model_name` (top-level attributes only)
+  condition_name: str(required=False) # Name of the condition (`attributeName`). The condition is an entry of the `{attributeName, attributeOperator, attributeValue}` list referenced by `model_name` (top-level attributes only)
+  condition_operator: str(required=False) # Operator of the condition (`attributeOperator`), required with `condition_name`
   tf_name: str(required=False) # Name of the attribute in the Terraform resource, by default derived from model_name
   type: enum('String', 'Int64', 'Float64', 'Bool', 'List', 'Map', 'Set', required=False) # Type of the attribute
   element_type: enum('String', 'Int64', required=False) # only relevant if type is either 'List' or 'Set'
@@ -53,6 +56,7 @@ attribute:
   min_float: num(required=False) # Minimum value of a float, only relevant if type is "Float"
   max_float: num(required=False) # Maximum value of a float, only relevant if type is "Float"
   map_key_example: any(str(), int(), required=False) # Example value of the map key, only relevant if type is "Map"
+  map_key_model_name: str(required=False) # Model name of the model field used as the key in the map, only relevant if type is "Map"
   ordered_list: bool(required=False) # Treat `type: List` as strictly ordered. If API ever returns different order, destroy and re-create elements.
   string_patterns: list(str(), required=False) # List of regular expressions that the string must match, only relevant if type is "String"
   string_min_length: int(required=False) # Minimum length of a string, only relevant if type is "String"

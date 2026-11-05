@@ -38,4 +38,6 @@ data "secureaccess_content_categories" "example" {
 
 Read-Only:
 
-- `id` (String) Id of the Content Category.
+- `deprecated` (Boolean) Indicates if the Content Category is deprecated.
+- `id` (Number) Id of the Content Category.
+- `type` (String) Type of the Content Category.

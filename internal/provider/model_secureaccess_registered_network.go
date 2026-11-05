@@ -30,20 +30,21 @@ import (
 
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
-type Network struct {
-	Id           types.String `tfsdk:"id"`
-	Name         types.String `tfsdk:"name"`
-	Status       types.String `tfsdk:"status"`
-	IsDynamic    types.Bool   `tfsdk:"is_dynamic"`
-	Prefix       types.String `tfsdk:"prefix"`
-	PrefixLength types.Int64  `tfsdk:"prefix_length"`
+type RegisteredNetwork struct {
+	Id               types.String `tfsdk:"id"`
+	Name             types.String `tfsdk:"name"`
+	Status           types.String `tfsdk:"status"`
+	IsDynamic        types.Bool   `tfsdk:"is_dynamic"`
+	IsVerified       types.Bool   `tfsdk:"is_verified"`
+	Ipv4Prefix       types.String `tfsdk:"ipv4_prefix"`
+	Ipv4PrefixLength types.Int64  `tfsdk:"ipv4_prefix_length"`
 }
 
 // End of section. //template:end types
 
 // Section below is generated&owned by "gen/generator.go". //template:begin getPath
 
-func (data Network) getPath() string {
+func (data RegisteredNetwork) getPath() string {
 	return "/deployments/v2/networks"
 }
 
@@ -51,10 +52,10 @@ func (data Network) getPath() string {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin toBody
 
-func (data Network) toBody(ctx context.Context, state Network) string {
+func (data RegisteredNetwork) toBody(ctx context.Context, state RegisteredNetwork) string {
 	body := ""
 	if data.Id.ValueString() != "" {
-		body, _ = sjson.Set(body, "id", data.Id.ValueString())
+		body, _ = sjson.Set(body, "originId", data.Id.ValueString())
 	}
 	if !data.Name.IsNull() {
 		body, _ = sjson.Set(body, "name", data.Name.ValueString())
@@ -65,11 +66,11 @@ func (data Network) toBody(ctx context.Context, state Network) string {
 	if !data.IsDynamic.IsNull() {
 		body, _ = sjson.Set(body, "isDynamic", data.IsDynamic.ValueBool())
 	}
-	if !data.Prefix.IsNull() {
-		body, _ = sjson.Set(body, "ipAddress", data.Prefix.ValueString())
+	if !data.Ipv4Prefix.IsNull() {
+		body, _ = sjson.Set(body, "ipAddress", data.Ipv4Prefix.ValueString())
 	}
-	if !data.PrefixLength.IsNull() {
-		body, _ = sjson.Set(body, "prefixLength", data.PrefixLength.ValueInt64())
+	if !data.Ipv4PrefixLength.IsNull() {
+		body, _ = sjson.Set(body, "prefixLength", data.Ipv4PrefixLength.ValueInt64())
 	}
 	return body
 }
@@ -78,7 +79,7 @@ func (data Network) toBody(ctx context.Context, state Network) string {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin fromBody
 
-func (data *Network) fromBody(ctx context.Context, res gjson.Result) {
+func (data *RegisteredNetwork) fromBody(ctx context.Context, res gjson.Result) {
 	if value := res.Get("name"); value.Exists() {
 		data.Name = types.StringValue(value.String())
 	} else {
@@ -94,15 +95,20 @@ func (data *Network) fromBody(ctx context.Context, res gjson.Result) {
 	} else {
 		data.IsDynamic = types.BoolNull()
 	}
-	if value := res.Get("ipAddress"); value.Exists() {
-		data.Prefix = types.StringValue(value.String())
+	if value := res.Get("isVerified"); value.Exists() {
+		data.IsVerified = types.BoolValue(value.Bool())
 	} else {
-		data.Prefix = types.StringNull()
+		data.IsVerified = types.BoolNull()
+	}
+	if value := res.Get("ipAddress"); value.Exists() {
+		data.Ipv4Prefix = types.StringValue(value.String())
+	} else {
+		data.Ipv4Prefix = types.StringNull()
 	}
 	if value := res.Get("prefixLength"); value.Exists() {
-		data.PrefixLength = types.Int64Value(value.Int())
+		data.Ipv4PrefixLength = types.Int64Value(value.Int())
 	} else {
-		data.PrefixLength = types.Int64Null()
+		data.Ipv4PrefixLength = types.Int64Null()
 	}
 }
 
@@ -114,7 +120,7 @@ func (data *Network) fromBody(ctx context.Context, res gjson.Result) {
 // uncouple the provider from the exact values that the backend API might summon to replace nulls. (Such behavior might
 // easily change across versions of the backend API.) For List/Set/Map attributes, the func only updates the
 // "managed" elements, instead of all elements.
-func (data *Network) fromBodyPartial(ctx context.Context, res gjson.Result) {
+func (data *RegisteredNetwork) fromBodyPartial(ctx context.Context, res gjson.Result) {
 	if value := res.Get("name"); value.Exists() && !data.Name.IsNull() {
 		data.Name = types.StringValue(value.String())
 	} else {
@@ -130,15 +136,20 @@ func (data *Network) fromBodyPartial(ctx context.Context, res gjson.Result) {
 	} else {
 		data.IsDynamic = types.BoolNull()
 	}
-	if value := res.Get("ipAddress"); value.Exists() && !data.Prefix.IsNull() {
-		data.Prefix = types.StringValue(value.String())
+	if value := res.Get("isVerified"); value.Exists() && !data.IsVerified.IsNull() {
+		data.IsVerified = types.BoolValue(value.Bool())
 	} else {
-		data.Prefix = types.StringNull()
+		data.IsVerified = types.BoolNull()
 	}
-	if value := res.Get("prefixLength"); value.Exists() && !data.PrefixLength.IsNull() {
-		data.PrefixLength = types.Int64Value(value.Int())
+	if value := res.Get("ipAddress"); value.Exists() && !data.Ipv4Prefix.IsNull() {
+		data.Ipv4Prefix = types.StringValue(value.String())
 	} else {
-		data.PrefixLength = types.Int64Null()
+		data.Ipv4Prefix = types.StringNull()
+	}
+	if value := res.Get("prefixLength"); value.Exists() && !data.Ipv4PrefixLength.IsNull() {
+		data.Ipv4PrefixLength = types.Int64Value(value.Int())
+	} else {
+		data.Ipv4PrefixLength = types.Int64Null()
 	}
 }
 
@@ -148,7 +159,14 @@ func (data *Network) fromBodyPartial(ctx context.Context, res gjson.Result) {
 
 // fromBodyUnknowns updates the Unknown Computed tfstate values from a JSON.
 // Known values are not changed (usual for Computed attributes with UseStateForUnknown or with Default).
-func (data *Network) fromBodyUnknowns(ctx context.Context, res gjson.Result) {
+func (data *RegisteredNetwork) fromBodyUnknowns(ctx context.Context, res gjson.Result) {
+	if data.IsVerified.IsUnknown() {
+		if value := res.Get("isVerified"); value.Exists() {
+			data.IsVerified = types.BoolValue(value.Bool())
+		} else {
+			data.IsVerified = types.BoolNull()
+		}
+	}
 }
 
 // End of section. //template:end fromBodyUnknowns
