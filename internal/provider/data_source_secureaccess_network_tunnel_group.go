@@ -75,12 +75,16 @@ func (d *NetworkTunnelGroupDataSource) Schema(ctx context.Context, req datasourc
 				MarkdownDescription: "The name of the region that the system uses to obtain the primary and secondary data centers for the Hubs.",
 				Computed:            true,
 			},
+			"backup_region": schema.StringAttribute{
+				MarkdownDescription: "The name of the backup region.",
+				Computed:            true,
+			},
 			"tunnel_id_format_email": schema.StringAttribute{
 				MarkdownDescription: "Prefix for the authentication ID in email format (<tunnel_id_format_email>@<org><hub>.sse.cisco.com). The string should not have any special characters besides the period(.), underscore(_), and dash(-) characters.",
 				Computed:            true,
 			},
 			"tunnel_id_format_ip_addresses": schema.ListAttribute{
-				MarkdownDescription: "List of IP addresses for the authentication ID in IP address format. Please include exactly two IP addresses.",
+				MarkdownDescription: "List of IP addresses for the authentication ID in IP address format. Include exactly two IP addresses for primary region and two for backup region (if used).",
 				ElementType:         types.StringType,
 				Computed:            true,
 			},
@@ -93,9 +97,35 @@ func (d *NetworkTunnelGroupDataSource) Schema(ctx context.Context, req datasourc
 				MarkdownDescription: "Type of routing for the network tunnel.",
 				Computed:            true,
 			},
-			"routing_network_cidrs": schema.SetAttribute{
+			"static_network_cidrs": schema.SetAttribute{
+				MarkdownDescription: "List of network CIDRs for the static routing.",
+				ElementType:         types.StringType,
+				Computed:            true,
+			},
+			"bgp_as_number": schema.StringAttribute{
+				MarkdownDescription: "BGP Autonomous System (AS) number for the network tunnel.",
+				Computed:            true,
+			},
+			"bgp_multihop_count": schema.Int64Attribute{
+				MarkdownDescription: "BGP hop count for the network tunnel.",
+				Computed:            true,
+			},
+			"bgp_multihop_ip_ranges": schema.SetAttribute{
 				MarkdownDescription: "",
 				ElementType:         types.StringType,
+				Computed:            true,
+			},
+			"bgp_peering_types": schema.SetAttribute{
+				MarkdownDescription: "",
+				ElementType:         types.StringType,
+				Computed:            true,
+			},
+			"bgp_override_summarization": schema.BoolAttribute{
+				MarkdownDescription: "Indicates if BGP summarization should be overridden.",
+				Computed:            true,
+			},
+			"ipv6_routing": schema.BoolAttribute{
+				MarkdownDescription: "Indicates if IPv6 is enabled for the network tunnel in addition to IPv4.",
 				Computed:            true,
 			},
 			"hubs": schema.ListNestedAttribute{

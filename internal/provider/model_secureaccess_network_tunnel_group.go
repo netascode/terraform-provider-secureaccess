@@ -39,11 +39,18 @@ type NetworkTunnelGroup struct {
 	Name                      types.String `tfsdk:"name"`
 	DeviceType                types.String `tfsdk:"device_type"`
 	Region                    types.String `tfsdk:"region"`
+	BackupRegion              types.String `tfsdk:"backup_region"`
 	TunnelIdFormatEmail       types.String `tfsdk:"tunnel_id_format_email"`
 	TunnelIdFormatIpAddresses types.List   `tfsdk:"tunnel_id_format_ip_addresses"`
 	PresharedKey              types.String `tfsdk:"preshared_key"`
 	RoutingType               types.String `tfsdk:"routing_type"`
-	RoutingNetworkCidrs       types.Set    `tfsdk:"routing_network_cidrs"`
+	StaticNetworkCidrs        types.Set    `tfsdk:"static_network_cidrs"`
+	BgpAsNumber               types.String `tfsdk:"bgp_as_number"`
+	BgpMultihopCount          types.Int64  `tfsdk:"bgp_multihop_count"`
+	BgpMultihopIpRanges       types.Set    `tfsdk:"bgp_multihop_ip_ranges"`
+	BgpPeeringTypes           types.Set    `tfsdk:"bgp_peering_types"`
+	BgpOverrideSummarization  types.Bool   `tfsdk:"bgp_override_summarization"`
+	Ipv6Routing               types.Bool   `tfsdk:"ipv6_routing"`
 	Hubs                      types.List   `tfsdk:"hubs"`
 }
 
@@ -89,6 +96,9 @@ func (data NetworkTunnelGroup) toBody(ctx context.Context, state NetworkTunnelGr
 	if !data.Region.IsNull() {
 		body, _ = sjson.Set(body, "region", data.Region.ValueString())
 	}
+	if !data.BackupRegion.IsNull() {
+		body, _ = sjson.Set(body, "backupRegion", data.BackupRegion.ValueString())
+	}
 	if !data.TunnelIdFormatEmail.IsNull() {
 		body, _ = sjson.Set(body, "authIdPrefix", data.TunnelIdFormatEmail.ValueString())
 	}
@@ -103,10 +113,32 @@ func (data NetworkTunnelGroup) toBody(ctx context.Context, state NetworkTunnelGr
 	if !data.RoutingType.IsNull() {
 		body, _ = sjson.Set(body, "routing.type", data.RoutingType.ValueString())
 	}
-	if !data.RoutingNetworkCidrs.IsNull() {
+	if !data.StaticNetworkCidrs.IsNull() {
 		var values []string
-		data.RoutingNetworkCidrs.ElementsAs(ctx, &values, false)
+		data.StaticNetworkCidrs.ElementsAs(ctx, &values, false)
 		body, _ = sjson.Set(body, "routing.data.networkCIDRs", values)
+	}
+	if !data.BgpAsNumber.IsNull() {
+		body, _ = sjson.Set(body, "routing.data.asNumber", data.BgpAsNumber.ValueString())
+	}
+	if !data.BgpMultihopCount.IsNull() {
+		body, _ = sjson.Set(body, "routing.data.bgpHopCount", data.BgpMultihopCount.ValueInt64())
+	}
+	if !data.BgpMultihopIpRanges.IsNull() {
+		var values []string
+		data.BgpMultihopIpRanges.ElementsAs(ctx, &values, false)
+		body, _ = sjson.Set(body, "routing.data.bgpNeighborCIDRs", values)
+	}
+	if !data.BgpPeeringTypes.IsNull() {
+		var values []string
+		data.BgpPeeringTypes.ElementsAs(ctx, &values, false)
+		body, _ = sjson.Set(body, "routing.data.bgpPeeringTypes", values)
+	}
+	if !data.BgpOverrideSummarization.IsNull() {
+		body, _ = sjson.Set(body, "resourceAttributes.isOverrideBGPSummarization", data.BgpOverrideSummarization.ValueBool())
+	}
+	if !data.Ipv6Routing.IsNull() {
+		body, _ = sjson.Set(body, "routing.data.enableIPv6", data.Ipv6Routing.ValueBool())
 	}
 	return body
 }
@@ -114,7 +146,7 @@ func (data NetworkTunnelGroup) toBody(ctx context.Context, state NetworkTunnelGr
 // End of section. //template:end toBody
 
 // networkTunnelGroupPatchPaths lists top level body keys that can be updated with PATCH
-var networkTunnelGroupPatchPaths = []string{"name", "authIdPrefix", "passphrase", "region", "routing"}
+var networkTunnelGroupPatchPaths = []string{"name", "authIdPrefix", "passphrase", "region", "backupRegion", "routing", "resourceAttributes"}
 
 // toBodyPatch builds JSON Patch "replace" operations for the paths which differ between data and state.
 // Returns an empty string if there is nothing to update.
@@ -164,15 +196,50 @@ func (data *NetworkTunnelGroup) fromBody(ctx context.Context, res gjson.Result) 
 	} else {
 		data.Region = types.StringNull()
 	}
+	if value := res.Get("backupRegion"); value.Exists() {
+		data.BackupRegion = types.StringValue(value.String())
+	} else {
+		data.BackupRegion = types.StringNull()
+	}
 	if value := res.Get("routing.type"); value.Exists() {
 		data.RoutingType = types.StringValue(value.String())
 	} else {
 		data.RoutingType = types.StringNull()
 	}
 	if value := res.Get("routing.data.networkCIDRs"); value.Exists() {
-		data.RoutingNetworkCidrs = helpers.GetStringSet(value.Array())
+		data.StaticNetworkCidrs = helpers.GetStringSet(value.Array())
 	} else {
-		data.RoutingNetworkCidrs = types.SetNull(types.StringType)
+		data.StaticNetworkCidrs = types.SetNull(types.StringType)
+	}
+	if value := res.Get("routing.data.asNumber"); value.Exists() {
+		data.BgpAsNumber = types.StringValue(value.String())
+	} else {
+		data.BgpAsNumber = types.StringNull()
+	}
+	if value := res.Get("routing.data.bgpHopCount"); value.Exists() {
+		data.BgpMultihopCount = types.Int64Value(value.Int())
+	} else {
+		data.BgpMultihopCount = types.Int64Null()
+	}
+	if value := res.Get("routing.data.bgpNeighborCIDRs"); value.Exists() {
+		data.BgpMultihopIpRanges = helpers.GetStringSet(value.Array())
+	} else {
+		data.BgpMultihopIpRanges = types.SetNull(types.StringType)
+	}
+	if value := res.Get("routing.data.bgpPeeringTypes"); value.Exists() {
+		data.BgpPeeringTypes = helpers.GetStringSet(value.Array())
+	} else {
+		data.BgpPeeringTypes = types.SetNull(types.StringType)
+	}
+	if value := res.Get("resourceAttributes.isOverrideBGPSummarization"); value.Exists() {
+		data.BgpOverrideSummarization = types.BoolValue(value.Bool())
+	} else {
+		data.BgpOverrideSummarization = types.BoolNull()
+	}
+	if value := res.Get("routing.data.enableIPv6"); value.Exists() {
+		data.Ipv6Routing = types.BoolValue(value.Bool())
+	} else {
+		data.Ipv6Routing = types.BoolNull()
 	}
 	data.fromBodyHubs(ctx, res)
 }
@@ -247,15 +314,50 @@ func (data *NetworkTunnelGroup) fromBodyPartial(ctx context.Context, res gjson.R
 	} else {
 		data.Region = types.StringNull()
 	}
+	if value := res.Get("backupRegion"); value.Exists() && !data.BackupRegion.IsNull() {
+		data.BackupRegion = types.StringValue(value.String())
+	} else {
+		data.BackupRegion = types.StringNull()
+	}
 	if value := res.Get("routing.type"); value.Exists() && !data.RoutingType.IsNull() {
 		data.RoutingType = types.StringValue(value.String())
 	} else {
 		data.RoutingType = types.StringNull()
 	}
-	if value := res.Get("routing.data.networkCIDRs"); value.Exists() && !data.RoutingNetworkCidrs.IsNull() {
-		data.RoutingNetworkCidrs = helpers.GetStringSet(value.Array())
+	if value := res.Get("routing.data.networkCIDRs"); value.Exists() && !data.StaticNetworkCidrs.IsNull() {
+		data.StaticNetworkCidrs = helpers.GetStringSet(value.Array())
 	} else {
-		data.RoutingNetworkCidrs = types.SetNull(types.StringType)
+		data.StaticNetworkCidrs = types.SetNull(types.StringType)
+	}
+	if value := res.Get("routing.data.asNumber"); value.Exists() && !data.BgpAsNumber.IsNull() {
+		data.BgpAsNumber = types.StringValue(value.String())
+	} else {
+		data.BgpAsNumber = types.StringNull()
+	}
+	if value := res.Get("routing.data.bgpHopCount"); value.Exists() && !data.BgpMultihopCount.IsNull() {
+		data.BgpMultihopCount = types.Int64Value(value.Int())
+	} else {
+		data.BgpMultihopCount = types.Int64Null()
+	}
+	if value := res.Get("routing.data.bgpNeighborCIDRs"); value.Exists() && !data.BgpMultihopIpRanges.IsNull() {
+		data.BgpMultihopIpRanges = helpers.GetStringSet(value.Array())
+	} else {
+		data.BgpMultihopIpRanges = types.SetNull(types.StringType)
+	}
+	if value := res.Get("routing.data.bgpPeeringTypes"); value.Exists() && !data.BgpPeeringTypes.IsNull() {
+		data.BgpPeeringTypes = helpers.GetStringSet(value.Array())
+	} else {
+		data.BgpPeeringTypes = types.SetNull(types.StringType)
+	}
+	if value := res.Get("resourceAttributes.isOverrideBGPSummarization"); value.Exists() && !data.BgpOverrideSummarization.IsNull() {
+		data.BgpOverrideSummarization = types.BoolValue(value.Bool())
+	} else {
+		data.BgpOverrideSummarization = types.BoolNull()
+	}
+	if value := res.Get("routing.data.enableIPv6"); value.Exists() && !data.Ipv6Routing.IsNull() {
+		data.Ipv6Routing = types.BoolValue(value.Bool())
+	} else {
+		data.Ipv6Routing = types.BoolNull()
 	}
 	data.fromBodyHubs(ctx, res)
 }

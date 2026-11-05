@@ -27,15 +27,22 @@ data "secureaccess_network_tunnel_group" "example" {
 
 ### Read-Only
 
+- `backup_region` (String) The name of the backup region.
+- `bgp_as_number` (String) BGP Autonomous System (AS) number for the network tunnel.
+- `bgp_multihop_count` (Number) BGP hop count for the network tunnel.
+- `bgp_multihop_ip_ranges` (Set of String)
+- `bgp_override_summarization` (Boolean) Indicates if BGP summarization should be overridden.
+- `bgp_peering_types` (Set of String)
 - `device_type` (String) The type of device that establishes the network tunnel.
 - `hubs` (Attributes List) Remote connection endpoints for connecting network tunnel group (see [below for nested schema](#nestedatt--hubs))
+- `ipv6_routing` (Boolean) Indicates if IPv6 is enabled for the network tunnel in addition to IPv4.
 - `name` (String) Name of the Network Tunnel Group. It cannot exceed 50 characters, and can only contain alphanumeric characters, spaces, and hyphens.
 - `preshared_key` (String, Sensitive) Passphrase for the network tunnel. It must include at least one upper case letter, one lower case letter, one number, and cannot include any special characters.
 - `region` (String) The name of the region that the system uses to obtain the primary and secondary data centers for the Hubs.
-- `routing_network_cidrs` (Set of String)
 - `routing_type` (String) Type of routing for the network tunnel.
+- `static_network_cidrs` (Set of String) List of network CIDRs for the static routing.
 - `tunnel_id_format_email` (String) Prefix for the authentication ID in email format (<tunnel_id_format_email>@<org><hub>.sse.cisco.com). The string should not have any special characters besides the period(.), underscore(_), and dash(-) characters.
-- `tunnel_id_format_ip_addresses` (List of String) List of IP addresses for the authentication ID in IP address format. Please include exactly two IP addresses.
+- `tunnel_id_format_ip_addresses` (List of String) List of IP addresses for the authentication ID in IP address format. Include exactly two IP addresses for primary region and two for backup region (if used).
 
 <a id="nestedatt--hubs"></a>
 ### Nested Schema for `hubs`

@@ -25,7 +25,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -97,6 +99,10 @@ func (r *NetworkTunnelGroupResource) Schema(ctx context.Context, req resource.Sc
 				MarkdownDescription: helpers.NewAttributeDescription("The name of the region that the system uses to obtain the primary and secondary data centers for the Hubs.").String,
 				Required:            true,
 			},
+			"backup_region": schema.StringAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("The name of the backup region.").String,
+				Optional:            true,
+			},
 			"tunnel_id_format_email": schema.StringAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Prefix for the authentication ID in email format (<tunnel_id_format_email>@<org><hub>.sse.cisco.com). The string should not have any special characters besides the period(.), underscore(_), and dash(-) characters.").String,
 				Optional:            true,
@@ -106,12 +112,12 @@ func (r *NetworkTunnelGroupResource) Schema(ctx context.Context, req resource.Sc
 				},
 			},
 			"tunnel_id_format_ip_addresses": schema.ListAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("List of IP addresses for the authentication ID in IP address format. Please include exactly two IP addresses.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("List of IP addresses for the authentication ID in IP address format. Include exactly two IP addresses for primary region and two for backup region (if used).").String,
 				ElementType:         types.StringType,
 				Optional:            true,
 				Validators: []validator.List{
 					listvalidator.SizeAtLeast(2),
-					listvalidator.SizeAtMost(2),
+					listvalidator.SizeAtMost(4),
 				},
 			},
 			"preshared_key": schema.StringAttribute{
@@ -127,15 +133,49 @@ func (r *NetworkTunnelGroupResource) Schema(ctx context.Context, req resource.Sc
 				},
 			},
 			"routing_type": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Type of routing for the network tunnel.").AddStringEnumDescription("static").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Type of routing for the network tunnel.").AddStringEnumDescription("static", "bgp", "nat").String,
 				Required:            true,
 				Validators: []validator.String{
-					stringvalidator.OneOf("static"),
+					stringvalidator.OneOf("static", "bgp", "nat"),
 				},
 			},
-			"routing_network_cidrs": schema.SetAttribute{
+			"static_network_cidrs": schema.SetAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("List of network CIDRs for the static routing.").String,
+				ElementType:         types.StringType,
+				Optional:            true,
+			},
+			"bgp_as_number": schema.StringAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("BGP Autonomous System (AS) number for the network tunnel.").String,
+				Optional:            true,
+			},
+			"bgp_multihop_count": schema.Int64Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("BGP hop count for the network tunnel.").AddIntegerRangeDescription(1, 64).String,
+				Optional:            true,
+				Validators: []validator.Int64{
+					int64validator.Between(1, 64),
+				},
+			},
+			"bgp_multihop_ip_ranges": schema.SetAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("").String,
 				ElementType:         types.StringType,
+				Optional:            true,
+			},
+			"bgp_peering_types": schema.SetAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("").AddStringEnumDescription("ipv4", "ipv6").String,
+				ElementType:         types.StringType,
+				Optional:            true,
+				Validators: []validator.Set{
+					setvalidator.ValueStringsAre(
+						stringvalidator.OneOf("ipv4", "ipv6"),
+					),
+				},
+			},
+			"bgp_override_summarization": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Indicates if BGP summarization should be overridden.").String,
+				Optional:            true,
+			},
+			"ipv6_routing": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Indicates if IPv6 is enabled for the network tunnel in addition to IPv4.").String,
 				Optional:            true,
 			},
 			"hubs": schema.ListNestedAttribute{

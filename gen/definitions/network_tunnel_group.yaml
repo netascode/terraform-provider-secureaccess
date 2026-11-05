@@ -25,6 +25,10 @@ attributes:
     description: The name of the region that the system uses to obtain the primary and secondary data centers for the Hubs.
     example: us-east-1
     mandatory: true
+  - model_name: backupRegion
+    type: String
+    description: The name of the backup region.
+    example: us-east-2
   - model_name: authIdPrefix
     type: String
     tf_name: tunnel_id_format_email
@@ -38,10 +42,10 @@ attributes:
     type: List
     element_type: String
     tf_name: tunnel_id_format_ip_addresses
-    description: List of IP addresses for the authentication ID in IP address format. Please include exactly two IP addresses.
+    description: List of IP addresses for the authentication ID in IP address format. Include exactly two IP addresses for primary region and two for backup region (if used).
     write_only: true
     min_list: 2
-    max_list: 2 
+    max_list: 4
     exclude_example: true
     exclude_test: true
   - model_name: passphrase
@@ -64,15 +68,69 @@ attributes:
     type: String
     tf_name: routing_type
     mandatory: true
-    enum_values: ["static"]
+    enum_values: ["static", "bgp", "nat"]
     description: Type of routing for the network tunnel.
     example: static
+  # Static routing configuration
   - model_name: networkCIDRs
     data_path: ["routing", "data"]
     type: Set
     element_type: String
-    tf_name: routing_network_cidrs
+    description: List of network CIDRs for the static routing.
+    tf_name: static_network_cidrs
     example: "192.168.0.0/24"
+  # BGP routing configuration
+  - model_name: asNumber
+    data_path: ["routing", "data"]
+    type: String
+    tf_name: bgp_as_number
+    description: BGP Autonomous System (AS) number for the network tunnel.
+    exclude_example: true
+    exclude_test: true
+  - model_name: bgpHopCount
+    tf_name: bgp_multihop_count
+    data_path: ["routing", "data"]
+    type: Int64
+    description: BGP hop count for the network tunnel.
+    min_int: 1
+    max_int: 64
+    exclude_example: true
+    exclude_test: true
+  - model_name: bgpNeighborCIDRs
+    data_path: ["routing", "data"]
+    type: Set
+    element_type: String
+    tf_name: bgp_multihop_ip_ranges
+    exclude_example: true
+    exclude_test: true
+  - model_name: bgpPeeringTypes
+    data_path: ["routing", "data"]
+    type: Set
+    element_type: String
+    tf_name: bgp_peering_types
+    enum_values: ["ipv4", "ipv6"]
+    exclude_example: true
+    exclude_test: true    
+  - model_name: isOverrideBGPSummarization
+    data_path: ["resourceAttributes"]
+    type: Bool
+    tf_name: bgp_override_summarization
+    description: Indicates if BGP summarization should be overridden.
+    example: "true"
+  # - model_name: bgpServerSubnets
+  #   data_path: ["routing", "data"]
+  #   type: Set
+  #   element_type: String
+  #   tf_name: bgp_server_subnets
+  #   computed: true
+  #   description: List of BGP server subnets for the network tunnel.
+  # Generic routing
+  - model_name: enableIPv6
+    data_path: ["routing", "data"]
+    type: Bool
+    tf_name: ipv6_routing
+    description: Indicates if IPv6 is enabled for the network tunnel in addition to IPv4.
+    example: "true"
   # After Creation read-only values
   - model_name: hubs
     type: List

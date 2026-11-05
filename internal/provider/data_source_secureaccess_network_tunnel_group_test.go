@@ -33,7 +33,10 @@ func TestAccDataSourceSecureAccessNetworkTunnelGroup(t *testing.T) {
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network_tunnel_group.test", "name", "my network tunnel group"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network_tunnel_group.test", "device_type", "ASA"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network_tunnel_group.test", "region", "us-east-1"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network_tunnel_group.test", "backup_region", "us-east-2"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network_tunnel_group.test", "routing_type", "static"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network_tunnel_group.test", "bgp_override_summarization", "true"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network_tunnel_group.test", "ipv6_routing", "true"))
 	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_network_tunnel_group.test", "hubs.#"))
 	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_network_tunnel_group.test", "hubs.0.id"))
 	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_network_tunnel_group.test", "hubs.0.is_primary"))
@@ -64,10 +67,13 @@ func testAccDataSourceSecureAccessNetworkTunnelGroupConfig() string {
 	config += `	name = "my network tunnel group"` + "\n"
 	config += `	device_type = "ASA"` + "\n"
 	config += `	region = "us-east-1"` + "\n"
+	config += `	backup_region = "us-east-2"` + "\n"
 	config += `	tunnel_id_format_email = "my_prefix"` + "\n"
 	config += `	preshared_key = "t3stingTunn3lNow"` + "\n"
 	config += `	routing_type = "static"` + "\n"
-	config += `	routing_network_cidrs = ["192.168.0.0/24"]` + "\n"
+	config += `	static_network_cidrs = ["192.168.0.0/24"]` + "\n"
+	config += `	bgp_override_summarization = true` + "\n"
+	config += `	ipv6_routing = true` + "\n"
 	config += `}` + "\n"
 
 	config += `
