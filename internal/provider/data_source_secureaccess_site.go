@@ -68,28 +68,28 @@ func (d *SiteDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Site.",
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Site.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"internal_network_count": schema.Int64Attribute{
-				MarkdownDescription: "The number of internal networks that are associated with the Site.",
+				MarkdownDescription: helpers.NewAttributeDescription("The number of internal networks that are associated with the Site.").String,
 				Computed:            true,
 			},
 			"origin_id": schema.Int64Attribute{
-				MarkdownDescription: "The origin ID of the Site.",
+				MarkdownDescription: helpers.NewAttributeDescription("The origin ID of the Site.").String,
 				Computed:            true,
 			},
 			"virtual_appliances_count": schema.Int64Attribute{
-				MarkdownDescription: "The number of virtual appliances that are associated with the Site.",
+				MarkdownDescription: helpers.NewAttributeDescription("The number of virtual appliances that are associated with the Site.").String,
 				Computed:            true,
 			},
 			"type": schema.StringAttribute{
-				MarkdownDescription: "The type of the Site.",
+				MarkdownDescription: helpers.NewAttributeDescription("The type of the Site.").String,
 				Computed:            true,
 			},
 			"is_default": schema.StringAttribute{
-				MarkdownDescription: "Specifies whether the Site is the default Site.",
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the Site is the default Site.").String,
 				Computed:            true,
 			},
 		},

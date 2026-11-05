@@ -68,22 +68,22 @@ func (d *ApplicationListDataSource) Schema(ctx context.Context, req datasource.S
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "The descriptive label for the Application List.",
+				MarkdownDescription: helpers.NewAttributeDescription("The descriptive label for the Application List.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"application_ids": schema.SetAttribute{
-				MarkdownDescription: "The list of IDs of the Applications in the Application List.",
+				MarkdownDescription: helpers.NewAttributeDescription("The list of IDs of the Applications in the Application List.").String,
 				ElementType:         types.Int64Type,
 				Computed:            true,
 			},
 			"application_category_ids": schema.SetAttribute{
-				MarkdownDescription: "The list of IDs of the Application Categories in the Application List.",
+				MarkdownDescription: helpers.NewAttributeDescription("The list of IDs of the Application Categories in the Application List.").String,
 				ElementType:         types.Int64Type,
 				Computed:            true,
 			},
 			"is_default": schema.BoolAttribute{
-				MarkdownDescription: "Specifies whether the Application List is the default Application List.",
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the Application List is the default Application List.").String,
 				Computed:            true,
 			},
 		},

@@ -60,12 +60,12 @@ func (d *ContentCategoriesDataSource) Schema(ctx context.Context, req datasource
 
 		Attributes: map[string]schema.Attribute{
 			"filter": schema.StringAttribute{
-				MarkdownDescription: "Case-insensitive substring used to filter content category lists by name.",
+				MarkdownDescription: helpers.NewAttributeDescription("Case-insensitive substring used to filter content category lists by name.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"items": schema.MapNestedAttribute{
-				MarkdownDescription: "Map of Content Categories. The key of the map is the name of the individual Content Category.",
+				MarkdownDescription: helpers.NewAttributeDescription("Map of Content Categories. The key of the map is the name of the individual Content Category.").String,
 				Optional:            true,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{

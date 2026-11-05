@@ -64,72 +64,72 @@ func (d *NetworkTunnelGroupDataSource) Schema(ctx context.Context, req datasourc
 				Required:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Network Tunnel Group. It cannot exceed 50 characters, and can only contain alphanumeric characters, spaces, and hyphens.",
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Network Tunnel Group. It cannot exceed 50 characters, and can only contain alphanumeric characters, spaces, and hyphens.").String,
 				Computed:            true,
 			},
 			"device_type": schema.StringAttribute{
-				MarkdownDescription: "The type of device that establishes the network tunnel.",
+				MarkdownDescription: helpers.NewAttributeDescription("The type of device that establishes the network tunnel.").String,
 				Computed:            true,
 			},
 			"region": schema.StringAttribute{
-				MarkdownDescription: "The name of the region that the system uses to obtain the primary and secondary data centers for the Hubs.",
+				MarkdownDescription: helpers.NewAttributeDescription("The name of the region that the system uses to obtain the primary and secondary data centers for the Hubs.").String,
 				Computed:            true,
 			},
 			"backup_region": schema.StringAttribute{
-				MarkdownDescription: "The name of the backup region.",
+				MarkdownDescription: helpers.NewAttributeDescription("The name of the backup region.").String,
 				Computed:            true,
 			},
 			"tunnel_id_format_email": schema.StringAttribute{
-				MarkdownDescription: "Prefix for the authentication ID in email format (<tunnel_id_format_email>@<org><hub>.sse.cisco.com). The string should not have any special characters besides the period(.), underscore(_), and dash(-) characters.",
+				MarkdownDescription: helpers.NewAttributeDescription("Prefix for the authentication ID in email format (<tunnel_id_format_email>@<org><hub>.sse.cisco.com). The string should not have any special characters besides the period(.), underscore(_), and dash(-) characters.").String,
 				Computed:            true,
 			},
 			"tunnel_id_format_ip_addresses": schema.ListAttribute{
-				MarkdownDescription: "List of IP addresses for the authentication ID in IP address format. Include exactly two IP addresses for primary region and two for backup region (if used).",
+				MarkdownDescription: helpers.NewAttributeDescription("List of IP addresses for the authentication ID in IP address format. Include exactly two IP addresses for primary region and two for backup region (if used).").String,
 				ElementType:         types.StringType,
 				Computed:            true,
 			},
 			"preshared_key": schema.StringAttribute{
-				MarkdownDescription: "Passphrase for the network tunnel. It must include at least one upper case letter, one lower case letter, one number, and cannot include any special characters.",
+				MarkdownDescription: helpers.NewAttributeDescription("Passphrase for the network tunnel. It must include at least one upper case letter, one lower case letter, one number, and cannot include any special characters.").String,
 				Computed:            true,
 				Sensitive:           true,
 			},
 			"routing_type": schema.StringAttribute{
-				MarkdownDescription: "Type of routing for the network tunnel.",
+				MarkdownDescription: helpers.NewAttributeDescription("Type of routing for the network tunnel.").String,
 				Computed:            true,
 			},
 			"static_network_cidrs": schema.SetAttribute{
-				MarkdownDescription: "List of network CIDRs for the static routing.",
+				MarkdownDescription: helpers.NewAttributeDescription("List of network CIDRs for the static routing.").String,
 				ElementType:         types.StringType,
 				Computed:            true,
 			},
 			"bgp_as_number": schema.StringAttribute{
-				MarkdownDescription: "BGP Autonomous System (AS) number for the network tunnel.",
+				MarkdownDescription: helpers.NewAttributeDescription("BGP Autonomous System (AS) number for the network tunnel.").String,
 				Computed:            true,
 			},
 			"bgp_multihop_count": schema.Int64Attribute{
-				MarkdownDescription: "BGP hop count for the network tunnel.",
+				MarkdownDescription: helpers.NewAttributeDescription("BGP hop count for the network tunnel.").String,
 				Computed:            true,
 			},
 			"bgp_multihop_ip_ranges": schema.SetAttribute{
-				MarkdownDescription: "",
+				MarkdownDescription: helpers.NewAttributeDescription("").String,
 				ElementType:         types.StringType,
 				Computed:            true,
 			},
 			"bgp_peering_types": schema.SetAttribute{
-				MarkdownDescription: "",
+				MarkdownDescription: helpers.NewAttributeDescription("").String,
 				ElementType:         types.StringType,
 				Computed:            true,
 			},
 			"bgp_override_summarization": schema.BoolAttribute{
-				MarkdownDescription: "Indicates if BGP summarization should be overridden.",
+				MarkdownDescription: helpers.NewAttributeDescription("Indicates if BGP summarization should be overridden.").String,
 				Computed:            true,
 			},
 			"ipv6_routing": schema.BoolAttribute{
-				MarkdownDescription: "Indicates if IPv6 is enabled for the network tunnel in addition to IPv4.",
+				MarkdownDescription: helpers.NewAttributeDescription("Indicates if IPv6 is enabled for the network tunnel in addition to IPv4.").String,
 				Computed:            true,
 			},
 			"hubs": schema.ListNestedAttribute{
-				MarkdownDescription: "Remote connection endpoints for connecting network tunnel group",
+				MarkdownDescription: helpers.NewAttributeDescription("Remote connection endpoints for connecting network tunnel group").String,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{

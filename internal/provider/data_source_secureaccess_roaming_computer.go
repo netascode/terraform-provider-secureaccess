@@ -67,56 +67,56 @@ func (d *RoamingComputerDataSource) Schema(ctx context.Context, req datasource.S
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "The name of the Roaming Computer. Used to find the Roaming Computer on create, a later change renames it.",
+				MarkdownDescription: helpers.NewAttributeDescription("The name of the Roaming Computer. Used to find the Roaming Computer on create, a later change renames it.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"device_id": schema.StringAttribute{
-				MarkdownDescription: "The hex ID of the Roaming Computer.",
+				MarkdownDescription: helpers.NewAttributeDescription("The hex ID of the Roaming Computer.").String,
 				Computed:            true,
 			},
 			"anyconnect_device_id": schema.StringAttribute{
-				MarkdownDescription: "The ID of the device that has the Cisco Secure Client deployed with the Internet Security module.",
+				MarkdownDescription: helpers.NewAttributeDescription("The ID of the device that has the Cisco Secure Client deployed with the Internet Security module.").String,
 				Computed:            true,
 			},
 			"origin_id": schema.Int64Attribute{
-				MarkdownDescription: "The origin ID of the Roaming Computer.",
+				MarkdownDescription: helpers.NewAttributeDescription("The origin ID of the Roaming Computer.").String,
 				Computed:            true,
 			},
 			"applied_bundle": schema.Int64Attribute{
-				MarkdownDescription: "The ID of the policy applied to the Roaming Computer.",
+				MarkdownDescription: helpers.NewAttributeDescription("The ID of the policy applied to the Roaming Computer.").String,
 				Computed:            true,
 			},
 			"type": schema.StringAttribute{
-				MarkdownDescription: "The type of the Roaming Computer.",
+				MarkdownDescription: helpers.NewAttributeDescription("The type of the Roaming Computer.").String,
 				Computed:            true,
 			},
 			"os_version": schema.StringAttribute{
-				MarkdownDescription: "The OS version of the Roaming Computer.",
+				MarkdownDescription: helpers.NewAttributeDescription("The OS version of the Roaming Computer.").String,
 				Computed:            true,
 			},
 			"os_version_name": schema.StringAttribute{
-				MarkdownDescription: "The OS version name of the Roaming Computer.",
+				MarkdownDescription: helpers.NewAttributeDescription("The OS version name of the Roaming Computer.").String,
 				Computed:            true,
 			},
 			"has_ip_blocking": schema.BoolAttribute{
-				MarkdownDescription: "Specifies whether the Roaming Computer has IP blocking.",
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the Roaming Computer has IP blocking.").String,
 				Computed:            true,
 			},
 			"status": schema.StringAttribute{
-				MarkdownDescription: "The status of the Roaming Computer with DNS-layer security.",
+				MarkdownDescription: helpers.NewAttributeDescription("The status of the Roaming Computer with DNS-layer security.").String,
 				Computed:            true,
 			},
 			"secure_web_gateway_status": schema.StringAttribute{
-				MarkdownDescription: "The status of the Roaming Computer with Internet security (Secure Web Gateway).",
+				MarkdownDescription: helpers.NewAttributeDescription("The status of the Roaming Computer with Internet security (Secure Web Gateway).").String,
 				Computed:            true,
 			},
 			"secure_client_version": schema.StringAttribute{
-				MarkdownDescription: "The version of the Roaming Computer client.",
+				MarkdownDescription: helpers.NewAttributeDescription("The version of the Roaming Computer client.").String,
 				Computed:            true,
 			},
 			"delete_on_destroy": schema.BoolAttribute{
-				MarkdownDescription: "When `true`, the Roaming Computer is removed from Secure Access on destroy. When `false`, it is only removed from the Terraform state.",
+				MarkdownDescription: helpers.NewAttributeDescription("When `true`, the Roaming Computer is removed from Secure Access on destroy. When `false`, it is only removed from the Terraform state.").String,
 				Computed:            true,
 			},
 		},

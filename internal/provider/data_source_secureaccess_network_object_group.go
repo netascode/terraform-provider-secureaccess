@@ -68,16 +68,16 @@ func (d *NetworkObjectGroupDataSource) Schema(ctx context.Context, req datasourc
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Network Object Group.",
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Network Object Group.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"description": schema.StringAttribute{
-				MarkdownDescription: "Description of the Network Object Group.",
+				MarkdownDescription: helpers.NewAttributeDescription("Description of the Network Object Group.").String,
 				Computed:            true,
 			},
 			"network_object_groups": schema.ListNestedAttribute{
-				MarkdownDescription: "Network Object Groups to be included in this Network Object Group.",
+				MarkdownDescription: helpers.NewAttributeDescription("Network Object Groups to be included in this Network Object Group.").String,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -93,7 +93,7 @@ func (d *NetworkObjectGroupDataSource) Schema(ctx context.Context, req datasourc
 				},
 			},
 			"network_objects": schema.ListNestedAttribute{
-				MarkdownDescription: "Network Objects to be included in this Network Object Group.",
+				MarkdownDescription: helpers.NewAttributeDescription("Network Objects to be included in this Network Object Group.").String,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -109,7 +109,7 @@ func (d *NetworkObjectGroupDataSource) Schema(ctx context.Context, req datasourc
 				},
 			},
 			"literals": schema.ListNestedAttribute{
-				MarkdownDescription: "Literal (non-reusable) values of the Network Objects.",
+				MarkdownDescription: helpers.NewAttributeDescription("Literal (non-reusable) values of the Network Objects.").String,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{

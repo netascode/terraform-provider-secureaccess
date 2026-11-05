@@ -68,16 +68,16 @@ func (d *ContentCategoryListDataSource) Schema(ctx context.Context, req datasour
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Content Category List",
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Content Category List").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"type": schema.StringAttribute{
-				MarkdownDescription: "Type of the Content Category List",
+				MarkdownDescription: helpers.NewAttributeDescription("Type of the Content Category List").String,
 				Computed:            true,
 			},
 			"is_default": schema.BoolAttribute{
-				MarkdownDescription: "Indicates if the Content Category List is the default one",
+				MarkdownDescription: helpers.NewAttributeDescription("Indicates if the Content Category List is the default one").String,
 				Computed:            true,
 			},
 		},

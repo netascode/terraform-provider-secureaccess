@@ -63,11 +63,11 @@ func (d *DestinationListDataSource) Schema(ctx context.Context, req datasource.S
 				Required:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Destination List.",
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Destination List.").String,
 				Computed:            true,
 			},
 			"destinations": schema.SetNestedAttribute{
-				MarkdownDescription: "List of destinations in the Destination List",
+				MarkdownDescription: helpers.NewAttributeDescription("List of destinations in the Destination List").String,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{

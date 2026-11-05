@@ -68,16 +68,16 @@ func (d *PrivateResourceGroupDataSource) Schema(ctx context.Context, req datasou
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Private Resource Group. The name must not have any special characters other than spaces and hyphens.",
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Private Resource Group. The name must not have any special characters other than spaces and hyphens.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"description": schema.StringAttribute{
-				MarkdownDescription: "Description of the Private Resource Group.",
+				MarkdownDescription: helpers.NewAttributeDescription("Description of the Private Resource Group.").String,
 				Computed:            true,
 			},
 			"private_resource_ids": schema.SetAttribute{
-				MarkdownDescription: "The list of IDs of the Private Resources that belong to the group.",
+				MarkdownDescription: helpers.NewAttributeDescription("The list of IDs of the Private Resources that belong to the group.").String,
 				ElementType:         types.Int64Type,
 				Computed:            true,
 			},

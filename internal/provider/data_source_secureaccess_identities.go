@@ -26,8 +26,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
@@ -36,6 +40,8 @@ import (
 )
 
 // End of section. //template:end imports
+
+// Section below is generated&owned by "gen/generator.go". //template:begin model
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
@@ -58,30 +64,38 @@ func (d *IdentitiesDataSource) Metadata(_ context.Context, req datasource.Metada
 func (d *IdentitiesDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource reads Identities, grouped by identity type.\n If `items` is empty, all Identities are returned, otherwise only the listed types (and names).\n If `filter` is provided, only Identities matching the filter are returned.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This is Early Access and may be subject to changes. This resource reads Identities, grouped by identity type.\n If `items` is empty, all Identities are returned, otherwise only the listed types are returned.\n If `filter` is provided, only Identities with name matching the filter are returned.\n If `identity_types` is provided, only Identities of the listed types are returned. Use this as primary filter over `items`.\n").String,
 
 		Attributes: map[string]schema.Attribute{
 			"filter": schema.StringAttribute{
-				MarkdownDescription: "Case-insensitive substring used to filter identities by name.",
+				MarkdownDescription: helpers.NewAttributeDescription("Case-insensitive substring used to filter identities by name.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"include_deleted": schema.BoolAttribute{
-				MarkdownDescription: "Specifies whether to include deleted identities, i.e. marked as deleted or with `(deleted)` in the name.",
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether to include deleted identities, i.e. marked as deleted or with `(deleted)` in the name.").AddDefaultValueDescription("false").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"identity_types": schema.ListAttribute{
-				MarkdownDescription: "List of identity types to include.",
+				MarkdownDescription: helpers.NewAttributeDescription("List of identity types to include. Use this as primary filter for the identities returned.").AddStringEnumDescription("ad_connector", "android", "anyconnect", "app_connector_agent", "bdr", "branch", "chromebook_user", "connected_devices", "device", "directory_computer", "directory_domain", "directory_group", "directory_user", "domain_controller", "edlp_client", "gsuite_domain", "gsuite_group", "gsuite_user", "internal_network", "meraki_auto_vpn", "mobile_device", "network", "network_device", "network_dns_forwarder", "network_tunnel_hub", "on_network", "policy", "roaming", "saml_group", "saml_user", "secure_web_appliance", "sgt_id", "site", "tunnel_device", "vpn", "vpn_id", "ztna_client", "-ad_connector", "-android", "-anyconnect", "-app_connector_agent", "-bdr", "-branch", "-chromebook_user", "-connected_devices", "-device", "-directory_computer", "-directory_domain", "-directory_group", "-directory_user", "-domain_controller", "-edlp_client", "-gsuite_domain", "-gsuite_group", "-gsuite_user", "-internal_network", "-meraki_auto_vpn", "-mobile_device", "-network", "-network_device", "-network_dns_forwarder", "-network_tunnel_hub", "-on_network", "-policy", "-roaming", "-saml_group", "-saml_user", "-secure_web_appliance", "-sgt_id", "-site", "-tunnel_device", "-vpn", "-vpn_id", "-ztna_client").String,
 				ElementType:         types.StringType,
 				Optional:            true,
 				Computed:            true,
+				Validators: []validator.List{
+					listvalidator.ValueStringsAre(
+						stringvalidator.OneOf("ad_connector", "android", "anyconnect", "app_connector_agent", "bdr", "branch", "chromebook_user", "connected_devices", "device", "directory_computer", "directory_domain", "directory_group", "directory_user", "domain_controller", "edlp_client", "gsuite_domain", "gsuite_group", "gsuite_user", "internal_network", "meraki_auto_vpn", "mobile_device", "network", "network_device", "network_dns_forwarder", "network_tunnel_hub", "on_network", "policy", "roaming", "saml_group", "saml_user", "secure_web_appliance", "sgt_id", "site", "tunnel_device", "vpn", "vpn_id", "ztna_client", "-ad_connector", "-android", "-anyconnect", "-app_connector_agent", "-bdr", "-branch", "-chromebook_user", "-connected_devices", "-device", "-directory_computer", "-directory_domain", "-directory_group", "-directory_user", "-domain_controller", "-edlp_client", "-gsuite_domain", "-gsuite_group", "-gsuite_user", "-internal_network", "-meraki_auto_vpn", "-mobile_device", "-network", "-network_device", "-network_dns_forwarder", "-network_tunnel_hub", "-on_network", "-policy", "-roaming", "-saml_group", "-saml_user", "-secure_web_appliance", "-sgt_id", "-site", "-tunnel_device", "-vpn", "-vpn_id", "-ztna_client"),
+					),
+				},
 			},
 			"items": schema.MapAttribute{
-				MarkdownDescription: "Map of Identities grouped by type. The key of the outer map is the identity type (e.g. `site`), the key of the inner map is the name of the individual Identity, each with `id` and `deleted` attributes. If set, only the listed types are returned, and only the listed names of a type whose inner map is not empty.",
-				ElementType:         identitiesItemsElemType,
-				Optional:            true,
-				Computed:            true,
+				MarkdownDescription: helpers.NewAttributeDescription("Map of Identities grouped by type. The key of the outer map is the identity type (e.g. `site`), the key of the inner map is the name of the individual Identity. If set, only the listed types are returned, and only the listed names of a type whose inner map is not empty.").String,
+				ElementType: types.MapType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{
+					"id":      types.StringType,
+					"deleted": types.BoolType,
+				}}},
+				Optional: true,
+				Computed: true,
 			},
 		},
 	}
@@ -94,6 +108,8 @@ func (d *IdentitiesDataSource) Configure(_ context.Context, req datasource.Confi
 
 	d.client = req.ProviderData.(*SecureAccessProviderData).Client
 }
+
+// End of section. //template:end model
 
 func (d *IdentitiesDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var config Identities

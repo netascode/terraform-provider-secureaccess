@@ -64,23 +64,23 @@ func (d *PrivateResourceDataSource) Schema(ctx context.Context, req datasource.S
 				Required:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Private Resource",
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Private Resource").String,
 				Computed:            true,
 			},
 			"description": schema.StringAttribute{
-				MarkdownDescription: "Description of the Private Resource",
+				MarkdownDescription: helpers.NewAttributeDescription("Description of the Private Resource").String,
 				Computed:            true,
 			},
 			"certificate_id": schema.Int64Attribute{
-				MarkdownDescription: "The ID of the certificate you use to decrypt traffic to the Private Resource.",
+				MarkdownDescription: helpers.NewAttributeDescription("The ID of the certificate you use to decrypt traffic to the Private Resource.").String,
 				Computed:            true,
 			},
 			"dns_server_id": schema.Int64Attribute{
-				MarkdownDescription: "The ID of the DNS server you use to resolve IP addresses.",
+				MarkdownDescription: helpers.NewAttributeDescription("The ID of the DNS server you use to resolve IP addresses.").String,
 				Computed:            true,
 			},
 			"endpoint_connection_methods": schema.ListNestedAttribute{
-				MarkdownDescription: "The list of connection properties that describe how end users can access private resources in the organization.",
+				MarkdownDescription: helpers.NewAttributeDescription("The list of connection properties that describe how end users can access private resources in the organization.").String,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -113,7 +113,7 @@ func (d *PrivateResourceDataSource) Schema(ctx context.Context, req datasource.S
 				},
 			},
 			"addresses": schema.ListNestedAttribute{
-				MarkdownDescription: "The list of resource addresses for the Private Resources.",
+				MarkdownDescription: helpers.NewAttributeDescription("The list of resource addresses for the Private Resources.").String,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
