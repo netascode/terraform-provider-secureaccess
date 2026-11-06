@@ -229,3 +229,97 @@ func TestReadAccessRuleAltConditions(t *testing.T) {
 		t.Errorf("partial read: got %v, %v", data.SourceIdentityIds, data.SourceIdentityTypeIds)
 	}
 }
+
+func TestExpandAccessRuleIdentityTypes(t *testing.T) {
+	body := `{"ruleConditions":[{"attributeName":"umbrella.source.identity_type_ids","attributeOperator":"INTERSECT","attributeValue":[7,-1,-2,36]}]}`
+	got := testAccessRuleCondition(expandAccessRuleIdentityTypes(body), tIT).Get("attributeValue").Raw
+	if got != "[7,36,50,34,9]" {
+		t.Errorf("unexpected identity types %s", got)
+	}
+}
+
+func TestCollapseAccessRuleIdentityTypes(t *testing.T) {
+	ctx := context.Background()
+	ids := func(v ...int64) types.Set {
+		s, _ := types.SetValueFrom(ctx, types.Int64Type, v)
+		return s
+	}
+	for _, tc := range []struct {
+		name  string
+		prior *AccessRule
+		want  types.Set
+	}{
+		{"import", nil, ids(7, -1, -2)},
+		{"combined", &AccessRule{SourceIdentityTypeIds: ids(7, -1, -2)}, ids(7, -1, -2)},
+		{"individual", &AccessRule{SourceIdentityTypeIds: ids(7, 36, 50, 34, 9)}, ids(7, 36, 50, 34, 9)},
+		{"mixed", &AccessRule{SourceIdentityTypeIds: ids(7, 36, 50, -2)}, ids(7, 36, 50, -2)},
+	} {
+		data := AccessRule{SourceIdentityTypeIds: ids(7, 36, 50, 34, 9)}
+		collapseAccessRuleIdentityTypes(ctx, &data, tc.prior)
+		if !data.SourceIdentityTypeIds.Equal(tc.want) {
+			t.Errorf("%s: got %v, want %v", tc.name, data.SourceIdentityTypeIds, tc.want)
+		}
+	}
+	// Incomplete pairs are left as returned
+	data := AccessRule{SourceIdentityTypeIds: ids(7, 36)}
+	collapseAccessRuleIdentityTypes(ctx, &data, nil)
+	if !data.SourceIdentityTypeIds.Equal(ids(7, 36)) {
+		t.Errorf("incomplete: got %v", data.SourceIdentityTypeIds)
+	}
+}
+
+func TestIdentityTypesStaticBody(t *testing.T) {
+	res := gjson.ParseBytes(identityTypesStaticBody())
+	if got := res.Get(`#(label=="iOS/Android Devices").id`).String(); got != "-1" {
+		t.Errorf("unexpected combined id %q", got)
+	}
+	if res.Get(`#(label=="iOS Mobile Devices")`).Exists() {
+		t.Errorf("unexpected individual identity type")
+	}
+	if int64(len(identityTypesStatic)+len(identityTypesCombined)) != res.Get("#").Int() {
+		t.Errorf("identityTypesStatic modified")
+	}
+}
+
+func TestAccessRuleApplicationCategoryAll(t *testing.T) {
+	// Added to an existing condition, or as a new one, the expression references the condition once
+	body := addAccessRuleApplicationCategoryAll(`{"ruleConditions":[{"attributeName":"` + tAC + `","attributeOperator":"INTERSECT","attributeValue":[102]}]}`)
+	if got := testAccessRuleCondition(body, tAC).Get("attributeValue").Raw; got != "[102,90]" {
+		t.Errorf("unexpected application categories %s", got)
+	}
+	body = addAccessRuleApplicationCategoryAll(testAccessRuleBody(tN))
+	body = adjustAccessRuleConditions(body, "OR", "AND", "AND")
+	if got := testAccessRuleCondition(body, tAC).Get("attributeValue").Raw; got != "[90]" {
+		t.Errorf("unexpected application categories %s", got)
+	}
+	if got := testAccessRuleCondition(body, "umbrella.destination.logical_operator").Get("attributeValue").String(); got != tAC+" && "+tN {
+		t.Errorf("unexpected destination expression %q", got)
+	}
+
+	ctx := context.Background()
+	ids := func(v ...int64) types.Set {
+		s, _ := types.SetValueFrom(ctx, types.Int64Type, v)
+		return s
+	}
+	res := gjson.Parse(`{"ruleConditions":[{"attributeName":"` + tAC + `","attributeValue":[102,90]}]}`)
+	// Full read (import)
+	data := AccessRule{DestinationApplicationCategoryIds: ids(102, 90)}
+	readAccessRuleApplicationCategoryAll(ctx, &data, nil, res)
+	if !data.DestinationApplicationCategoryAll.ValueBool() || !data.DestinationApplicationCategoryIds.Equal(ids(102)) {
+		t.Errorf("full read: got %v, %v", data.DestinationApplicationCategoryAll, data.DestinationApplicationCategoryIds)
+	}
+	// Partial read (refresh) of an unmanaged attribute
+	prior := AccessRule{DestinationApplicationCategoryIds: ids(102), DestinationApplicationCategoryAll: types.BoolNull()}
+	data = AccessRule{DestinationApplicationCategoryIds: ids(102, 90)}
+	readAccessRuleApplicationCategoryAll(ctx, &data, &prior, res)
+	if !data.DestinationApplicationCategoryAll.IsNull() || !data.DestinationApplicationCategoryIds.Equal(ids(102)) {
+		t.Errorf("partial read: got %v, %v", data.DestinationApplicationCategoryAll, data.DestinationApplicationCategoryIds)
+	}
+	// Only all categories
+	prior = AccessRule{DestinationApplicationCategoryIds: types.SetNull(types.Int64Type), DestinationApplicationCategoryAll: types.BoolValue(true)}
+	data = AccessRule{DestinationApplicationCategoryIds: types.SetNull(types.Int64Type)}
+	readAccessRuleApplicationCategoryAll(ctx, &data, &prior, gjson.Parse(`{"ruleConditions":[{"attributeName":"`+tAC+`","attributeValue":[90]}]}`))
+	if !data.DestinationApplicationCategoryAll.ValueBool() || !data.DestinationApplicationCategoryIds.IsNull() {
+		t.Errorf("all only: got %v, %v", data.DestinationApplicationCategoryAll, data.DestinationApplicationCategoryIds)
+	}
+}

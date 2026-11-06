@@ -41,6 +41,7 @@ type AccessRule struct {
 	Enabled                            types.Bool                         `tfsdk:"enabled"`
 	SourceIdentityIds                  types.Set                          `tfsdk:"source_identity_ids"`
 	SourceIdentityTypeIds              types.Set                          `tfsdk:"source_identity_type_ids"`
+	SourceZtaEnrolledDeviceTypes       types.Set                          `tfsdk:"source_zta_enrolled_device_types"`
 	SourceGeolocations                 types.Set                          `tfsdk:"source_geolocations"`
 	SourceNetworkObjectIds             types.Set                          `tfsdk:"source_network_object_ids"`
 	SourceNetworkObjectGroupIds        types.Set                          `tfsdk:"source_network_object_group_ids"`
@@ -53,11 +54,14 @@ type AccessRule struct {
 	DestinationServiceObjectGroupIds   types.Set                          `tfsdk:"destination_service_object_group_ids"`
 	DestinationPrivateResourceIds      types.Set                          `tfsdk:"destination_private_resource_ids"`
 	DestinationPrivateResourceGroupIds types.Set                          `tfsdk:"destination_private_resource_group_ids"`
+	DestinationPrivateResourceTypes    types.Set                          `tfsdk:"destination_private_resource_types"`
 	DestinationSecurityGroupTagIds     types.Set                          `tfsdk:"destination_security_group_tag_ids"`
+	DestinationSecurityGroupTagAll     types.Bool                         `tfsdk:"destination_security_group_tag_all"`
 	DestinationContentCategoryIds      types.Set                          `tfsdk:"destination_content_category_ids"`
 	DestinationContentCategoryListIds  types.Set                          `tfsdk:"destination_content_category_list_ids"`
 	DestinationApplicationIds          types.Set                          `tfsdk:"destination_application_ids"`
 	DestinationApplicationCategoryIds  types.Set                          `tfsdk:"destination_application_category_ids"`
+	DestinationApplicationCategoryAll  types.Bool                         `tfsdk:"destination_application_category_all"`
 	DestinationApplicationListIds      types.Set                          `tfsdk:"destination_application_list_ids"`
 	DestinationListIds                 types.Set                          `tfsdk:"destination_list_ids"`
 	DestinationGeolocations            types.Set                          `tfsdk:"destination_geolocations"`
@@ -124,6 +128,11 @@ func (data AccessRule) toBody(ctx context.Context, state AccessRule) string {
 		var values []int64
 		data.SourceIdentityTypeIds.ElementsAs(ctx, &values, false)
 		body, _ = sjson.Set(body, "ruleConditions.-1", map[string]any{"attributeName": "umbrella.source.identity_type_ids", "attributeOperator": "INTERSECT", "attributeValue": values})
+	}
+	if !data.SourceZtaEnrolledDeviceTypes.IsNull() {
+		var values []string
+		data.SourceZtaEnrolledDeviceTypes.ElementsAs(ctx, &values, false)
+		body, _ = sjson.Set(body, "ruleConditions.-1", map[string]any{"attributeName": "source.device_identity_types", "attributeOperator": "INTERSECT", "attributeValue": values})
 	}
 	if !data.SourceGeolocations.IsNull() {
 		var values []string
@@ -201,10 +210,18 @@ func (data AccessRule) toBody(ctx context.Context, state AccessRule) string {
 		data.DestinationPrivateResourceGroupIds.ElementsAs(ctx, &values, false)
 		body, _ = sjson.Set(body, "ruleConditions.-1", map[string]any{"attributeName": "umbrella.destination.private_resource_group_ids", "attributeOperator": "INTERSECT", "attributeValue": values})
 	}
+	if !data.DestinationPrivateResourceTypes.IsNull() {
+		var values []string
+		data.DestinationPrivateResourceTypes.ElementsAs(ctx, &values, false)
+		body, _ = sjson.Set(body, "ruleConditions.-1", map[string]any{"attributeName": "umbrella.destination.private_resource_types", "attributeOperator": "INTERSECT", "attributeValue": values})
+	}
 	if !data.DestinationSecurityGroupTagIds.IsNull() {
 		var values []int64
 		data.DestinationSecurityGroupTagIds.ElementsAs(ctx, &values, false)
 		body, _ = sjson.Set(body, "ruleConditions.-1", map[string]any{"attributeName": "umbrella.destination.security_group_tag_ids", "attributeOperator": "=", "attributeValue": values})
+	}
+	if !data.DestinationSecurityGroupTagAll.IsNull() {
+		body, _ = sjson.Set(body, "ruleConditions.-1", map[string]any{"attributeName": "umbrella.destination.any_security_group_tag", "attributeOperator": "=", "attributeValue": data.DestinationSecurityGroupTagAll.ValueBool()})
 	}
 	if !data.DestinationContentCategoryIds.IsNull() {
 		var values []int64
@@ -326,6 +343,11 @@ func (data *AccessRule) fromBody(ctx context.Context, res gjson.Result) {
 	} else {
 		data.SourceIdentityTypeIds = types.SetNull(types.Int64Type)
 	}
+	if value := res.Get(`ruleConditions.#(attributeName=="source.device_identity_types").attributeValue`); value.Exists() && value.Type != gjson.Null {
+		data.SourceZtaEnrolledDeviceTypes = helpers.GetStringSet(value.Array())
+	} else {
+		data.SourceZtaEnrolledDeviceTypes = types.SetNull(types.StringType)
+	}
 	if value := res.Get(`ruleConditions.#(attributeName=="umbrella.source.geolocations_shared").attributeValue`); value.Exists() && value.Type != gjson.Null {
 		data.SourceGeolocations = helpers.GetStringSet(value.Array())
 	} else {
@@ -396,10 +418,20 @@ func (data *AccessRule) fromBody(ctx context.Context, res gjson.Result) {
 	} else {
 		data.DestinationPrivateResourceGroupIds = types.SetNull(types.Int64Type)
 	}
+	if value := res.Get(`ruleConditions.#(attributeName=="umbrella.destination.private_resource_types").attributeValue`); value.Exists() && value.Type != gjson.Null {
+		data.DestinationPrivateResourceTypes = helpers.GetStringSet(value.Array())
+	} else {
+		data.DestinationPrivateResourceTypes = types.SetNull(types.StringType)
+	}
 	if value := res.Get(`ruleConditions.#(attributeName=="umbrella.destination.security_group_tag_ids").attributeValue`); value.Exists() && value.Type != gjson.Null {
 		data.DestinationSecurityGroupTagIds = helpers.GetInt64Set(value.Array())
 	} else {
 		data.DestinationSecurityGroupTagIds = types.SetNull(types.Int64Type)
+	}
+	if value := res.Get(`ruleConditions.#(attributeName=="umbrella.destination.any_security_group_tag").attributeValue`); value.Exists() && value.Type != gjson.Null {
+		data.DestinationSecurityGroupTagAll = types.BoolValue(value.Bool())
+	} else {
+		data.DestinationSecurityGroupTagAll = types.BoolNull()
 	}
 	if value := res.Get(`ruleConditions.#(attributeName=="umbrella.destination.category_ids").attributeValue`); value.Exists() && value.Type != gjson.Null {
 		data.DestinationContentCategoryIds = helpers.GetInt64Set(value.Array())
@@ -535,6 +567,11 @@ func (data *AccessRule) fromBodyPartial(ctx context.Context, res gjson.Result) {
 	} else {
 		data.SourceIdentityTypeIds = types.SetNull(types.Int64Type)
 	}
+	if value := res.Get(`ruleConditions.#(attributeName=="source.device_identity_types").attributeValue`); value.Exists() && value.Type != gjson.Null && !data.SourceZtaEnrolledDeviceTypes.IsNull() {
+		data.SourceZtaEnrolledDeviceTypes = helpers.GetStringSet(value.Array())
+	} else {
+		data.SourceZtaEnrolledDeviceTypes = types.SetNull(types.StringType)
+	}
 	if value := res.Get(`ruleConditions.#(attributeName=="umbrella.source.geolocations_shared").attributeValue`); value.Exists() && value.Type != gjson.Null && !data.SourceGeolocations.IsNull() {
 		data.SourceGeolocations = helpers.GetStringSet(value.Array())
 	} else {
@@ -607,10 +644,20 @@ func (data *AccessRule) fromBodyPartial(ctx context.Context, res gjson.Result) {
 	} else {
 		data.DestinationPrivateResourceGroupIds = types.SetNull(types.Int64Type)
 	}
+	if value := res.Get(`ruleConditions.#(attributeName=="umbrella.destination.private_resource_types").attributeValue`); value.Exists() && value.Type != gjson.Null && !data.DestinationPrivateResourceTypes.IsNull() {
+		data.DestinationPrivateResourceTypes = helpers.GetStringSet(value.Array())
+	} else {
+		data.DestinationPrivateResourceTypes = types.SetNull(types.StringType)
+	}
 	if value := res.Get(`ruleConditions.#(attributeName=="umbrella.destination.security_group_tag_ids").attributeValue`); value.Exists() && value.Type != gjson.Null && !data.DestinationSecurityGroupTagIds.IsNull() {
 		data.DestinationSecurityGroupTagIds = helpers.GetInt64Set(value.Array())
 	} else {
 		data.DestinationSecurityGroupTagIds = types.SetNull(types.Int64Type)
+	}
+	if value := res.Get(`ruleConditions.#(attributeName=="umbrella.destination.any_security_group_tag").attributeValue`); value.Exists() && value.Type != gjson.Null && !data.DestinationSecurityGroupTagAll.IsNull() {
+		data.DestinationSecurityGroupTagAll = types.BoolValue(value.Bool())
+	} else {
+		data.DestinationSecurityGroupTagAll = types.BoolNull()
 	}
 	if value := res.Get(`ruleConditions.#(attributeName=="umbrella.destination.category_ids").attributeValue`); value.Exists() && value.Type != gjson.Null && !data.DestinationContentCategoryIds.IsNull() {
 		data.DestinationContentCategoryIds = helpers.GetInt64Set(value.Array())
@@ -722,16 +769,23 @@ func (data *AccessRule) fromBodyUnknowns(ctx context.Context, res gjson.Result) 
 
 // End of section. //template:end toBodyPutDelete
 
-// adjustBody adds the `all` conditions and the logical operator expressions to the `ruleConditions`
+// adjustBody expands the combined identity types, adds the Application Category matching all categories and adds the `all` conditions and the logical operator expressions
+// to the `ruleConditions`
 func (data AccessRule) adjustBody(ctx context.Context, req string) string {
+	req = expandAccessRuleIdentityTypes(req)
+	if data.DestinationApplicationCategoryAll.ValueBool() {
+		req = addAccessRuleApplicationCategoryAll(req)
+	}
 	return adjustAccessRuleConditions(req, data.SourceOperator.ValueString(), data.DestinationOperator.ValueString(), data.DestinationOperatorNetworkService.ValueString())
 }
 
-// adjustRead merges the conditions returned under an alternative name (e.g. `*_shared` written by the portal)
-// and derives the logical operators from the `logical_operator` conditions. The expressions are not compared,
+// adjustRead merges the conditions returned under an alternative name (e.g. `*_shared` written by the portal),
+// collapses the combined identity types, reads the Application Category matching all categories and derives the logical operators from the `logical_operator` conditions. The expressions are not compared,
 // as the API accepts many equivalent ones.
 func (data *AccessRule) adjustRead(ctx context.Context, res gjson.Result, prior *AccessRule) {
 	readAccessRuleAltConditions(ctx, data, prior, res)
+	collapseAccessRuleIdentityTypes(ctx, data, prior)
+	readAccessRuleApplicationCategoryAll(ctx, data, prior, res)
 
 	data.SourceOperator = types.StringValue(accessRuleOperatorOr)
 	if accessRuleLogicalOperator(res, accessRuleSource) != "" {

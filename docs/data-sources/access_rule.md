@@ -29,6 +29,7 @@ data "secureaccess_access_rule" "example" {
 
 - `action` (String) Action of the Access Control Rule.
 - `description` (String) Description of the Access Control Rule.
+- `destination_application_category_all` (Boolean) Matches all destination Application Categories. Only `true` is supported, omit it otherwise. Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_application_list_ids`.
 - `destination_application_category_ids` (Set of Number) IDs of the destination Application Categories. Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_application_list_ids`.
 - `destination_application_ids` (Set of Number) IDs of the destination Applications. Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_application_list_ids`.
 - `destination_application_list_ids` (Set of Number) IDs of the destination Application Lists. Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_application_ids` or `destination_application_category_ids`.
@@ -39,10 +40,12 @@ data "secureaccess_access_rule" "example" {
 - `destination_literals` (Attributes Set) Destination IP addresses with ports and protocol. Not supported with `destination_operator` `AND`. (see [below for nested schema](#nestedatt--destination_literals))
 - `destination_network_object_group_ids` (Set of Number) IDs of the destination Network Object Groups.
 - `destination_network_object_ids` (Set of Number) IDs of the destination Network Objects.
-- `destination_operator` (String) Logical operator between the destination conditions. With `AND`, the conditions are grouped by type (network objects, service objects, content categories, applications), a destination must match every group and any condition within a group. At least two groups must be configured. Destination Lists, Private Resources, Private Resource Groups, `destination_security_group_tag_ids`, `destination_literals` and `destination_geolocations` are not supported with `AND`. See the [Managing Access Rules guide](../guides/managing_access_rules) for examples.
+- `destination_operator` (String) Logical operator between the destination conditions. With `AND`, the conditions are grouped by type (network objects, service objects, content categories, applications), a destination must match every group and any condition within a group. At least two groups must be configured. Destination Lists, Private Resources, Private Resource Groups, `destination_private_resource_types`, `destination_security_group_tag_ids`, `destination_security_group_tag_all`, `destination_literals` and `destination_geolocations` are not supported with `AND`.
 - `destination_operator_network_service` (String) Logical operator between the network object and service object groups, only relevant with `destination_operator` `AND`. With `OR`, a destination must match any network or service object, and at least one other group must be configured (e.g. `destination_content_category_ids`).
 - `destination_private_resource_group_ids` (Set of Number) IDs of the destination Private Resource Groups. Only for `PRIVATE_NETWORK` rules.
 - `destination_private_resource_ids` (Set of Number) IDs of the destination Private Resources. Only for `PRIVATE_NETWORK` rules.
+- `destination_private_resource_types` (Set of String) Types of the destination Private Resources, `apps` for all Private Resources and `groups` for all Private Resource Groups. Only for `PRIVATE_NETWORK` rules.
+- `destination_security_group_tag_all` (Boolean) Matches any destination Security Group Tag. Only `true` is supported, omit it otherwise. Only for `PRIVATE_NETWORK` rules.
 - `destination_security_group_tag_ids` (Set of Number) IDs of the destination Security Group Tags, i.e. identities of type `sgt_id`. Only for `PRIVATE_NETWORK` rules.
 - `destination_service_object_group_ids` (Set of Number) IDs of the destination Service Object Groups.
 - `destination_service_object_ids` (Set of Number) IDs of the destination Service Objects.
@@ -55,12 +58,13 @@ data "secureaccess_access_rule" "example" {
 - `public_security_profile_id` (Number) Set the public security profile ID.
 - `source_geolocations` (Set of String) Country codes (ISO 3166-1 alpha-2, uppercase) of the source geolocations. Combined with identities, it requires `source_operator` `AND` and AD users or groups. Cannot be combined with `destination_geolocations`.
 - `source_identity_ids` (Set of Number) IDs of the source identities (users, groups, devices). For Sites and Roaming Computers, use their `origin_id`, not their `id`.
-- `source_identity_type_ids` (Set of Number) IDs of the source identity types.
+- `source_identity_type_ids` (Set of Number) IDs of the source identity types, see the `secureaccess_identity_types` data source.
 - `source_internet_literals` (Attributes List) Source IP addresses with ports. Only for `PUBLIC_INTERNET` rules. Cannot be combined with destination service objects or service object groups, more than one `destination_literals` item or `destination_literals` with protocol `ICMP`. (see [below for nested schema](#nestedatt--source_internet_literals))
 - `source_network_object_group_ids` (Set of Number) IDs of the source Network Object Groups. Not supported with `source_operator` `AND`.
 - `source_network_object_ids` (Set of Number) IDs of the source Network Objects. Not supported with `source_operator` `AND`.
-- `source_operator` (String) Logical operator between the source conditions. With `AND`, a source must match every configured attribute of `source_identity_ids`, `source_identity_type_ids`, `source_geolocations` and `source_internet_literals`, at least two of them must be configured. Source network objects and `source_private_literals` are not supported with `AND`. See the [Managing Access Rules guide](../guides/managing_access_rules) for examples.
+- `source_operator` (String) Logical operator between the source conditions. With `AND`, a source must match every configured attribute of `source_identity_ids`, `source_identity_type_ids`, `source_geolocations` and `source_internet_literals`, at least two of them must be configured. Source network objects and `source_private_literals` are not supported with `AND`.
 - `source_private_literals` (Set of String) Source IP addresses or networks in CIDR notation. Only for `PRIVATE_NETWORK` rules. Not supported with `source_operator` `AND`.
+- `source_zta_enrolled_device_types` (Set of String) Operating systems of the source Zero Trust Access (ZTA) enrolled devices. Only for `PRIVATE_NETWORK` rules. Not supported with `source_operator` `AND`.
 - `tenant_control_profile_id` (Number) Set the tenant control profile ID.
 - `traffic_type` (String) Type of the Access Control Rule, private access (`PRIVATE_NETWORK`) or internet access (`PUBLIC_INTERNET`). The available sources, destinations and actions depend on it.
 

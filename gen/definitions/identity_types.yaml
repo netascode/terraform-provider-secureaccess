@@ -1,0 +1,41 @@
+# Manual Resource
+# -> imports - adds `slices` for identityTypesStaticBody()
+# This data source returns hardcoded values untill relevant API Endpoint is implemented
+# Manual model
+# identityTypesStatic - hardcoded id/label pairs of Identity Types
+# identityTypesCombined - provider-only Identity Types with negative IDs standing for IDs the API requires together
+#                         (36 & 50, 34 & 9), expanded/collapsed by the access rule (helpers_access_rule_conditions.go)
+# identityTypesStaticBody() - returns identityTypesStatic and identityTypesCombined as a JSON list, mimicking the API response
+---
+name: Identity Types
+rest_endpoint: NOT_AVAILABLE
+doc_category: Resources
+no_resource: true
+no_import: true
+no_id: true
+is_bulk: true
+ds_description: >-
+  This resource reads Identity Types.\n
+  Available Identity Types include, but are not limited to: `Registered Networks`, `AD Groups`, `AD Devices`, `AD Users`, `Apple Devices`, `Internal Networks`, `Sites`, `Network Devices`, `ChromeOS Devices`, `Network Tunnel Groups`, `Google Workspace Users`, `Google Workspace Organizational Units`, `Catalyst SD-WAN Service VPN IDs`, `Security Group Tags`,
+  `iOS/Android Devices` and `macOS/Windows Devices`.\n
+attributes:
+  - model_name: filter
+    tf_only: true
+    type: String
+    data_source_optional_parameter: true
+    description: Case-insensitive substring used to filter identity types by name.
+    exclude_example: true
+    exclude_test: true
+  - tf_name: items
+    type: Map
+    description: >-
+      Map of Identity Types. The key of the map is the name of the individual Identity Type.
+    map_key_example: AD Users
+    map_key_model_name: label
+    attributes:
+      - model_name: id
+        type: Int64
+        resource_id: true
+        description: Id of the Identity Type.
+        exclude_example: true
+        exclude_test: true

@@ -6,10 +6,18 @@
 # -> Create(), Update() - POST/PUT are retried 3 times (10s, 20s, 30s) if the API rejects referenced IDs (retryAccessRuleInvalidIds)
 # -> Update() - `rulePriority` is read from the API if `priority` is not configured
 # Manual model
-# -> adjustBody() - adds `umbrella.<side>.all` when no condition is set on a side, builds the
+# -> adjustBody() - expands the combined identity types (identityTypesCombined, negative IDs) of `source_identity_type_ids`,
+#                   adds the category ID 90 to `umbrella.destination.application_category_ids` for `destination_application_category_all`,
+#                   adds `umbrella.<side>.all` when no condition is set on a side, builds the
 #                   `umbrella.<side>.logical_operator` expressions (helpers_access_rule_conditions.go)
 # -> adjustRead() - merges `*_shared` source conditions into their attribute (managed ones only on refresh) and reads the
-#                   logical operators (helpers_access_rule_conditions.go)
+#                   logical operators, collapses the combined identity types unless configured individually,
+#                   moves the category ID 90 of `destination_application_category_ids` to `destination_application_category_all`
+#                   (helpers_access_rule_conditions.go)
+# -> ValidateConfig() - rejects `source_identity_type_ids` with only some IDs of a combined identity type
+#                     and `destination_security_group_tag_all` or `destination_application_category_all` set to `false`,
+#                     and the category ID 90 in `destination_application_category_ids`
+# APIBEHAVIOUR: identity types 36 & 50 (iOS/Android Devices) and 34 & 9 (macOS/Windows Devices) must be sent together
 # APIBEHAVIOUR: conditions are a flat `ruleConditions` list, combined with OR unless a `logical_operator` condition
 #               (operator `AND`) holds an expression such as `umbrella.destination.category_ids && (A || B)`
 # APIBEHAVIOUR: the destination expression must be a single AND of terms, each term ORs conditions of one type
@@ -32,12 +40,17 @@
 #               accept IPs and CIDRs (no ranges), the item is rejected in a destination AND
 # APIBEHAVIOUR: `umbrella.destination.security_group_tag_ids` is private only and not supported in logical_operator,
 #   the portal sends it with operator `=` (`IN` and `INTERSECT` are accepted too)
+# APIBEHAVIOUR: `umbrella.destination.any_security_group_tag` (operator `=`, value `true`) matches any Security Group Tag
+# APIBEHAVIOUR: all Application Categories are matched by the category ID 90 in `umbrella.destination.application_category_ids`
+# APIBEHAVIOUR: ZTA enrolled devices use the condition `source.device_identity_types`, without the `umbrella.` prefix
 # APIBEHAVIOUR: the list endpoint returns `ruleConditions: null`, only GET by ID returns the conditions
 # APIBEHAVIOUR: Concurrent changes are not allowed
 ---
 name: Access Rule
 res_description: >-
   This resource manages an Access Rule.\n
+  See the [Managing Access Rules guide](../guides/managing_access_rules) for how to configure the sources and destinations,
+  how to combine them with the operators, and for examples.\n
   ~> **Note:** This resource is under active development, its schema and behaviour may change in future releases.
 rest_endpoint: /policies/v2/rules
 doc_category: Secure
@@ -97,8 +110,19 @@ attributes:
     tf_name: source_identity_type_ids
     type: Set
     element_type: Int64
-    description: IDs of the source identity types.
+    description: >-
+      IDs of the source identity types, see the `secureaccess_identity_types` data source.
     example: 7
+    exclude_test: true
+  - model_name: ruleConditions
+    condition_name: source.device_identity_types
+    condition_operator: INTERSECT
+    tf_name: source_zta_enrolled_device_types
+    type: Set
+    element_type: String
+    enum_values: ["macos", "windows", "ios", "android"]
+    description: Operating systems of the source Zero Trust Access (ZTA) enrolled devices. Only for `PRIVATE_NETWORK` rules. Not supported with `source_operator` `AND`.
+    example: macos
     exclude_test: true
   - model_name: ruleConditions
     condition_name: umbrella.source.geolocations_shared
@@ -172,7 +196,6 @@ attributes:
       With `AND`, a source must match every configured attribute of `source_identity_ids`, `source_identity_type_ids`,
       `source_geolocations` and `source_internet_literals`, at least two of them must be configured.
       Source network objects and `source_private_literals` are not supported with `AND`.
-      See the [Managing Access Rules guide](../guides/managing_access_rules) for examples.
     example: OR
   # Rule Conditions - Destinations
   - model_name: ruleConditions
@@ -232,6 +255,17 @@ attributes:
     exclude_test: true
     exclude_example: true
   - model_name: ruleConditions
+    condition_name: umbrella.destination.private_resource_types
+    condition_operator: INTERSECT
+    tf_name: destination_private_resource_types
+    type: Set
+    element_type: String
+    enum_values: ["apps", "groups"]
+    description: Types of the destination Private Resources, `apps` for all Private Resources and `groups` for all Private Resource Groups. Only for `PRIVATE_NETWORK` rules.
+    example: apps
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
     condition_name: umbrella.destination.security_group_tag_ids
     condition_operator: "="
     tf_name: destination_security_group_tag_ids
@@ -239,6 +273,15 @@ attributes:
     element_type: Int64
     description: IDs of the destination Security Group Tags, i.e. identities of type `sgt_id`. Only for `PRIVATE_NETWORK` rules.
     example: 1442815231
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    condition_name: umbrella.destination.any_security_group_tag
+    condition_operator: "="
+    tf_name: destination_security_group_tag_all
+    type: Bool
+    description: Matches any destination Security Group Tag. Only `true` is supported, omit it otherwise. Only for `PRIVATE_NETWORK` rules.
+    example: true
     exclude_test: true
     exclude_example: true
   - model_name: ruleConditions
@@ -279,6 +322,16 @@ attributes:
     element_type: Int64
     description: IDs of the destination Application Categories. Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_application_list_ids`.
     example: 102
+    exclude_test: true
+    exclude_example: true
+  - model_name: ruleConditions
+    tf_name: destination_application_category_all
+    type: Bool
+    tf_only: true
+    description: >-
+      Matches all destination Application Categories. Only `true` is supported, omit it otherwise.
+      Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_application_list_ids`.
+    example: true
     exclude_test: true
     exclude_example: true
   - model_name: ruleConditions
@@ -350,9 +403,8 @@ attributes:
       Logical operator between the destination conditions.
       With `AND`, the conditions are grouped by type (network objects, service objects, content categories, applications),
       a destination must match every group and any condition within a group. At least two groups must be configured.
-      Destination Lists, Private Resources, Private Resource Groups, `destination_security_group_tag_ids`, `destination_literals`
+      Destination Lists, Private Resources, Private Resource Groups, `destination_private_resource_types`, `destination_security_group_tag_ids`, `destination_security_group_tag_all`, `destination_literals`
       and `destination_geolocations` are not supported with `AND`.
-      See the [Managing Access Rules guide](../guides/managing_access_rules) for examples.
     example: AND
   - model_name: ruleConditions
     tf_name: destination_operator_network_service

@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -90,6 +91,7 @@ type accessRuleCondition struct {
 var accessRuleConditions = []accessRuleCondition{
 	{"source_identity_ids", "umbrella.source.identity_ids", "umbrella.source.identity_ids_shared", accessRuleSource, groupIdentity, ""},
 	{"source_identity_type_ids", "umbrella.source.identity_type_ids", "umbrella.source.identity_type_ids_shared", accessRuleSource, groupIdentityType, ""},
+	{"source_zta_enrolled_device_types", "source.device_identity_types", "", accessRuleSource, groupOther, accessRulePrivateNetwork},
 	{"source_geolocations", "umbrella.source.geolocations_shared", "umbrella.source.geolocations", accessRuleSource, groupGeolocation, ""},
 	{"source_network_object_ids", "umbrella.source.networkObjectIds", "", accessRuleSource, groupOther, ""},
 	{"source_network_object_group_ids", "umbrella.source.networkObjectGroupIds", "", accessRuleSource, groupOther, ""},
@@ -101,11 +103,14 @@ var accessRuleConditions = []accessRuleCondition{
 	{"destination_service_object_group_ids", "umbrella.destination.serviceObjectGroupIds", "", accessRuleDestination, groupService, ""},
 	{"destination_private_resource_ids", "umbrella.destination.private_resource_ids", "", accessRuleDestination, groupOther, accessRulePrivateNetwork},
 	{"destination_private_resource_group_ids", "umbrella.destination.private_resource_group_ids", "", accessRuleDestination, groupOther, accessRulePrivateNetwork},
+	{"destination_private_resource_types", "umbrella.destination.private_resource_types", "", accessRuleDestination, groupOther, accessRulePrivateNetwork},
 	{"destination_security_group_tag_ids", "umbrella.destination.security_group_tag_ids", "", accessRuleDestination, groupOther, accessRulePrivateNetwork},
+	{"destination_security_group_tag_all", "umbrella.destination.any_security_group_tag", "", accessRuleDestination, groupOther, accessRulePrivateNetwork},
 	{"destination_content_category_ids", "umbrella.destination.category_ids", "", accessRuleDestination, groupCategory, accessRulePublicInternet},
 	{"destination_content_category_list_ids", "umbrella.destination.category_list_ids", "", accessRuleDestination, groupCategory, accessRulePublicInternet},
 	{"destination_application_ids", "umbrella.destination.application_ids", "", accessRuleDestination, groupApplication, accessRulePublicInternet},
 	{"destination_application_category_ids", "umbrella.destination.application_category_ids", "", accessRuleDestination, groupApplication, accessRulePublicInternet},
+	{"destination_application_category_all", "umbrella.destination.application_category_ids", "", accessRuleDestination, groupApplication, accessRulePublicInternet},
 	{"destination_application_list_ids", "umbrella.destination.application_list_ids", "", accessRuleDestination, groupApplication, accessRulePublicInternet},
 	{"destination_list_ids", "umbrella.destination.destination_list_ids", "", accessRuleDestination, groupOther, accessRulePublicInternet},
 	{"destination_literals", "umbrella.destination.composite_inline_ip", "", accessRuleDestination, groupOther, ""},
@@ -170,8 +175,11 @@ func adjustAccessRuleConditions(body, sourceOperator, destinationOperator, netwo
 	operators := map[string]string{accessRuleSource: sourceOperator, accessRuleDestination: destinationOperator}
 	for _, side := range []string{accessRuleSource, accessRuleDestination} {
 		var conditions []accessRuleCondition
+		added := map[string]bool{}
 		for _, c := range accessRuleConditions {
-			if c.side == side && present[c.name] {
+			// Attributes sharing a condition (e.g. `destination_application_category_all`) add it once
+			if c.side == side && present[c.name] && !added[c.name] {
+				added[c.name] = true
 				conditions = append(conditions, c)
 			}
 		}
@@ -281,6 +289,148 @@ func readAccessRuleAltConditions(ctx context.Context, data, prior *AccessRule, r
 	}
 }
 
+// expandAccessRuleIdentityTypes replaces the combined identity type IDs (identityTypesCombined) of a request body
+// with the IDs they stand for
+func expandAccessRuleIdentityTypes(body string) string {
+	conditions := gjson.Get(body, "ruleConditions").Array()
+	for i, c := range conditions {
+		if c.Get("attributeName").String() != "umbrella.source.identity_type_ids" {
+			continue
+		}
+		seen := map[int64]bool{}
+		values := []int64{}
+		add := func(id int64) {
+			if !seen[id] {
+				seen[id] = true
+				values = append(values, id)
+			}
+		}
+		for _, v := range c.Get("attributeValue").Array() {
+			expanded := false
+			for _, combined := range identityTypesCombined {
+				if v.Int() == combined.Id {
+					for _, id := range combined.Ids {
+						add(id)
+					}
+					expanded = true
+				}
+			}
+			if !expanded {
+				add(v.Int())
+			}
+		}
+		body, _ = sjson.Set(body, fmt.Sprintf("ruleConditions.%d.attributeValue", i), values)
+	}
+	return body
+}
+
+// collapseAccessRuleIdentityTypes replaces the IDs of `source_identity_type_ids` standing for a combined identity type
+// (identityTypesCombined) with its ID, unless `prior` holds them without the combined ID (configured individually)
+func collapseAccessRuleIdentityTypes(ctx context.Context, data, prior *AccessRule) {
+	if data.SourceIdentityTypeIds.IsNull() || data.SourceIdentityTypeIds.IsUnknown() {
+		return
+	}
+	var ids []int64
+	data.SourceIdentityTypeIds.ElementsAs(ctx, &ids, false)
+	var priorIds []int64
+	if prior != nil && !prior.SourceIdentityTypeIds.IsUnknown() {
+		prior.SourceIdentityTypeIds.ElementsAs(ctx, &priorIds, false)
+	}
+	for _, combined := range identityTypesCombined {
+		if !accessRuleContainsAll(ids, combined.Ids) {
+			continue
+		}
+		if prior != nil && accessRuleContainsAll(priorIds, combined.Ids) && !slices.Contains(priorIds, combined.Id) {
+			continue
+		}
+		ids = slices.DeleteFunc(ids, func(id int64) bool { return slices.Contains(combined.Ids, id) })
+		ids = append(ids, combined.Id)
+	}
+	data.SourceIdentityTypeIds, _ = types.SetValueFrom(ctx, types.Int64Type, ids)
+}
+
+func accessRuleContainsAll(ids, subset []int64) bool {
+	for _, id := range subset {
+		if !slices.Contains(ids, id) {
+			return false
+		}
+	}
+	return true
+}
+
+// validateAccessRuleIdentityTypes rejects `source_identity_type_ids` holding only some of the IDs of a combined identity type
+func validateAccessRuleIdentityTypes(ctx context.Context, config tfsdk.Config, diags *diag.Diagnostics) {
+	var value types.Set
+	diags.Append(config.GetAttribute(ctx, path.Root("source_identity_type_ids"), &value)...)
+	if value.IsNull() || value.IsUnknown() {
+		return
+	}
+	var ids []int64
+	for _, e := range value.Elements() {
+		if id, ok := e.(types.Int64); ok && !id.IsUnknown() && !id.IsNull() {
+			ids = append(ids, id.ValueInt64())
+		}
+	}
+	for _, combined := range identityTypesCombined {
+		found := 0
+		for _, id := range combined.Ids {
+			if slices.Contains(ids, id) {
+				found++
+			}
+		}
+		if found > 0 && found < len(combined.Ids) {
+			list := make([]string, len(combined.Ids))
+			for i, id := range combined.Ids {
+				list[i] = fmt.Sprint(id)
+			}
+			diags.AddAttributeError(path.Root("source_identity_type_ids"), "Invalid Attribute Value", fmt.Sprintf("source_identity_type_ids must contain all of %s together, use the %q identity type (%d).", strings.Join(list, ", "), combined.Label, combined.Id))
+		}
+	}
+}
+
+// accessRuleApplicationCategoryAllId is the Application Category ID matching all Application Categories
+const accessRuleApplicationCategoryAllId int64 = 90
+
+// addAccessRuleApplicationCategoryAll adds the Application Category ID matching all categories to a request body
+func addAccessRuleApplicationCategoryAll(body string) string {
+	const name = "umbrella.destination.application_category_ids"
+	for i, c := range gjson.Get(body, "ruleConditions").Array() {
+		if c.Get("attributeName").String() == name {
+			body, _ = sjson.Set(body, fmt.Sprintf("ruleConditions.%d.attributeValue.-1", i), accessRuleApplicationCategoryAllId)
+			return body
+		}
+	}
+	body, _ = sjson.Set(body, "ruleConditions.-1", map[string]any{"attributeName": name, "attributeOperator": "INTERSECT", "attributeValue": []int64{accessRuleApplicationCategoryAllId}})
+	return body
+}
+
+// readAccessRuleApplicationCategoryAll moves the Application Category ID matching all categories from
+// `destination_application_category_ids` to `destination_application_category_all`. In a partial read (`prior` not nil),
+// `destination_application_category_all` is left null if it was null before the read.
+func readAccessRuleApplicationCategoryAll(ctx context.Context, data, prior *AccessRule, res gjson.Result) {
+	all := false
+	for _, e := range res.Get(`ruleConditions.#(attributeName=="umbrella.destination.application_category_ids").attributeValue`).Array() {
+		if e.Int() == accessRuleApplicationCategoryAllId {
+			all = true
+		}
+	}
+	data.DestinationApplicationCategoryAll = types.BoolNull()
+	if all && (prior == nil || !prior.DestinationApplicationCategoryAll.IsNull()) {
+		data.DestinationApplicationCategoryAll = types.BoolValue(true)
+	}
+	if data.DestinationApplicationCategoryIds.IsNull() || data.DestinationApplicationCategoryIds.IsUnknown() {
+		return
+	}
+	var ids []int64
+	data.DestinationApplicationCategoryIds.ElementsAs(ctx, &ids, false)
+	ids = slices.DeleteFunc(ids, func(id int64) bool { return id == accessRuleApplicationCategoryAllId })
+	if len(ids) == 0 {
+		data.DestinationApplicationCategoryIds = types.SetNull(types.Int64Type)
+	} else {
+		data.DestinationApplicationCategoryIds, _ = types.SetValueFrom(ctx, types.Int64Type, ids)
+	}
+}
+
 // accessRuleNetworkServiceOperator returns OR if a destination expression has a term matching both network and
 // service objects (e.g. `category_ids && (networkObjectIds || serviceObjectIds)`), AND otherwise
 func accessRuleNetworkServiceOperator(expression string) string {
@@ -324,6 +474,7 @@ func validateAccessRuleConditions(ctx context.Context, config tfsdk.Config, diag
 	if diags.HasError() {
 		return
 	}
+	validateAccessRuleIdentityTypes(ctx, config, diags)
 	// Optional attributes with a default are null in the configuration if not set
 	if sourceOperator == "" {
 		sourceOperator = accessRuleOperatorOr
@@ -355,10 +506,27 @@ func validateAccessRuleConditions(ctx context.Context, config tfsdk.Config, diag
 		groups[c.side][c.group] = true
 	}
 
+	// `*_all` attributes are enabled with `true`, `false` has no meaning (the attribute is omitted instead)
+	for _, name := range []string{"destination_security_group_tag_all", "destination_application_category_all"} {
+		var all types.Bool
+		diags.Append(config.GetAttribute(ctx, path.Root(name), &all)...)
+		if !all.IsNull() && !all.IsUnknown() && !all.ValueBool() {
+			diags.AddAttributeError(path.Root(name), "Invalid Attribute Value", fmt.Sprintf("%s only supports true, omit it otherwise.", name))
+		}
+	}
+	var applicationCategories types.Set
+	diags.Append(config.GetAttribute(ctx, path.Root("destination_application_category_ids"), &applicationCategories)...)
+	for _, e := range applicationCategories.Elements() {
+		if id, ok := e.(types.Int64); ok && !id.IsUnknown() && id.ValueInt64() == accessRuleApplicationCategoryAllId {
+			diags.AddAttributeError(path.Root("destination_application_category_ids"), "Invalid Attribute Value", fmt.Sprintf("destination_application_category_ids must not contain %d, use destination_application_category_all instead.", accessRuleApplicationCategoryAllId))
+		}
+	}
+
 	// Lists are exclusive with their individual entries (portal restriction, not enforced by the API)
 	for _, e := range [][2]string{
 		{"destination_application_list_ids", "destination_application_ids"},
 		{"destination_application_list_ids", "destination_application_category_ids"},
+		{"destination_application_list_ids", "destination_application_category_all"},
 		{"destination_content_category_list_ids", "destination_content_category_ids"},
 	} {
 		if accessRuleConfigured(configured[accessRuleDestination], e[0]) && accessRuleConfigured(configured[accessRuleDestination], e[1]) {
@@ -407,7 +575,7 @@ func validateAccessRuleConditions(ctx context.Context, config tfsdk.Config, diag
 	// Source logical operator
 	if sourceOperatorKnown && sourceOperator == accessRuleOperatorAnd {
 		if groups[accessRuleSource][groupOther] {
-			diags.AddAttributeError(path.Root("source_operator"), "Invalid Attribute Combination", "source_operator \"AND\" does not support source_private_literals, source network objects or network object groups.")
+			diags.AddAttributeError(path.Root("source_operator"), "Invalid Attribute Combination", "source_operator \"AND\" does not support source_private_literals, source network objects, network object groups or source_zta_enrolled_device_types.")
 		} else if len(configured[accessRuleSource]) < 2 {
 			diags.AddAttributeError(path.Root("source_operator"), "Invalid Attribute Combination", "source_operator \"AND\" requires at least two of source_identity_ids, source_identity_type_ids, source_geolocations and source_internet_literals.")
 		}
@@ -435,7 +603,7 @@ func validateAccessRuleConditions(ctx context.Context, config tfsdk.Config, diag
 			terms--
 		}
 		if groups[accessRuleDestination][groupOther] {
-			diags.AddAttributeError(path.Root("destination_operator"), "Invalid Attribute Combination", "destination_operator \"AND\" does not support destination_literals, destination_geolocations, Destination Lists, Private Resources, Private Resource Groups and Security Group Tags.")
+			diags.AddAttributeError(path.Root("destination_operator"), "Invalid Attribute Combination", "destination_operator \"AND\" does not support destination_literals, destination_geolocations, Destination Lists, Private Resources, Private Resource Groups, Private Resource types, Security Group Tags and any Security Group Tag.")
 		} else if terms < 2 {
 			diags.AddAttributeError(path.Root("destination_operator"), "Invalid Attribute Combination", fmt.Sprintf("destination_operator \"AND\" requires conditions of at least two of: %s, %s, %s, %s.", groupNetwork, groupService, groupCategory, groupApplication))
 		}

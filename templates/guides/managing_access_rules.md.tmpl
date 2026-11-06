@@ -13,7 +13,9 @@ with a focus on `source_operator`, `destination_operator` and `destination_opera
 
 ## The short version
 
-- Every source attribute (`source_*`) and destination attribute (`destination_*`) is a list of IDs or values.
+- Every source attribute (`source_*`) and destination attribute (`destination_*`) is a list of IDs or values, except
+  `destination_security_group_tag_all` and `destination_application_category_all`, which match all values when set
+  to `true` (only `true` is supported, omit them otherwise).
 - Within one attribute, the values are always alternatives: `destination_network_object_ids = [A, B]` means *A or B*.
 - Between attributes, the default is also **OR**: the rule matches if the traffic matches *any* of the configured sources
   and *any* of the configured destinations.
@@ -30,6 +32,7 @@ The source side and the destination side are always combined with AND: traffic m
 |---|---|---|
 | Actions | `allow`, `block` | `allow`, `block`, `warn`, `isolate` |
 | `source_identity_ids`, `source_identity_type_ids` | yes | yes |
+| `source_zta_enrolled_device_types` | yes | - |
 | `source_geolocations` | yes | yes |
 | `source_network_object_ids`, `source_network_object_group_ids` | yes | yes |
 | `source_private_literals` (IPs) | yes | - |
@@ -37,16 +40,17 @@ The source side and the destination side are always combined with AND: traffic m
 | `destination_network_object_ids`, `destination_network_object_group_ids` | yes | yes |
 | `destination_service_object_ids`, `destination_service_object_group_ids` | yes | yes |
 | `destination_literals` (IPs with ports and protocol) | yes | yes |
-| `destination_private_resource_ids`, `destination_private_resource_group_ids` | yes | - |
-| `destination_security_group_tag_ids` | yes | - |
+| `destination_private_resource_ids`, `destination_private_resource_group_ids`, `destination_private_resource_types` | yes | - |
+| `destination_security_group_tag_ids`, `destination_security_group_tag_all` | yes | - |
 | `destination_content_category_ids`, `destination_content_category_list_ids` | - | yes |
-| `destination_application_ids`, `destination_application_category_ids`, `destination_application_list_ids` | - | yes |
+| `destination_application_ids`, `destination_application_category_ids`, `destination_application_category_all`, `destination_application_list_ids` | - | yes |
 | `destination_list_ids` | - | yes |
 | `destination_geolocations` | - | yes, `block` only |
 
 `traffic_type` can be changed on an existing rule, the provider updates it in place.
 
 The provider checks these combinations when planning, so an unsupported combination fails at `terraform plan`, not at `apply`.
+The same applies to the restrictions described in the sections below, unless stated otherwise.
 
 ## Sources and `source_operator`
 
@@ -93,7 +97,8 @@ Rules for `source_operator = "AND"`:
 
 - At least **two** of these attributes must be set: `source_identity_ids`, `source_identity_type_ids`,
   `source_geolocations`, `source_internet_literals`.
-- `source_network_object_ids`, `source_network_object_group_ids` and `source_private_literals` cannot be used with `AND`.
+- `source_network_object_ids`, `source_network_object_group_ids`, `source_private_literals` and
+  `source_zta_enrolled_device_types` cannot be used with `AND`.
 
 ### Geolocations need `AND` when combined with identities
 
@@ -134,7 +139,7 @@ With `AND`, the destination attributes are grouped by type. Traffic must match *
 | Network objects | `destination_network_object_ids`, `destination_network_object_group_ids` |
 | Service objects | `destination_service_object_ids`, `destination_service_object_group_ids` |
 | Content categories | `destination_content_category_ids`, `destination_content_category_list_ids` |
-| Applications | `destination_application_ids`, `destination_application_category_ids`, `destination_application_list_ids` |
+| Applications | `destination_application_ids`, `destination_application_category_ids`, `destination_application_category_all`, `destination_application_list_ids` |
 
 Use it to narrow the destinations down, for example *these servers, but only on these ports*.
 
@@ -160,7 +165,8 @@ Rules for `destination_operator = "AND"`:
 - At least **two groups** must be configured. Two attributes of the same group (e.g. network objects and network
   object groups only) are not enough, as they are ORed within the group anyway.
 - `destination_list_ids`, `destination_private_resource_ids`, `destination_private_resource_group_ids`,
-  `destination_security_group_tag_ids`, `destination_literals` and `destination_geolocations` cannot be used with `AND`.
+  `destination_private_resource_types`, `destination_security_group_tag_ids`, `destination_security_group_tag_all`,
+  `destination_literals` and `destination_geolocations` cannot be used with `AND`.
 
 More examples of `AND`, for internet rules:
 
@@ -303,12 +309,17 @@ resource "secureaccess_access_rule" "employees_to_developers" {
 
 Effect: members of the *Employees* group are allowed to reach the devices tagged with the *Developers* SGT.
 
+`destination_security_group_tag_all = true` matches devices tagged with any SGT instead. Only `true` is supported,
+omit the attribute otherwise.
+
 ## Attributes that cannot be combined
 
-- `destination_application_list_ids` cannot be combined with `destination_application_ids` or `destination_application_category_ids`.
+- `destination_application_list_ids` cannot be combined with `destination_application_ids`, `destination_application_category_ids`
+  or `destination_application_category_all`.
 - `destination_content_category_list_ids` cannot be combined with `destination_content_category_ids`.
 - `destination_geolocations` cannot be combined with any other destination attribute, nor with `source_geolocations`.
-- `warn` and `isolate` actions are only available for `PUBLIC_INTERNET` rules. `warn` also requires content categories or applications as destinations.
+- `warn` and `isolate` actions are only available for `PUBLIC_INTERNET` rules. `warn` also requires content categories
+  or applications as destinations, this is checked by the API at `apply`, not at `terraform plan`.
 
 ## Finding the IDs
 
@@ -318,6 +329,7 @@ Most attributes take IDs. They can come from resources managed in the same confi
 | Attribute | Data source |
 |---|---|
 | `source_identity_ids` | `secureaccess_identities`, `secureaccess_roaming_computer` (`origin_id`), `secureaccess_site` (`origin_id`) |
+| `source_identity_type_ids` | `secureaccess_identity_types` |
 | `destination_content_category_ids` | `secureaccess_content_categories` |
 | `destination_content_category_list_ids` | `secureaccess_content_category_list`, `secureaccess_content_category_lists` |
 | `destination_application_ids` | `secureaccess_applications` (use `tonumber()` on the `id`) |
@@ -347,6 +359,37 @@ data "secureaccess_identities" "finance" {
 
 Objects created in the same `terraform apply` are sometimes not yet known to the rules API, which then rejects their IDs.
 The provider retries such requests up to 3 times before failing.
+
+### Combined identity types
+
+The API requires some identity types to be used together: `36` and `50` (iOS and Android mobile devices), and `34`
+and `9` (macOS and Windows devices). `secureaccess_identity_types` therefore returns each pair as one provider-only
+negative ID, which the provider sends as both IDs:
+
+| Identity type | ID | Sent as |
+|---|---|---|
+| `iOS/Android Devices` | `-1` | `36`, `50` |
+| `macOS/Windows Devices` | `-2` | `34`, `9` |
+
+```terraform
+data "secureaccess_identity_types" "all" {}
+
+resource "secureaccess_access_rule" "devices" {
+  name         = "Allow managed devices"
+  action       = "allow"
+  log_level    = "LOG_ALL"
+  traffic_type = "PUBLIC_INTERNET"
+
+  source_identity_type_ids = [
+    data.secureaccess_identity_types.all.items["AD Users"].id,
+    data.secureaccess_identity_types.all.items["iOS/Android Devices"].id,
+    data.secureaccess_identity_types.all.items["macOS/Windows Devices"].id,
+  ]
+}
+```
+
+Rules imported or read by the `secureaccess_access_rule` data source show the negative IDs. If you use the raw IDs
+instead, you must set both IDs of a pair, otherwise `terraform plan` fails.
 
 ## Rules created in the dashboard
 
