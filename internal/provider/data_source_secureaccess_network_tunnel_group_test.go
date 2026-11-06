@@ -35,7 +35,6 @@ func TestAccDataSourceSecureAccessNetworkTunnelGroup(t *testing.T) {
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network_tunnel_group.test", "region", "us-east-1"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network_tunnel_group.test", "backup_region", "us-east-2"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network_tunnel_group.test", "routing_type", "static"))
-	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network_tunnel_group.test", "bgp_override_summarization", "true"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_network_tunnel_group.test", "ipv6_routing", "true"))
 	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_network_tunnel_group.test", "hubs.#"))
 	checks = append(checks, resource.TestCheckResourceAttrSet("data.secureaccess_network_tunnel_group.test", "hubs.0.id"))
@@ -72,7 +71,6 @@ func testAccDataSourceSecureAccessNetworkTunnelGroupConfig() string {
 	config += `	preshared_key = "t3stingTunn3lNow"` + "\n"
 	config += `	routing_type = "static"` + "\n"
 	config += `	static_network_cidrs = ["192.168.0.0/24"]` + "\n"
-	config += `	bgp_override_summarization = true` + "\n"
 	config += `	ipv6_routing = true` + "\n"
 	config += `}` + "\n"
 

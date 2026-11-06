@@ -80,6 +80,27 @@ func (d *ResourceConnectorGroupDataSource) Schema(ctx context.Context, req datas
 				MarkdownDescription: helpers.NewAttributeDescription("Environment in which agents will be deployed.").String,
 				Computed:            true,
 			},
+			"dns_servers": schema.ListNestedAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Use alternate DNS servers to resolve private resources based on domain.").String,
+				Computed:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"domains": schema.StringAttribute{
+							MarkdownDescription: "A comma-separated list of domains.",
+							Computed:            true,
+						},
+						"dns_server_id": schema.Int64Attribute{
+							MarkdownDescription: "The resource ID of the DNS server.",
+							Computed:            true,
+						},
+					},
+				},
+			},
+			"private_resource_ids": schema.ListAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("The list of private resource IDs associated with the Resource Connector Group.").String,
+				ElementType:         types.Int64Type,
+				Computed:            true,
+			},
 			"provisioning_key_expires_at": schema.StringAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("The expiration date and time of the Resource Connector Group's provisioning key.").String,
 				Computed:            true,

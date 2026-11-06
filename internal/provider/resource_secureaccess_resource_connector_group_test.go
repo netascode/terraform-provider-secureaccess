@@ -44,7 +44,7 @@ func TestAccSecureAccessResourceConnectorGroup(t *testing.T) {
 
 	var steps []resource.TestStep
 	steps = append(steps, resource.TestStep{
-		Config: testAccSecureAccessResourceConnectorGroupConfig_all(),
+		Config: testAccSecureAccessResourceConnectorGroupPrerequisitesConfig + testAccSecureAccessResourceConnectorGroupConfig_all(),
 		Check:  resource.ComposeTestCheckFunc(checks...),
 	})
 	steps = append(steps, resource.TestStep{
@@ -62,6 +62,30 @@ func TestAccSecureAccessResourceConnectorGroup(t *testing.T) {
 // End of section. //template:end testAcc
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testPrerequisites
+
+const testAccSecureAccessResourceConnectorGroupPrerequisitesConfig = `
+resource "secureaccess_private_resource" "test" {
+  name           = "my resource connector group"
+  endpoint_connection_methods = [
+    {
+      type                       = "client"
+      client_reachable_addresses = ["192.168.1.0/24"]
+    }
+  ]
+  addresses = [
+    {
+      addresses = ["192.168.1.0/24"]
+      protocols_and_ports = [
+        {
+          protocol = "http/https"
+          ports    = "443"
+        }
+      ]
+    }
+  ]
+}
+`
+
 // End of section. //template:end testPrerequisites
 
 // Section below is generated&owned by "gen/generator.go". //template:begin testAccConfigMinimal
@@ -74,6 +98,7 @@ func testAccSecureAccessResourceConnectorGroupConfig_all() string {
 	config += `	name = "my resource connector group"` + "\n"
 	config += `	region = "us-west-2"` + "\n"
 	config += `	environment = "container"` + "\n"
+	config += `	private_resource_ids = [secureaccess_private_resource.test.id]` + "\n"
 	config += `}` + "\n"
 	return config
 }

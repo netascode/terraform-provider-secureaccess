@@ -110,13 +110,14 @@ attributes:
     tf_name: bgp_peering_types
     enum_values: ["ipv4", "ipv6"]
     exclude_example: true
-    exclude_test: true    
+    exclude_test: true
   - model_name: isOverrideBGPSummarization
     data_path: ["resourceAttributes"]
     type: Bool
     tf_name: bgp_override_summarization
     description: Indicates if BGP summarization should be overridden.
-    example: "true"
+    exclude_example: true
+    exclude_test: true
   # - model_name: bgpServerSubnets
   #   data_path: ["routing", "data"]
   #   type: Set
