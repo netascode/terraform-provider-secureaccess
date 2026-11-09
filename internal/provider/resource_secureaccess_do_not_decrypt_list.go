@@ -67,7 +67,7 @@ func (r *DoNotDecryptListResource) Metadata(ctx context.Context, req resource.Me
 func (r *DoNotDecryptListResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`. Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that removes them is rejected on apply, replace the list instead (`terraform apply -replace=<resource address>`), which creates a new list with a new id.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -111,12 +111,12 @@ func (r *DoNotDecryptListResource) Schema(ctx context.Context, req resource.Sche
 				},
 			},
 			"applications": schema.SetAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("IDs of the applications that are excluded from decryption.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("IDs of the applications that are excluded from decryption. They can be added to an existing list, but not removed.").String,
 				ElementType:         types.Int64Type,
 				Optional:            true,
 			},
 			"decrypt_exception_categories": schema.SetAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("IDs of the content categories that are excluded from decryption.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("IDs of the content categories that are excluded from decryption. They can be added to an existing list, but not removed.").String,
 				ElementType:         types.Int64Type,
 				Optional:            true,
 			},
@@ -275,6 +275,16 @@ func (r *DoNotDecryptListResource) Update(ctx context.Context, req resource.Upda
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Update", plan.Id.ValueString()))
 
+	// The API cannot remove applications and content categories. Refuse before anything is sent, so that nothing of the
+	// update is applied. ModifyPlan() has already warned, but values that were unknown during the plan are only checked here.
+	removals := doNotDecryptListRemovalDiagnostics(
+		doNotDecryptListRemoved(ctx, state.Applications, plan.Applications),
+		doNotDecryptListRemoved(ctx, state.DecryptExceptionCategories, plan.DecryptExceptionCategories),
+		false)
+	if resp.Diagnostics.Append(removals...); removals.HasError() {
+		return
+	}
+
 	// The API takes lists of items to add and to remove instead of the full lists, which can require multiple requests.
 	// If one of them fails after others were accepted, the state is set to what the API holds by then. The API does not
 	// return destinations and applications, so Terraform could not find out about the difference otherwise.
@@ -367,7 +377,10 @@ func (r *DoNotDecryptListResource) ImportState(ctx context.Context, req resource
 
 // End of section. //template:end import
 
-var _ resource.ResourceWithValidateConfig = &DoNotDecryptListResource{}
+var (
+	_ resource.ResourceWithValidateConfig = &DoNotDecryptListResource{}
+	_ resource.ResourceWithModifyPlan     = &DoNotDecryptListResource{}
+)
 
 // readDestinationList reads the object and the destinations of the destination list behind it (exceptiondomainlistId).
 // The API does not return them with the object.
@@ -509,4 +522,28 @@ func (r *DoNotDecryptListResource) ValidateConfig(ctx context.Context, req resou
 		resp.Diagnostics.AddAttributeError(path.Root("destinations"), "Duplicate destination",
 			fmt.Sprintf("The destination %q is listed more than once. A destination can only be listed once, with a single comment.", duplicate))
 	}
+}
+
+// ModifyPlan warns about a plan that removes applications or content categories from an existing list: the API cannot
+// do that, so applying the plan as an update fails (see Update()). It is a warning and not an error, as an error would
+// also block `terraform apply -replace`, which is how they can be removed. Nothing is checked on create and on destroy,
+// and a set that is not completely known yet (it, or one of its elements, is unknown) is checked by Update().
+func (r *DoNotDecryptListResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if req.State.Raw.IsNull() || req.Plan.Raw.IsNull() {
+		return
+	}
+	removed := func(attribute string) []int64 {
+		var state, plan types.Set
+		resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root(attribute), &state)...)
+		resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root(attribute), &plan)...)
+		if !doNotDecryptListIsKnown(plan) {
+			return nil
+		}
+		return doNotDecryptListRemoved(ctx, state, plan)
+	}
+	applications, categories := removed("applications"), removed("decrypt_exception_categories")
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(doNotDecryptListRemovalDiagnostics(applications, categories, true)...)
 }

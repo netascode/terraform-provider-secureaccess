@@ -24,9 +24,12 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
 	"github.com/tidwall/gjson"
@@ -318,14 +321,18 @@ type doNotDecryptListStep struct {
 	// all of them are removed by id from the list, which worked for both.
 	viaList                             bool
 	removeDestinations, addDestinations []DoNotDecryptListDestinations
-	removeApplications, addApplications []int64
-	removeCategories, addCategories     []int64
+	// Applications and categories can only be added, the API cannot remove them (see doNotDecryptListRemovalDiagnostics).
+	addApplications, addCategories []int64
 }
 
-// doNotDecryptListChangeSteps builds the PUT requests that add (`add` is true) or remove destinations, applications and
-// categories. Destinations are split into chunks, applications and categories are sent with the first chunk.
+// doNotDecryptListChangeSteps builds the PUT requests that add (`add` is true) or remove destinations. Destinations are
+// split into chunks. Applications and categories are added with the first chunk: the API rejects the fields that remove
+// them ("is not an allowed field"), so they are ignored if `add` is false.
 // Returns nothing if there is nothing to change.
 func doNotDecryptListChangeSteps(name string, add bool, destinations []DoNotDecryptListDestinations, applications, categories []int64) []doNotDecryptListStep {
+	if !add {
+		applications, categories = nil, nil
+	}
 	if len(destinations) == 0 && len(applications) == 0 && len(categories) == 0 {
 		return nil
 	}
@@ -339,10 +346,10 @@ func doNotDecryptListChangeSteps(name string, add bool, destinations []DoNotDecr
 		step.body, _ = sjson.Set("", "name", name)
 		if first {
 			if len(applications) > 0 {
-				step.body, _ = sjson.Set(step.body, verb+"Applications", applications)
+				step.body, _ = sjson.Set(step.body, "addApplications", applications)
 			}
 			if len(categories) > 0 {
-				step.body, _ = sjson.Set(step.body, verb+"DecryptExceptionCategories", categories)
+				step.body, _ = sjson.Set(step.body, "addDecryptExceptionCategories", categories)
 			}
 		}
 		var chunk []DoNotDecryptListDestinations
@@ -357,9 +364,6 @@ func doNotDecryptListChangeSteps(name string, add bool, destinations []DoNotDecr
 			}
 		} else {
 			step.removeDestinations = chunk
-			if first {
-				step.removeApplications, step.removeCategories = applications, categories
-			}
 		}
 		steps = append(steps, step)
 	}
@@ -424,7 +428,9 @@ func doNotDecryptListSplitIPs(destinations []DoNotDecryptListDestinations) (doma
 }
 
 // toUpdateSteps builds the requests for an update. The API does not take full lists on update, but lists of
-// destinations, applications and categories to add and to remove. Those are calculated from the state and the plan.
+// destinations to add and to remove, and of applications and categories to add. Those are calculated from the state and
+// the plan. The API cannot remove applications and categories: a plan that would remove them is refused before any
+// request is built (see doNotDecryptListRemovalDiagnostics), so they are only ever added here.
 // The requests are ordered so that a failure leaves as much as possible in place:
 //  1. additions, which are idempotent (an existing destination only gets its comment updated)
 //  2. removal of the destinations that are gone: domain names with the update request, IP addresses and CIDR blocks
@@ -435,21 +441,15 @@ func doNotDecryptListSplitIPs(destinations []DoNotDecryptListDestinations) (doma
 // If nothing but the name changes, a single request with the name is returned.
 func (data DoNotDecryptList) toUpdateSteps(ctx context.Context, state DoNotDecryptList) []doNotDecryptListStep {
 	name := data.Name.ValueString()
-	planApplications := helpers.Int64SetElements(ctx, data.Applications)
-	stateApplications := helpers.Int64SetElements(ctx, state.Applications)
-	planCategories := helpers.Int64SetElements(ctx, data.DecryptExceptionCategories)
-	stateCategories := helpers.Int64SetElements(ctx, state.DecryptExceptionCategories)
 
 	upsert, gone, cleared := doNotDecryptListDestinationChanges(state.Destinations, data.Destinations)
 	goneDomains, goneIPs := doNotDecryptListSplitIPs(gone)
 	clearedDomains, clearedIPs := doNotDecryptListSplitIPs(cleared)
 
 	steps := doNotDecryptListChangeSteps(name, true, upsert,
-		helpers.DifferenceInt64(planApplications, stateApplications),
-		helpers.DifferenceInt64(planCategories, stateCategories))
-	steps = append(steps, doNotDecryptListChangeSteps(name, false, goneDomains,
-		helpers.DifferenceInt64(stateApplications, planApplications),
-		helpers.DifferenceInt64(stateCategories, planCategories))...)
+		doNotDecryptListAdded(ctx, state.Applications, data.Applications),
+		doNotDecryptListAdded(ctx, state.DecryptExceptionCategories, data.DecryptExceptionCategories))
+	steps = append(steps, doNotDecryptListChangeSteps(name, false, goneDomains, nil, nil)...)
 	steps = append(steps, doNotDecryptListListRemovalSteps(goneIPs)...)
 	steps = append(steps, doNotDecryptListChangeSteps(name, false, clearedDomains, nil, nil)...)
 	steps = append(steps, doNotDecryptListListRemovalSteps(clearedIPs)...)
@@ -464,14 +464,65 @@ func (data DoNotDecryptList) toUpdateSteps(ctx context.Context, state DoNotDecry
 	return steps
 }
 
-// doNotDecryptListApplyInt64 removes and adds values to an Int64 set, the result is null if nothing is left.
-func doNotDecryptListApplyInt64(ctx context.Context, set types.Set, remove, add []int64) types.Set {
+// doNotDecryptListAdded returns the values of an Int64 set of the plan that the state does not hold.
+func doNotDecryptListAdded(ctx context.Context, state, plan types.Set) []int64 {
+	return helpers.DifferenceInt64(helpers.Int64SetElements(ctx, plan), helpers.Int64SetElements(ctx, state))
+}
+
+// doNotDecryptListRemoved returns the values of an Int64 set of the state that the plan does not hold.
+// A set that is not completely known (see doNotDecryptListIsKnown) yields no elements or only the known ones, so a
+// caller that runs before apply must skip it, or every value would look removed.
+func doNotDecryptListRemoved(ctx context.Context, state, plan types.Set) []int64 {
+	return helpers.DifferenceInt64(helpers.Int64SetElements(ctx, state), helpers.Int64SetElements(ctx, plan))
+}
+
+// doNotDecryptListIsKnown reports whether a set and all of its elements are known. During the plan an element can still
+// be unknown, for instance an id that comes from another resource.
+func doNotDecryptListIsKnown(set types.Set) bool {
+	return !set.IsUnknown() && !slices.ContainsFunc(set.Elements(), func(element attr.Value) bool { return element.IsUnknown() })
+}
+
+// doNotDecryptListRemovalDiagnostics reports applications and content categories that a change would remove from an
+// existing list. The API cannot do that: the update request rejects removeApplications and
+// removeDecryptExceptionCategories with 400 "is not an allowed field", also together with other changes, PATCH is not
+// routed, and the application list behind the object is not reachable through the application lists API. They can only
+// be added, to get rid of them the list has to be replaced, which gives it a new id. This was observed on the int
+// environment of the API and is assumed to hold for production.
+//
+// The plan only gets warnings (`asWarning`), as an error would also block `terraform apply -replace`, which is the way
+// out. Update() refuses with errors before it sends anything.
+func doNotDecryptListRemovalDiagnostics(applications, categories []int64, asWarning bool) diag.Diagnostics {
+	var diags diag.Diagnostics
+	report := func(attribute, what string, ids []int64) {
+		if len(ids) == 0 {
+			return
+		}
+		values := make([]string, len(ids))
+		for i, id := range ids {
+			values[i] = strconv.FormatInt(id, 10)
+		}
+		summary := "Removing " + what + " is not supported"
+		detail := "The Secure Access API cannot remove " + what + " from an existing Do Not Decrypt List, they can only be added. " +
+			"The configuration would remove: " + strings.Join(values, ", ") + ". "
+		advice := "Add them back to the configuration, or replace the list, for instance with `terraform apply -replace=<resource address>`. " +
+			"Replacing creates a new list with a new id."
+		if asWarning {
+			diags.AddAttributeWarning(path.Root(attribute), summary, detail+"Unless the list is replaced, applying this plan fails. "+advice)
+		} else {
+			diags.AddAttributeError(path.Root(attribute), summary, detail+advice+" Nothing was changed.")
+		}
+	}
+	report("applications", "applications", applications)
+	report("decrypt_exception_categories", "content categories", categories)
+	return diags
+}
+
+// doNotDecryptListAddInt64 adds values to an Int64 set, the result is null if the set stays empty.
+func doNotDecryptListAddInt64(ctx context.Context, set types.Set, add []int64) types.Set {
 	values := helpers.Int64SetElements(ctx, set)
 	var result []attr.Value
 	for _, v := range values {
-		if !slices.Contains(remove, v) {
-			result = append(result, types.Int64Value(v))
-		}
+		result = append(result, types.Int64Value(v))
 	}
 	for _, v := range add {
 		if !slices.Contains(values, v) {
@@ -505,6 +556,6 @@ func (data *DoNotDecryptList) applyStep(ctx context.Context, name types.String, 
 		}
 	}
 	data.Destinations = append(destinations, step.addDestinations...)
-	data.Applications = doNotDecryptListApplyInt64(ctx, data.Applications, step.removeApplications, step.addApplications)
-	data.DecryptExceptionCategories = doNotDecryptListApplyInt64(ctx, data.DecryptExceptionCategories, step.removeCategories, step.addCategories)
+	data.Applications = doNotDecryptListAddInt64(ctx, data.Applications, step.addApplications)
+	data.DecryptExceptionCategories = doNotDecryptListAddInt64(ctx, data.DecryptExceptionCategories, step.addCategories)
 }

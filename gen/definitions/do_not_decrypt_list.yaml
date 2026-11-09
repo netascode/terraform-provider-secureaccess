@@ -1,8 +1,9 @@
-# Manual resource: Create(), Update() and ValidateConfig() are hand-written, the schema, toBody(), fromBody() and fromBodyPartial() are generated
+# Manual resource: Create(), Update(), ModifyPlan() and ValidateConfig() are hand-written, the schema, toBody(), fromBody() and fromBodyPartial() are generated
 # Data source: fully generated, a list is found by `id` or by `name`, the object is taken from the list response
 # -> adjustBody(): `destinations` is required on create, also if there are none
 # -> Create(): at most 500 destinations are accepted on create, the rest is added with updates
-# -> Update(): PUT takes `add*`/`remove*` lists instead of full lists, Update() builds them from state vs. plan
+# -> Update(): PUT takes `add*`/`remove*` lists instead of full lists, Update() builds them from state vs. plan (applications and categories can only be added, see below)
+# -> ModifyPlan(): warns about a plan that removes applications or categories, Update() refuses it, the API cannot do it
 # -> ValidateConfig(): a destination that is listed more than once is rejected, a set cannot express that (the same destination with two comments)
 # `string_patterns` of `destination` reject empty values, whitespace, uppercase letters, URLs, a trailing dot and malformed IPv4 addresses or CIDR blocks
 # APIBEHAVIOUR: GET does not return destinations and applications (only totals), they are `write_only` and tracked in the Terraform state
@@ -12,6 +13,10 @@
 # APIBEHAVIOUR: PUT removal of a private IP address and of a CIDR block answered "destination not found", so all IP addresses and CIDR blocks are removed by id from the destination list `exceptiondomainlistId`
 # APIBEHAVIOUR: removing a destination that does not exist is an error, Update() checks the destination list and leaves such destinations out
 # APIBEHAVIOUR: domain names are stored in lowercase, URLs are rejected, a failed PUT does not change anything
+# APIBEHAVIOUR: applications and categories can be added, but not removed: PUT rejects `removeApplications` and `removeDecryptExceptionCategories` with 400 "is not an allowed field",
+#               also together with other changes, PATCH is not routed, and the application list behind the object (`exceptionapplicationlistId`) cannot be read through /policies/v2/applicationLists.
+#               The API documentation lists the remove fields. Observed on the int environment, assumed for production.
+# -> ModifyPlan() warns about a plan that removes them, Update() refuses it with an error before it sends anything, the way out is `terraform apply -replace`
 ---
 name: Do Not Decrypt List
 rest_endpoint: /policies/v2/doNotDecryptLists
@@ -24,6 +29,8 @@ res_description: >-
   This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list,
   and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform
   are not detected and they are not populated by `terraform import`.
+  Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that
+  removes them is rejected on apply, replace the list instead (`terraform apply -replace=<resource address>`), which creates a new list with a new id.
 attributes:
   - model_name: name
     type: String
@@ -61,7 +68,7 @@ attributes:
     write_only: true
     ds_description: Always empty, the Secure Access API does not return the applications of a list.
     element_type: Int64
-    description: IDs of the applications that are excluded from decryption.
+    description: IDs of the applications that are excluded from decryption. They can be added to an existing list, but not removed.
     example: 101
     exclude_test: true
   - model_name: decryptExceptionCategories
@@ -70,7 +77,7 @@ attributes:
     write_only: true
     ds_description: Always empty, the content categories of a list are not read back.
     element_type: Int64
-    description: IDs of the content categories that are excluded from decryption.
+    description: IDs of the content categories that are excluded from decryption. They can be added to an existing list, but not removed.
     example: 12
     exclude_test: true
   # RO

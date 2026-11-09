@@ -22,7 +22,12 @@ package provider
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"slices"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -31,7 +36,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
+	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
 	"github.com/tidwall/gjson"
 )
@@ -82,9 +90,14 @@ func TestDoNotDecryptListChangeStepsChunking(t *testing.T) {
 				applications = append(applications, int64(100+i))
 			}
 			input := dndDestinations(tc.destinations)
-			steps := doNotDecryptListChangeSteps("name", add, input, applications, nil)
-			if len(steps) != len(tc.wantSteps) {
-				t.Fatalf("destinations=%d applications=%d add=%v: got %d requests, want %d", tc.destinations, tc.applications, add, len(steps), len(tc.wantSteps))
+			steps := doNotDecryptListChangeSteps("name", add, input, applications, applications) // the same ids as categories
+			// applications are only added, the API cannot remove them: a removal without destinations is no request at all
+			wantSteps := tc.wantSteps
+			if !add && tc.destinations == 0 {
+				wantSteps = nil
+			}
+			if len(steps) != len(wantSteps) {
+				t.Fatalf("destinations=%d applications=%d add=%v: got %d requests, want %d", tc.destinations, tc.applications, add, len(steps), len(wantSteps))
 			}
 			verb := map[bool]string{true: "add", false: "remove"}[add]
 			var sent []string
@@ -101,14 +114,16 @@ func TestDoNotDecryptListChangeStepsChunking(t *testing.T) {
 				t.Errorf("destinations=%d add=%v: the requests do not carry every destination exactly once, in order", tc.destinations, add)
 			}
 			for i, step := range steps {
-				if got := len(gjson.Get(step.body, verb+"Destinations").Array()); got != tc.wantSteps[i] {
-					t.Errorf("destinations=%d add=%v request %d: got %d destinations, want %d", tc.destinations, add, i, got, tc.wantSteps[i])
+				if got := len(gjson.Get(step.body, verb+"Destinations").Array()); got != wantSteps[i] {
+					t.Errorf("destinations=%d add=%v request %d: got %d destinations, want %d", tc.destinations, add, i, got, wantSteps[i])
 				}
 				if name := gjson.Get(step.body, "name").String(); name != "name" {
 					t.Errorf("request %d: name = %q, every request must carry the name", i, name)
 				}
-				if got, want := gjson.Get(step.body, verb+"Applications").Exists(), i == 0 && tc.applications > 0; got != want {
-					t.Errorf("destinations=%d add=%v request %d: applications present = %v, want %v (only in the first request)", tc.destinations, add, i, got, want)
+				for _, field := range []string{verb + "Applications", verb + "DecryptExceptionCategories"} {
+					if got, want := gjson.Get(step.body, field).Exists(), add && i == 0 && tc.applications > 0; got != want {
+						t.Errorf("destinations=%d add=%v request %d: %s present = %v, want %v (only added, and only in the first request)", tc.destinations, add, i, field, got, want)
+					}
 				}
 			}
 		}
@@ -156,7 +171,7 @@ func TestDoNotDecryptListToUpdateSteps(t *testing.T) {
 		}
 	})
 
-	t.Run("additions come first and update comments, removals carry no comment", func(t *testing.T) {
+	t.Run("additions come first and update comments, removals carry no comment, applications and categories are never removed", func(t *testing.T) {
 		plan := state
 		plan.Name = types.StringValue("new")
 		// a.com: comment changed, b.com: removed, c.com: added, keep.com: unchanged
@@ -186,11 +201,14 @@ func TestDoNotDecryptListToUpdateSteps(t *testing.T) {
 		if gjson.Get(remove, "removeDestinations.0.comment").Exists() {
 			t.Errorf("removal must not carry a comment: %s", remove)
 		}
-		if got := gjson.Get(remove, "removeApplications").Raw; got != `[1]` {
-			t.Errorf("removed applications = %s", got)
-		}
-		if got := gjson.Get(remove, "removeDecryptExceptionCategories").Raw; got != `[10]` {
-			t.Errorf("a null set in the plan must remove the categories, got %s", got)
+		// the plan drops application 1 and all categories, which the API cannot do: Update() refuses such a plan before it
+		// builds any request, so a request must never carry the fields that the API rejects as "not an allowed field"
+		for _, step := range steps {
+			for _, field := range []string{"removeApplications", "removeDecryptExceptionCategories"} {
+				if gjson.Get(step.body, field).Exists() {
+					t.Errorf("a request carries %s, which the API rejects: %s", field, step.body)
+				}
+			}
 		}
 	})
 
@@ -333,8 +351,8 @@ func TestDoNotDecryptListApplyStep(t *testing.T) {
 	plan := state
 	plan.Name = types.StringValue("new")
 	plan.Destinations = []DoNotDecryptListDestinations{dndDestination("a.com", "changed"), dndDestination("c.com", "")}
-	plan.Applications = dndInt64Set(2, 3)
-	plan.DecryptExceptionCategories = types.SetNull(types.Int64Type)
+	plan.Applications = dndInt64Set(1, 2, 3) // applications and categories are only added, never removed
+	plan.DecryptExceptionCategories = dndInt64Set(10, 11)
 
 	steps := plan.toUpdateSteps(ctx, state) // add, remove (b.com), remove through the list (10.10.10.10)
 	if len(steps) != 3 {
@@ -357,16 +375,26 @@ func TestDoNotDecryptListApplyStep(t *testing.T) {
 	if got := helpers.Int64SetElements(ctx, interim.Applications); !slices.Equal(got, []int64{1, 2, 3}) {
 		t.Errorf("applications = %v, want [1 2 3]", got)
 	}
+	if got := helpers.Int64SetElements(ctx, interim.DecryptExceptionCategories); !slices.Equal(got, []int64{10, 11}) {
+		t.Errorf("categories = %v, want [10 11]", got)
+	}
 	if !slices.EqualFunc(original, state.Destinations, func(a, b DoNotDecryptListDestinations) bool { return a == b }) {
 		t.Errorf("the state the interim copy was made from must not be modified")
 	}
 
-	interim.applyStep(ctx, plan.Name, steps[1]) // the removal request
-	if got := helpers.Int64SetElements(ctx, interim.Applications); !slices.Equal(got, []int64{2, 3}) {
-		t.Errorf("applications = %v, want [2 3]", got)
+	interim.applyStep(ctx, plan.Name, steps[1]) // the removal request removes a destination, nothing else
+	if got := helpers.Int64SetElements(ctx, interim.Applications); !slices.Equal(got, []int64{1, 2, 3}) {
+		t.Errorf("applications = %v, want [1 2 3]", got)
 	}
-	if !interim.DecryptExceptionCategories.IsNull() {
-		t.Errorf("categories = %v, want null", interim.DecryptExceptionCategories)
+	if got := helpers.Int64SetElements(ctx, interim.DecryptExceptionCategories); !slices.Equal(got, []int64{10, 11}) {
+		t.Errorf("categories = %v, want [10 11]", got)
+	}
+
+	// a step that carries no applications or categories leaves null sets null (the state after an import)
+	imported := DoNotDecryptList{Applications: types.SetNull(types.Int64Type), DecryptExceptionCategories: types.SetNull(types.Int64Type)}
+	imported.applyStep(ctx, plan.Name, steps[1])
+	if !imported.Applications.IsNull() || !imported.DecryptExceptionCategories.IsNull() {
+		t.Errorf("null sets must stay null, got %v and %v", imported.Applications, imported.DecryptExceptionCategories)
 	}
 
 	interim.Name = types.StringValue("not touched by the destination list")
@@ -623,4 +651,322 @@ func TestDoNotDecryptListFirstDuplicate(t *testing.T) {
 			t.Errorf("%s: got %q, %v, want %q", name, got, found, tc.want)
 		}
 	}
+}
+
+func TestDoNotDecryptListAddedAndRemoved(t *testing.T) {
+	ctx := context.Background()
+	state, plan := dndInt64Set(1, 2, 3), dndInt64Set(2, 3, 4)
+	if got := doNotDecryptListRemoved(ctx, state, plan); !slices.Equal(got, []int64{1}) {
+		t.Errorf("removed = %v, want [1]", got)
+	}
+	if got := doNotDecryptListAdded(ctx, state, plan); !slices.Equal(got, []int64{4}) {
+		t.Errorf("added = %v, want [4]", got)
+	}
+	// a set that is dropped from the configuration is null in the plan: everything in the state is removed
+	if got := doNotDecryptListRemoved(ctx, state, types.SetNull(types.Int64Type)); !slices.Equal(got, []int64{1, 2, 3}) {
+		t.Errorf("removed with a null plan = %v, want [1 2 3]", got)
+	}
+	if got := doNotDecryptListRemoved(ctx, types.SetNull(types.Int64Type), plan); len(got) != 0 {
+		t.Errorf("nothing is removed from a null state (create, import), got %v", got)
+	}
+	if got := doNotDecryptListRemoved(ctx, state, state); len(got) != 0 {
+		t.Errorf("an unchanged set removes nothing, got %v", got)
+	}
+}
+
+func TestDoNotDecryptListRemovalDiagnostics(t *testing.T) {
+	if diags := doNotDecryptListRemovalDiagnostics(nil, nil, false); len(diags) != 0 {
+		t.Fatalf("nothing is removed, got %v", diags)
+	}
+
+	for _, asWarning := range []bool{false, true} {
+		diags := doNotDecryptListRemovalDiagnostics([]int64{1}, []int64{72, 415}, asWarning)
+		if len(diags) != 2 {
+			t.Fatalf("asWarning=%v: got %d diagnostics, want one per attribute: %v", asWarning, len(diags), diags)
+		}
+		if diags.HasError() == asWarning {
+			t.Errorf("asWarning=%v: HasError = %v (the plan must only warn, an error would block -replace)", asWarning, diags.HasError())
+		}
+		for i, want := range []struct {
+			attribute, summary, ids string
+		}{
+			{"applications", "Removing applications is not supported", "1"},
+			{"decrypt_exception_categories", "Removing content categories is not supported", "72, 415"},
+		} {
+			withPath, ok := diags[i].(diag.DiagnosticWithPath)
+			if !ok || !withPath.Path().Equal(path.Root(want.attribute)) {
+				t.Errorf("asWarning=%v diagnostic %d: not attached to %s: %#v", asWarning, i, want.attribute, diags[i])
+			}
+			if diags[i].Summary() != want.summary {
+				t.Errorf("asWarning=%v diagnostic %d: summary = %q, want %q", asWarning, i, diags[i].Summary(), want.summary)
+			}
+			for _, part := range []string{want.ids, "-replace", "new id"} {
+				if !strings.Contains(diags[i].Detail(), part) {
+					t.Errorf("asWarning=%v diagnostic %d: detail lacks %q: %s", asWarning, i, part, diags[i].Detail())
+				}
+			}
+			// the warning is also shown on a plan that replaces the list, so it must not claim that the plan is an update
+			// that fails; the error is only raised when nothing was sent
+			if got := strings.Contains(diags[i].Detail(), "Unless the list is replaced, applying this plan fails."); got != asWarning {
+				t.Errorf("asWarning=%v diagnostic %d: conditional failure sentence present = %v: %s", asWarning, i, got, diags[i].Detail())
+			}
+			if got := strings.Contains(diags[i].Detail(), "Nothing was changed."); got == asWarning {
+				t.Errorf("asWarning=%v diagnostic %d: 'Nothing was changed.' present = %v: %s", asWarning, i, got, diags[i].Detail())
+			}
+		}
+	}
+
+	if diags := doNotDecryptListRemovalDiagnostics(nil, []int64{415}, false); len(diags) != 1 || diags[0].Summary() != "Removing content categories is not supported" {
+		t.Errorf("only the categories are removed, got %v", diags)
+	}
+}
+
+// dndTestSchema returns the schema of the resource, the plan and state of the tests below are built from it.
+func dndTestSchema(t *testing.T) schema.Schema {
+	t.Helper()
+	var schemaResp resource.SchemaResponse
+	NewDoNotDecryptListResource().Schema(context.Background(), resource.SchemaRequest{}, &schemaResp)
+	return schemaResp.Schema
+}
+
+func dndTestModel(applications, categories types.Set) DoNotDecryptList {
+	return DoNotDecryptList{
+		Id:                         types.StringValue("1"),
+		Name:                       types.StringValue("n"),
+		Applications:               applications,
+		DecryptExceptionCategories: categories,
+		IsDefault:                  types.BoolValue(false),
+		TotalDomains:               types.Int64Value(0),
+		TotalIps:                   types.Int64Value(0),
+		TotalApplications:          types.Int64Value(0),
+	}
+}
+
+func dndTestState(t *testing.T, s schema.Schema, model *DoNotDecryptList) tfsdk.State {
+	t.Helper()
+	state := tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(context.Background()), nil)}
+	if model != nil {
+		if diags := state.Set(context.Background(), model); diags.HasError() {
+			t.Fatal(diags)
+		}
+	}
+	return state
+}
+
+func dndTestPlan(t *testing.T, s schema.Schema, model *DoNotDecryptList) tfsdk.Plan {
+	t.Helper()
+	state := dndTestState(t, s, model)
+	return tfsdk.Plan{Schema: s, Raw: state.Raw}
+}
+
+// dndTestAPI is a fake API for the tests that run Update(): it answers the token request, keeps the body of every PUT to
+// the list with id 1 and fails the test on any other request.
+type dndTestAPI struct {
+	mu   sync.Mutex
+	puts []string
+}
+
+func (a *dndTestAPI) bodies() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return slices.Clone(a.puts)
+}
+
+func dndTestResource(t *testing.T) (*DoNotDecryptListResource, *dndTestAPI) {
+	t.Helper()
+	api := &dndTestAPI{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/auth/v2/token":
+			_, _ = io.WriteString(w, `{"access_token":"t","token_type":"bearer","expires_in":3600}`)
+		case r.Method == http.MethodPut && r.URL.Path == "/policies/v2/doNotDecryptLists/1":
+			body, _ := io.ReadAll(r.Body)
+			api.mu.Lock()
+			api.puts = append(api.puts, string(body))
+			api.mu.Unlock()
+			_, _ = io.WriteString(w, `{"id":1,"name":"n","isDefault":false,"totalDomains":0,"totalIps":0,"totalApplications":3}`)
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			http.Error(w, "unexpected request", http.StatusInternalServerError)
+		}
+	}))
+	t.Cleanup(server.Close)
+	client, err := secureaccess.NewClient(server.URL, "key", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &DoNotDecryptListResource{client: client}, api
+}
+
+// Update() must refuse a plan that removes applications or categories before it sends anything: no request reaches the
+// API and the state stays as it was. A plan that only adds goes through, which proves that the guard does not block
+// every update.
+func TestDoNotDecryptListUpdateGuard(t *testing.T) {
+	ctx := context.Background()
+	s := dndTestSchema(t)
+	state := dndTestModel(dndInt64Set(1, 2), dndInt64Set(72, 415))
+	null := types.SetNull(types.Int64Type)
+	categories, applications := "Removing content categories is not supported", "Removing applications is not supported"
+
+	update := func(t *testing.T, plan DoNotDecryptList) (resource.UpdateResponse, tfsdk.State, *dndTestAPI) {
+		t.Helper()
+		r, api := dndTestResource(t)
+		stateModel := state
+		prior := dndTestState(t, s, &stateModel)
+		resp := resource.UpdateResponse{State: dndTestState(t, s, &stateModel)}
+		r.Update(ctx, resource.UpdateRequest{Plan: dndTestPlan(t, s, &plan), State: prior}, &resp)
+		return resp, prior, api
+	}
+
+	for name, tc := range map[string]struct {
+		plan DoNotDecryptList
+		want []string
+	}{
+		"a category is dropped":                 {dndTestModel(dndInt64Set(1, 2), dndInt64Set(72)), []string{categories}},
+		"an application is dropped":             {dndTestModel(dndInt64Set(1), dndInt64Set(72, 415)), []string{applications}},
+		"both sets are removed from the file":   {dndTestModel(null, null), []string{applications, categories}},
+		"one is added while another is dropped": {dndTestModel(dndInt64Set(1, 2, 3), dndInt64Set(415)), []string{categories}},
+	} {
+		t.Run("refused: "+name, func(t *testing.T) {
+			resp, prior, api := update(t, tc.plan)
+			var got []string
+			for _, d := range resp.Diagnostics.Errors() {
+				got = append(got, d.Summary())
+				if !strings.Contains(d.Detail(), "Nothing was changed.") {
+					t.Errorf("the error must say that nothing was changed: %s", d.Detail())
+				}
+			}
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("errors = %v, want %v", got, tc.want)
+			}
+			if puts := api.bodies(); len(puts) != 0 {
+				t.Errorf("nothing may be sent, got %d request(s): %v", len(puts), puts)
+			}
+			if !resp.State.Raw.Equal(prior.Raw) {
+				t.Errorf("the state must stay as it was, nothing was applied")
+			}
+		})
+	}
+
+	t.Run("applications and categories are added", func(t *testing.T) {
+		resp, _, api := update(t, dndTestModel(dndInt64Set(1, 2, 3), dndInt64Set(72, 415, 9)))
+		if resp.Diagnostics.HasError() {
+			t.Fatalf("an update that only adds must go through: %v", resp.Diagnostics)
+		}
+		puts := api.bodies()
+		if len(puts) != 1 {
+			t.Fatalf("got %d requests, want 1: %v", len(puts), puts)
+		}
+		if got := gjson.Get(puts[0], "addApplications").Raw; got != `[3]` {
+			t.Errorf("addApplications = %s in %s", got, puts[0])
+		}
+		if got := gjson.Get(puts[0], "addDecryptExceptionCategories").Raw; got != `[9]` {
+			t.Errorf("addDecryptExceptionCategories = %s in %s", got, puts[0])
+		}
+		for _, field := range []string{"removeApplications", "removeDecryptExceptionCategories"} {
+			if gjson.Get(puts[0], field).Exists() {
+				t.Errorf("the request carries %s, which the API rejects: %s", field, puts[0])
+			}
+		}
+	})
+
+	t.Run("a rename without other changes goes through", func(t *testing.T) {
+		plan := dndTestModel(state.Applications, state.DecryptExceptionCategories)
+		plan.Name = types.StringValue("renamed")
+		resp, _, api := update(t, plan)
+		if resp.Diagnostics.HasError() {
+			t.Fatalf("a rename must go through: %v", resp.Diagnostics)
+		}
+		if puts := api.bodies(); len(puts) != 1 || puts[0] != `{"name":"renamed"}` {
+			t.Errorf("requests = %v, want one with only the name", puts)
+		}
+	})
+}
+
+// ModifyPlan only warns, an error would also block `terraform apply -replace`, the way to get rid of categories.
+func TestDoNotDecryptListModifyPlan(t *testing.T) {
+	ctx := context.Background()
+	s := dndTestSchema(t)
+	stateModel := dndTestModel(dndInt64Set(1, 2), dndInt64Set(72, 415))
+	state := dndTestState(t, s, &stateModel)
+	plan := func(applications, categories types.Set) tfsdk.Plan {
+		model := dndTestModel(applications, categories)
+		return dndTestPlan(t, s, &model)
+	}
+	run := func(state tfsdk.State, plan tfsdk.Plan) diag.Diagnostics {
+		resp := resource.ModifyPlanResponse{Plan: plan}
+		NewDoNotDecryptListResource().(resource.ResourceWithModifyPlan).ModifyPlan(ctx, resource.ModifyPlanRequest{State: state, Plan: plan}, &resp)
+		return resp.Diagnostics
+	}
+	summaries := func(diags diag.Diagnostics) []string {
+		var out []string
+		for _, d := range diags {
+			out = append(out, d.Summary())
+		}
+		return out
+	}
+	null := types.SetNull(types.Int64Type)
+	categories, applications := "Removing content categories is not supported", "Removing applications is not supported"
+
+	t.Run("nothing is checked on create", func(t *testing.T) {
+		if diags := run(dndTestState(t, s, nil), plan(dndInt64Set(1), dndInt64Set(72))); len(diags) != 0 {
+			t.Errorf("got %v", diags)
+		}
+	})
+	t.Run("nothing is checked on destroy", func(t *testing.T) {
+		if diags := run(state, dndTestPlan(t, s, nil)); len(diags) != 0 {
+			t.Errorf("got %v", diags)
+		}
+	})
+	t.Run("unchanged and added values do not warn", func(t *testing.T) {
+		if diags := run(state, plan(dndInt64Set(1, 2), dndInt64Set(72, 415))); len(diags) != 0 {
+			t.Errorf("unchanged: got %v", diags)
+		}
+		if diags := run(state, plan(dndInt64Set(1, 2, 3), dndInt64Set(72, 415, 7))); len(diags) != 0 {
+			t.Errorf("added: got %v", diags)
+		}
+	})
+	t.Run("removals warn and never fail", func(t *testing.T) {
+		diags := run(state, plan(dndInt64Set(1), dndInt64Set(72, 415)))
+		if got := summaries(diags); !slices.Equal(got, []string{applications}) || diags.HasError() {
+			t.Errorf("application dropped: got %v (HasError %v)", got, diags.HasError())
+		}
+		diags = run(state, plan(null, null))
+		if got := summaries(diags); !slices.Equal(got, []string{applications, categories}) || diags.HasError() {
+			t.Errorf("both dropped: got %v (HasError %v)", got, diags.HasError())
+		}
+	})
+	t.Run("values that are not known yet are left to Update", func(t *testing.T) {
+		unknownPlan := plan(dndInt64Set(1, 2), dndInt64Set(72, 415))
+		if diags := unknownPlan.SetAttribute(ctx, path.Root("decrypt_exception_categories"), types.SetUnknown(types.Int64Type)); diags.HasError() {
+			t.Fatal(diags)
+		}
+		if diags := run(state, unknownPlan); len(diags) != 0 {
+			t.Errorf("got %v", diags)
+		}
+	})
+	t.Run("a set with an unknown element is left to Update", func(t *testing.T) {
+		// applications = [1, <id of another resource>]: the unknown element cannot be read, which must not look like
+		// the removal of 1 and 2
+		partlyUnknown := plan(dndInt64Set(1, 2), dndInt64Set(72, 415))
+		set := types.SetValueMust(types.Int64Type, []attr.Value{types.Int64Value(1), types.Int64Unknown()})
+		if diags := partlyUnknown.SetAttribute(ctx, path.Root("applications"), set); diags.HasError() {
+			t.Fatal(diags)
+		}
+		if diags := run(state, partlyUnknown); len(diags) != 0 {
+			t.Errorf("got %v", diags)
+		}
+	})
+	t.Run("unknown destinations do not break the check", func(t *testing.T) {
+		// the whole model cannot be read while destinations are unknown, which is why only the two sets are read
+		unknownPlan := plan(dndInt64Set(1), dndInt64Set(72, 415))
+		destinations := s.Attributes["destinations"].GetType().(types.SetType)
+		if diags := unknownPlan.SetAttribute(ctx, path.Root("destinations"), types.SetUnknown(destinations.ElemType)); diags.HasError() {
+			t.Fatal(diags)
+		}
+		diags := run(state, unknownPlan)
+		if got := summaries(diags); !slices.Equal(got, []string{applications}) || diags.HasError() {
+			t.Errorf("got %v (HasError %v)", got, diags.HasError())
+		}
+	})
 }

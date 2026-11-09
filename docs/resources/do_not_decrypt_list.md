@@ -3,12 +3,12 @@
 page_title: "secureaccess_do_not_decrypt_list Resource - terraform-provider-secureaccess"
 subcategory: "Resources"
 description: |-
-  This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by terraform import.
+  This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by terraform import. Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that removes them is rejected on apply, replace the list instead (terraform apply -replace=<resource address>), which creates a new list with a new id.
 ---
 
 # secureaccess_do_not_decrypt_list (Resource)
 
-This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`.
+This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`. Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that removes them is rejected on apply, replace the list instead (`terraform apply -replace=<resource address>`), which creates a new list with a new id.
 
 ## Example Usage
 
@@ -35,8 +35,8 @@ resource "secureaccess_do_not_decrypt_list" "example" {
 
 ### Optional
 
-- `applications` (Set of Number) IDs of the applications that are excluded from decryption.
-- `decrypt_exception_categories` (Set of Number) IDs of the content categories that are excluded from decryption.
+- `applications` (Set of Number) IDs of the applications that are excluded from decryption. They can be added to an existing list, but not removed.
+- `decrypt_exception_categories` (Set of Number) IDs of the content categories that are excluded from decryption. They can be added to an existing list, but not removed.
 - `destinations` (Attributes Set) Destinations that are excluded from decryption, domain names (in lowercase), IPv4 addresses or CIDR blocks. URLs are not supported. Large lists are split into multiple requests automatically. (see [below for nested schema](#nestedatt--destinations))
 
 ### Read-Only
