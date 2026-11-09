@@ -68,12 +68,12 @@ func (d *DoNotDecryptListDataSource) Schema(ctx context.Context, req datasource.
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Do Not Decrypt List.",
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Do Not Decrypt List.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"destinations": schema.SetNestedAttribute{
-				MarkdownDescription: "Always empty, the Secure Access API does not return the destinations of a list.",
+				MarkdownDescription: helpers.NewAttributeDescription("Always empty, the Secure Access API does not return the destinations of a list.").String,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -89,29 +89,29 @@ func (d *DoNotDecryptListDataSource) Schema(ctx context.Context, req datasource.
 				},
 			},
 			"applications": schema.SetAttribute{
-				MarkdownDescription: "Always empty, the Secure Access API does not return the applications of a list.",
+				MarkdownDescription: helpers.NewAttributeDescription("Always empty, the Secure Access API does not return the applications of a list.").String,
 				ElementType:         types.Int64Type,
 				Computed:            true,
 			},
 			"decrypt_exception_categories": schema.SetAttribute{
-				MarkdownDescription: "Always empty, the content categories of a list are not read back.",
+				MarkdownDescription: helpers.NewAttributeDescription("Always empty, the content categories of a list are not read back.").String,
 				ElementType:         types.Int64Type,
 				Computed:            true,
 			},
 			"is_default": schema.BoolAttribute{
-				MarkdownDescription: "Specifies whether this is the default Do Not Decrypt List.",
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether this is the default Do Not Decrypt List.").String,
 				Computed:            true,
 			},
 			"total_domains": schema.Int64Attribute{
-				MarkdownDescription: "Number of domains in the Do Not Decrypt List.",
+				MarkdownDescription: helpers.NewAttributeDescription("Number of domains in the Do Not Decrypt List.").String,
 				Computed:            true,
 			},
 			"total_ips": schema.Int64Attribute{
-				MarkdownDescription: "Number of IP addresses in the Do Not Decrypt List.",
+				MarkdownDescription: helpers.NewAttributeDescription("Number of IP addresses in the Do Not Decrypt List.").String,
 				Computed:            true,
 			},
 			"total_applications": schema.Int64Attribute{
-				MarkdownDescription: "Number of applications in the Do Not Decrypt List.",
+				MarkdownDescription: helpers.NewAttributeDescription("Number of applications in the Do Not Decrypt List.").String,
 				Computed:            true,
 			},
 		},
