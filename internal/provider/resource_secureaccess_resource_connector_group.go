@@ -94,6 +94,27 @@ func (r *ResourceConnectorGroupResource) Schema(ctx context.Context, req resourc
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			"dns_servers": schema.ListNestedAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Use alternate DNS servers to resolve private resources based on domain.").String,
+				Optional:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"domains": schema.StringAttribute{
+							MarkdownDescription: helpers.NewAttributeDescription("A comma-separated list of domains.").String,
+							Required:            true,
+						},
+						"dns_server_id": schema.Int64Attribute{
+							MarkdownDescription: helpers.NewAttributeDescription("The resource ID of the DNS server.").String,
+							Required:            true,
+						},
+					},
+				},
+			},
+			"private_resource_ids": schema.ListAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("The list of private resource IDs associated with the Resource Connector Group.").String,
+				ElementType:         types.Int64Type,
+				Optional:            true,
+			},
 			"provisioning_key_expires_at": schema.StringAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("The expiration date and time of the Resource Connector Group's provisioning key.").String,
 				Computed:            true,
@@ -140,8 +161,6 @@ func (r *ResourceConnectorGroupResource) Configure(_ context.Context, req resour
 
 // End of section. //template:end model
 
-// Section below is generated&owned by "gen/generator.go". //template:begin create
-
 func (r *ResourceConnectorGroupResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan ResourceConnectorGroup
 
@@ -166,6 +185,20 @@ func (r *ResourceConnectorGroupResource) Create(ctx context.Context, req resourc
 	plan.Id = types.StringValue(res.Get("id").String())
 	plan.fromBodyUnknowns(ctx, res.Result)
 
+	// resourceIds is ignored by POST, set it with an immediate PATCH
+	created := plan
+	created.PrivateResourceIds = types.ListNull(types.Int64Type)
+	if body := plan.toBodyPatch(ctx, created); body != "" {
+		res, err = r.client.Patch(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PATCH), got error: %s, %s", err, res.String()))
+			// Save the created object to state, so it is not orphaned
+			resp.Diagnostics.Append(resp.State.Set(ctx, &created)...)
+			return
+		}
+		plan.fromBodyUnknowns(ctx, res.Result)
+	}
+
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
 	diags = resp.State.Set(ctx, &plan)
@@ -173,8 +206,6 @@ func (r *ResourceConnectorGroupResource) Create(ctx context.Context, req resourc
 
 	helpers.SetFlagImporting(ctx, false, resp.Private, &resp.Diagnostics)
 }
-
-// End of section. //template:end create
 
 // Section below is generated&owned by "gen/generator.go". //template:begin read
 
@@ -224,8 +255,6 @@ func (r *ResourceConnectorGroupResource) Read(ctx context.Context, req resource.
 
 // End of section. //template:end read
 
-// Section below is generated&owned by "gen/generator.go". //template:begin update
-
 func (r *ResourceConnectorGroupResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state ResourceConnectorGroup
 
@@ -246,21 +275,21 @@ func (r *ResourceConnectorGroupResource) Update(ctx context.Context, req resourc
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Update", plan.Id.ValueString()))
 
-	body := plan.toBody(ctx, state)
-	res, err := r.client.Put(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PUT), got error: %s, %s", err, res.String()))
-		return
+	body := plan.toBodyPatch(ctx, state)
+	if body != "" {
+		res, err := r.client.Patch(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PATCH), got error: %s, %s", err, res.String()))
+			return
+		}
+		plan.fromBodyUnknowns(ctx, res.Result)
 	}
-	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
 
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 }
-
-// End of section. //template:end update
 
 // Section below is generated&owned by "gen/generator.go". //template:begin delete
 

@@ -48,7 +48,7 @@ attribute:
   description: str(required=False) # Attribute description
   ds_description: str(required=False) # Attribute description override used only in the data source schema. Falls back to `description` if not set
   example: any(str(), int(), bool(), required=False) # Example value for documentation, also used for acceptance test
-  enum_values: list(str(), required=False) # List of enum values, only relevant if type is "String". Null value is instead governed by `mandatory`, never include null here
+  enum_values: list(str(), required=False) # List of enum values, only relevant if type is "String", or "List"/"Set" with element_type "String". Null value is instead governed by `mandatory`, never include null here
   min_list: int(required=False) # Minimum number of elements in a list, only relevant if type is "List"
   max_list: int(required=False) # Maximum number of elements in a list, only relevant if type is "List"
   min_int: int(required=False) # Minimum value of an integer, only relevant if type is "Int64"
@@ -57,6 +57,7 @@ attribute:
   max_float: num(required=False) # Maximum value of a float, only relevant if type is "Float"
   map_key_example: any(str(), int(), required=False) # Example value of the map key, only relevant if type is "Map"
   map_key_model_name: str(required=False) # Model name of the model field used as the key in the map, only relevant if type is "Map"
+  map_of_maps: bool(required=False) # Data source schema of a "Map" with nested attributes is a map of maps of objects (`map(map(object))`) instead of a map of objects
   ordered_list: bool(required=False) # Treat `type: List` as strictly ordered. If API ever returns different order, destroy and re-create elements.
   string_patterns: list(str(), required=False) # List of regular expressions that the string must match, only relevant if type is "String"
   string_min_length: int(required=False) # Minimum length of a string, only relevant if type is "String"

@@ -3,16 +3,18 @@
 page_title: "secureaccess_identities Data Source - terraform-provider-secureaccess"
 subcategory: "Resources"
 description: |-
-  This resource reads Identities, grouped by identity type.
-  If items is empty, all Identities are returned, otherwise only the listed types (and names).
-  If filter is provided, only Identities matching the filter are returned.
+  This is Early Access and may be subject to changes. This resource reads Identities, grouped by identity type.
+  If items is empty, all Identities are returned, otherwise only the listed types are returned.
+  If filter is provided, only Identities with name matching the filter are returned.
+  If identity_types is provided, only Identities of the listed types are returned. Use this as primary filter over items.
 ---
 
 # secureaccess_identities (Data Source)
 
-This resource reads Identities, grouped by identity type.
- If `items` is empty, all Identities are returned, otherwise only the listed types (and names).
- If `filter` is provided, only Identities matching the filter are returned.
+This is Early Access and may be subject to changes. This resource reads Identities, grouped by identity type.
+ If `items` is empty, all Identities are returned, otherwise only the listed types are returned.
+ If `filter` is provided, only Identities with name matching the filter are returned.
+ If `identity_types` is provided, only Identities of the listed types are returned. Use this as primary filter over `items`.
 
 ## Example Usage
 
@@ -31,6 +33,8 @@ data "secureaccess_identities" "example" {
 ### Optional
 
 - `filter` (String) Case-insensitive substring used to filter identities by name.
-- `identity_types` (List of String) List of identity types to include.
+- `identity_types` (List of String) List of identity types to include. Use this as primary filter for the identities returned.
+  - Choices: `ad_connector`, `android`, `anyconnect`, `app_connector_agent`, `bdr`, `branch`, `chromebook_user`, `connected_devices`, `device`, `directory_computer`, `directory_domain`, `directory_group`, `directory_user`, `domain_controller`, `edlp_client`, `gsuite_domain`, `gsuite_group`, `gsuite_user`, `internal_network`, `meraki_auto_vpn`, `mobile_device`, `network`, `network_device`, `network_dns_forwarder`, `network_tunnel_hub`, `on_network`, `policy`, `roaming`, `saml_group`, `saml_user`, `secure_web_appliance`, `sgt_id`, `site`, `tunnel_device`, `vpn`, `vpn_id`, `ztna_client`, `-ad_connector`, `-android`, `-anyconnect`, `-app_connector_agent`, `-bdr`, `-branch`, `-chromebook_user`, `-connected_devices`, `-device`, `-directory_computer`, `-directory_domain`, `-directory_group`, `-directory_user`, `-domain_controller`, `-edlp_client`, `-gsuite_domain`, `-gsuite_group`, `-gsuite_user`, `-internal_network`, `-meraki_auto_vpn`, `-mobile_device`, `-network`, `-network_device`, `-network_dns_forwarder`, `-network_tunnel_hub`, `-on_network`, `-policy`, `-roaming`, `-saml_group`, `-saml_user`, `-secure_web_appliance`, `-sgt_id`, `-site`, `-tunnel_device`, `-vpn`, `-vpn_id`, `-ztna_client`
 - `include_deleted` (Boolean) Specifies whether to include deleted identities, i.e. marked as deleted or with `(deleted)` in the name.
-- `items` (Map of Map of Object) Map of Identities grouped by type. The key of the outer map is the identity type (e.g. `site`), the key of the inner map is the name of the individual Identity, each with `id` and `deleted` attributes. If set, only the listed types are returned, and only the listed names of a type whose inner map is not empty.
+  - Default value: `false`
+- `items` (Map of Map of Object) Map of Identities grouped by type. The key of the outer map is the identity type (e.g. `site`), the key of the inner map is the name of the individual Identity. If set, only the listed types are returned, and only the listed names of a type whose inner map is not empty.

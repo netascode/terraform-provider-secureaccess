@@ -68,20 +68,20 @@ func (d *ServiceObjectDataSource) Schema(ctx context.Context, req datasource.Sch
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Service Object.",
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Service Object.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"description": schema.StringAttribute{
-				MarkdownDescription: "Description of the Service Object.",
+				MarkdownDescription: helpers.NewAttributeDescription("Description of the Service Object.").String,
 				Computed:            true,
 			},
 			"protocol": schema.StringAttribute{
-				MarkdownDescription: "Protocol of the Service Object.",
+				MarkdownDescription: helpers.NewAttributeDescription("Protocol of the Service Object.").String,
 				Computed:            true,
 			},
 			"ports": schema.ListAttribute{
-				MarkdownDescription: "List of ports or port ranges of the Service Object.",
+				MarkdownDescription: helpers.NewAttributeDescription("List of ports or port ranges of the Service Object.").String,
 				ElementType:         types.StringType,
 				Computed:            true,
 			},

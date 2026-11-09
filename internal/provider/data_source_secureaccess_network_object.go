@@ -68,20 +68,20 @@ func (d *NetworkObjectDataSource) Schema(ctx context.Context, req datasource.Sch
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Network Object.",
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Network Object.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"description": schema.StringAttribute{
-				MarkdownDescription: "Description of the Network Object.",
+				MarkdownDescription: helpers.NewAttributeDescription("Description of the Network Object.").String,
 				Computed:            true,
 			},
 			"type": schema.StringAttribute{
-				MarkdownDescription: "Type of the Network Object.",
+				MarkdownDescription: helpers.NewAttributeDescription("Type of the Network Object.").String,
 				Computed:            true,
 			},
 			"value": schema.StringAttribute{
-				MarkdownDescription: "Address of the Network Object.",
+				MarkdownDescription: helpers.NewAttributeDescription("Address of the Network Object.").String,
 				Computed:            true,
 			},
 		},

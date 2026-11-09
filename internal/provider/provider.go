@@ -324,6 +324,7 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewDestinationListDataSource,
 		NewDoNotDecryptListDataSource,
 		NewIdentitiesDataSource,
+		NewIdentityTypesDataSource,
 		NewInternalDomainDataSource,
 		NewInternalNetworkDataSource,
 		NewNetworkObjectDataSource,

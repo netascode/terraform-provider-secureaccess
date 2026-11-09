@@ -1,6 +1,4 @@
-
 ---
-layout: ""
 page_title: "Provider: Secure Access"
 description: |-
   The Secure Access provider provides resources to interact with a Cisco Secure Access (CSA).

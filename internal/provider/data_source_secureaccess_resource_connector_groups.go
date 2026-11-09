@@ -60,12 +60,12 @@ func (d *ResourceConnectorGroupsDataSource) Schema(ctx context.Context, req data
 
 		Attributes: map[string]schema.Attribute{
 			"filter": schema.StringAttribute{
-				MarkdownDescription: "Case-insensitive substring used to filter resource connector groups by name.",
+				MarkdownDescription: helpers.NewAttributeDescription("Case-insensitive substring used to filter resource connector groups by name.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"items": schema.MapNestedAttribute{
-				MarkdownDescription: "Map of Resource Connector Groups. The key of the map is the name of the individual Resource Connector Group.",
+				MarkdownDescription: helpers.NewAttributeDescription("Map of Resource Connector Groups. The key of the map is the name of the individual Resource Connector Group.").String,
 				Optional:            true,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{

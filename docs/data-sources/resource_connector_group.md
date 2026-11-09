@@ -31,10 +31,20 @@ data "secureaccess_resource_connector_group" "example" {
 - `connected_connectors_count` (Number) The number of Connectors in the Resource Connector Group that are connected.
 - `connectors_count` (Number) The number of connectors in the Resource Connector Group.
 - `disconnected_connectors_count` (Number) The number of Connectors in the Resource Connector Group that are disconnected.
+- `dns_servers` (Attributes List) Use alternate DNS servers to resolve private resources based on domain. (see [below for nested schema](#nestedatt--dns_servers))
 - `environment` (String) Environment in which agents will be deployed.
 - `failed_update_agents_attempts` (Number) The number of Connectors in the Resource Connector Group that failed to update their agents.
 - `need_update_connectors_count` (Number) The number of Connectors in the Resource Connector Group that need an update.
+- `private_resource_ids` (List of Number) The list of private resource IDs associated with the Resource Connector Group.
 - `provisioning_key_expires_at` (String) The expiration date and time of the Resource Connector Group's provisioning key.
 - `region` (String) The region where to deploy Resource Connector Group on Cisco Secure Access.
 - `status` (String) The label that describes the status of the Resource Connector Group.
 - `unable_to_sync_connectors_count` (Number) The number of Connectors in the Resource Connector Group that are unable to sync.
+
+<a id="nestedatt--dns_servers"></a>
+### Nested Schema for `dns_servers`
+
+Read-Only:
+
+- `dns_server_id` (Number) The resource ID of the DNS server.
+- `domains` (String) A comma-separated list of domains.

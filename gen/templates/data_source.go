@@ -26,10 +26,15 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/datasourcevalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -89,10 +94,26 @@ func (d *{{camelCase .Name}}DataSource) Schema(ctx context.Context, req datasour
 			{{- end}}
 			{{- range .Attributes}}
 			{{- if not .Value}}
-			"{{.TfName}}": schema.{{if isNestedListMapSet .}}{{.Type}}Nested{{else if isList .}}List{{else if isSet .}}Set{{else if eq .Type "Versions"}}List{{else if eq .Type "Version"}}Int64{{else}}{{.Type}}{{end}}Attribute{
-				MarkdownDescription: "{{if .DsDescription}}{{.DsDescription}}{{else}}{{.Description}}{{end}}",
+			"{{.TfName}}": schema.{{if .MapOfMaps}}Map{{else if isNestedListMapSet .}}{{.Type}}Nested{{else if isList .}}List{{else if isSet .}}Set{{else if eq .Type "Versions"}}List{{else if eq .Type "Version"}}Int64{{else}}{{.Type}}{{end}}Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("{{if .DsDescription}}{{.DsDescription}}{{else}}{{.Description}}{{end}}")
+					{{- if and (len .EnumValues) (or .DataSourceQuery .DataSourceOptionalParameter) -}}
+					.AddStringEnumDescription({{range .EnumValues}}"{{.}}", {{end}})
+					{{- end -}}
+					{{- if and .DefaultValue (or .DataSourceQuery .DataSourceOptionalParameter) -}}
+					.AddDefaultValueDescription("{{.DefaultValue}}")
+					{{- end -}}
+					.String,
 				{{- if isListSet .}}
 				ElementType:         types.{{.ElementType}}Type,
+				{{- end}}
+				{{- if .MapOfMaps}}
+				ElementType: types.MapType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{
+					{{- range .Attributes}}
+					{{- if not .Value}}
+					"{{.TfName}}": {{if isList .}}types.ListType{ElemType: types.{{.ElementType}}Type}{{else if isSet .}}types.SetType{ElemType: types.{{.ElementType}}Type}{{else}}types.{{.Type}}Type{{end}},
+					{{- end}}
+					{{- end}}
+				}}},
 				{{- end}}
 				{{- if .Reference}}
 				Required:            true,
@@ -108,7 +129,26 @@ func (d *{{camelCase .Name}}DataSource) Schema(ctx context.Context, req datasour
 				{{- if .Sensitive}}
 				Sensitive:           true,
 				{{- end}}
-				{{- if isNestedListMapSet .}}
+				{{- if and (len .EnumValues) (or .DataSourceQuery .DataSourceOptionalParameter)}}
+				{{- if isList .}}
+				Validators: []validator.List{
+					listvalidator.ValueStringsAre(
+						stringvalidator.OneOf({{range .EnumValues}}"{{.}}", {{end}}),
+					),
+				},
+				{{- else if isSet .}}
+				Validators: []validator.Set{
+					setvalidator.ValueStringsAre(
+						stringvalidator.OneOf({{range .EnumValues}}"{{.}}", {{end}}),
+					),
+				},
+				{{- else}}
+				Validators: []validator.String{
+					stringvalidator.OneOf({{range .EnumValues}}"{{.}}", {{end}}),
+				},
+				{{- end}}
+				{{- end}}
+				{{- if and (isNestedListMapSet .) (not .MapOfMaps)}}
 				{{- $parentNestedMap := isNestedMap .}}
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{

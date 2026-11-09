@@ -17,10 +17,12 @@ resource "secureaccess_network_tunnel_group" "example" {
   name                   = "my network tunnel group"
   device_type            = "ASA"
   region                 = "us-east-1"
+  backup_region          = "us-east-2"
   tunnel_id_format_email = "my_prefix"
   preshared_key          = "t3stingTunn3lNow"
   routing_type           = "static"
-  routing_network_cidrs  = ["192.168.0.0/24"]
+  static_network_cidrs   = ["192.168.0.0/24"]
+  ipv6_routing           = true
 }
 ```
 
@@ -35,13 +37,21 @@ resource "secureaccess_network_tunnel_group" "example" {
 - `preshared_key` (String, Sensitive) Passphrase for the network tunnel. It must include at least one upper case letter, one lower case letter, one number, and cannot include any special characters.
 - `region` (String) The name of the region that the system uses to obtain the primary and secondary data centers for the Hubs.
 - `routing_type` (String) Type of routing for the network tunnel.
-  - Choices: `static`
+  - Choices: `static`, `bgp`, `nat`
 
 ### Optional
 
-- `routing_network_cidrs` (Set of String)
+- `backup_region` (String) The name of the backup region.
+- `bgp_as_number` (String) BGP Autonomous System (AS) number for the network tunnel.
+- `bgp_multihop_count` (Number) BGP hop count for the network tunnel.
+  - Range: `1`-`64`
+- `bgp_multihop_ip_ranges` (Set of String)
+- `bgp_override_summarization` (Boolean) Indicates if BGP summarization should be overridden.
+- `bgp_peering_types` (Set of String) - Choices: `ipv4`, `ipv6`
+- `ipv6_routing` (Boolean) Indicates if IPv6 is enabled for the network tunnel in addition to IPv4.
+- `static_network_cidrs` (Set of String) List of network CIDRs for the static routing.
 - `tunnel_id_format_email` (String) Prefix for the authentication ID in email format (<tunnel_id_format_email>@<org><hub>.sse.cisco.com). The string should not have any special characters besides the period(.), underscore(_), and dash(-) characters.
-- `tunnel_id_format_ip_addresses` (List of String) List of IP addresses for the authentication ID in IP address format. Please include exactly two IP addresses.
+- `tunnel_id_format_ip_addresses` (List of String) List of IP addresses for the authentication ID in IP address format. Include exactly two IP addresses for primary region and two for backup region (if used).
 
 ### Read-Only
 

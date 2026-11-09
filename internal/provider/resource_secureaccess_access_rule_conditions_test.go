@@ -323,13 +323,13 @@ resource "secureaccess_access_rule" "test" {
   traffic_type                      = "PRIVATE_NETWORK"
   destination_network_object_ids   = [1]
   destination_private_resource_ids = [2]
-  destination_operator             = "AND"`, `destination_operator "AND" does not support destination_literals, destination_geolocations, Destination Lists, Private Resources, Private Resource Groups and Security Group Tags`},
+  destination_operator             = "AND"`, `destination_operator "AND" does not support destination_literals, destination_geolocations, Destination Lists, Private Resources, Private Resource Groups, Private Resource types, Security Group Tags and any Security Group Tag`},
 		{`
   action                                 = "allow"
   traffic_type                           = "PRIVATE_NETWORK"
   destination_network_object_ids         = [1]
   destination_private_resource_group_ids = [2]
-  destination_operator                   = "AND"`, `destination_operator "AND" does not support destination_literals, destination_geolocations, Destination Lists, Private Resources, Private Resource Groups and Security Group Tags`},
+  destination_operator                   = "AND"`, `destination_operator "AND" does not support destination_literals, destination_geolocations, Destination Lists, Private Resources, Private Resource Groups, Private Resource types, Security Group Tags and any Security Group Tag`},
 		{`
   action                                 = "block"
   traffic_type                           = "PUBLIC_INTERNET"
@@ -339,7 +339,7 @@ resource "secureaccess_access_rule" "test" {
   traffic_type                       = "PRIVATE_NETWORK"
   destination_network_object_ids     = [1]
   destination_security_group_tag_ids = [2]
-  destination_operator               = "AND"`, `destination_operator "AND" does not support destination_literals, destination_geolocations, Destination Lists, Private Resources, Private Resource Groups and Security Group Tags`},
+  destination_operator               = "AND"`, `destination_operator "AND" does not support destination_literals, destination_geolocations, Destination Lists, Private Resources, Private Resource Groups, Private Resource types, Security Group Tags and any Security Group Tag`},
 		{`
   action                             = "block"
   traffic_type                       = "PUBLIC_INTERNET"
@@ -366,6 +366,57 @@ resource "secureaccess_access_rule" "test" {
   source_identity_ids = [1]
   source_private_literals = ["192.168.0.1"]
   source_operator     = "AND"`, `source_operator "AND" does not support source_private_literals`},
+		{`
+  action                           = "allow"
+  traffic_type                     = "PRIVATE_NETWORK"
+  source_identity_ids              = [1]
+  source_zta_enrolled_device_types = ["macos"]
+  source_operator                  = "AND"`, `network object groups or source_zta_enrolled_device_types`},
+		{`
+  action                           = "allow"
+  traffic_type                     = "PRIVATE_NETWORK"
+  source_zta_enrolled_device_types = ["linux"]`, `value must be one of`},
+		{`
+  action                           = "allow"
+  traffic_type                     = "PUBLIC_INTERNET"
+  source_zta_enrolled_device_types = ["macos"]`, `source_zta_enrolled_device_types is only supported with traffic_type "PRIVATE_NETWORK"`},
+		{`
+  action                   = "allow"
+  traffic_type             = "PRIVATE_NETWORK"
+  source_identity_type_ids = [7, 36]`, `source_identity_type_ids must contain all of 36, 50 together, use the "iOS/Android Devices" identity type (-1)`},
+		{`
+  action                   = "allow"
+  traffic_type             = "PRIVATE_NETWORK"
+  source_identity_type_ids = [9]`, `source_identity_type_ids must contain all of 34, 9 together, use the "macOS/Windows Devices" identity type (-2)`},
+		{`
+  action                             = "allow"
+  traffic_type                       = "PUBLIC_INTERNET"
+  destination_private_resource_types = ["apps"]`, `destination_private_resource_types is only supported with traffic_type "PRIVATE_NETWORK"`},
+		{`
+  action                             = "allow"
+  traffic_type                       = "PRIVATE_NETWORK"
+  destination_private_resource_types = ["all"]`, `value must be one of`},
+		{`
+  action                             = "allow"
+  traffic_type                       = "PRIVATE_NETWORK"
+  destination_security_group_tag_all = false`, `destination_security_group_tag_all only supports true, omit it otherwise`},
+		{`
+  action                             = "allow"
+  traffic_type                       = "PUBLIC_INTERNET"
+  destination_security_group_tag_all = true`, `destination_security_group_tag_all is only supported with traffic_type "PRIVATE_NETWORK"`},
+		{`
+  action                               = "allow"
+  traffic_type                         = "PUBLIC_INTERNET"
+  destination_application_category_all = false`, `destination_application_category_all only supports true, omit it otherwise`},
+		{`
+  action                               = "allow"
+  traffic_type                         = "PUBLIC_INTERNET"
+  destination_application_category_ids = [90]`, `destination_application_category_ids must not contain 90, use destination_application_category_all instead`},
+		{`
+  action                               = "allow"
+  traffic_type                         = "PUBLIC_INTERNET"
+  destination_application_category_all = true
+  destination_application_list_ids     = [1]`, `destination_application_category_all cannot be combined with destination_application_list_ids`},
 		{`
   action                  = "block"
   traffic_type            = "PUBLIC_INTERNET"

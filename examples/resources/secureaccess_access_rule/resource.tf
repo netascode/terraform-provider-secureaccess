@@ -6,6 +6,7 @@ resource "secureaccess_access_rule" "example" {
   enabled                              = true
   source_identity_ids                  = [683051912]
   source_identity_type_ids             = [7]
+  source_zta_enrolled_device_types     = ["macos"]
   source_network_object_ids            = [501078608]
   source_private_literals              = ["192.168.0.1"]
   source_operator                      = "OR"

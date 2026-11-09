@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -67,7 +68,7 @@ func (r *AccessRuleResource) Metadata(ctx context.Context, req resource.Metadata
 func (r *AccessRuleResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource manages an Access Rule.\n ~> **Note:** This resource is under active development, its schema and behaviour may change in future releases.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This resource manages an Access Rule.\n See the [Managing Access Rules guide](../guides/managing_access_rules) for how to configure the sources and destinations, how to combine them with the operators, and for examples.\n ~> **Note:** This resource is under active development, its schema and behaviour may change in future releases.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -112,9 +113,19 @@ func (r *AccessRuleResource) Schema(ctx context.Context, req resource.SchemaRequ
 				Optional:            true,
 			},
 			"source_identity_type_ids": schema.SetAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("IDs of the source identity types.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("IDs of the source identity types, see the `secureaccess_identity_types` data source.").String,
 				ElementType:         types.Int64Type,
 				Optional:            true,
+			},
+			"source_zta_enrolled_device_types": schema.SetAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Operating systems of the source Zero Trust Access (ZTA) enrolled devices. Only for `PRIVATE_NETWORK` rules. Not supported with `source_operator` `AND`.").AddStringEnumDescription("macos", "windows", "ios", "android").String,
+				ElementType:         types.StringType,
+				Optional:            true,
+				Validators: []validator.Set{
+					setvalidator.ValueStringsAre(
+						stringvalidator.OneOf("macos", "windows", "ios", "android"),
+					),
+				},
 			},
 			"source_geolocations": schema.SetAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Country codes (ISO 3166-1 alpha-2, uppercase) of the source geolocations. Combined with identities, it requires `source_operator` `AND` and AD users or groups. Cannot be combined with `destination_geolocations`.").String,
@@ -158,7 +169,7 @@ func (r *AccessRuleResource) Schema(ctx context.Context, req resource.SchemaRequ
 				},
 			},
 			"source_operator": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Logical operator between the source conditions. With `AND`, a source must match every configured attribute of `source_identity_ids`, `source_identity_type_ids`, `source_geolocations` and `source_internet_literals`, at least two of them must be configured. Source network objects and `source_private_literals` are not supported with `AND`. See the [Managing Access Rules guide](../guides/managing_access_rules) for examples.").AddStringEnumDescription("OR", "AND").AddDefaultValueDescription("OR").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Logical operator between the source conditions. With `AND`, a source must match every configured attribute of `source_identity_ids`, `source_identity_type_ids`, `source_geolocations` and `source_internet_literals`, at least two of them must be configured. Source network objects and `source_private_literals` are not supported with `AND`.").AddStringEnumDescription("OR", "AND").AddDefaultValueDescription("OR").String,
 				Optional:            true,
 				Computed:            true,
 				Validators: []validator.String{
@@ -196,9 +207,23 @@ func (r *AccessRuleResource) Schema(ctx context.Context, req resource.SchemaRequ
 				ElementType:         types.Int64Type,
 				Optional:            true,
 			},
+			"destination_private_resource_types": schema.SetAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Types of the destination Private Resources, `apps` for all Private Resources and `groups` for all Private Resource Groups. Only for `PRIVATE_NETWORK` rules.").AddStringEnumDescription("apps", "groups").String,
+				ElementType:         types.StringType,
+				Optional:            true,
+				Validators: []validator.Set{
+					setvalidator.ValueStringsAre(
+						stringvalidator.OneOf("apps", "groups"),
+					),
+				},
+			},
 			"destination_security_group_tag_ids": schema.SetAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("IDs of the destination Security Group Tags, i.e. identities of type `sgt_id`. Only for `PRIVATE_NETWORK` rules.").String,
 				ElementType:         types.Int64Type,
+				Optional:            true,
+			},
+			"destination_security_group_tag_all": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Matches any destination Security Group Tag. Only `true` is supported, omit it otherwise. Only for `PRIVATE_NETWORK` rules.").String,
 				Optional:            true,
 			},
 			"destination_content_category_ids": schema.SetAttribute{
@@ -219,6 +244,10 @@ func (r *AccessRuleResource) Schema(ctx context.Context, req resource.SchemaRequ
 			"destination_application_category_ids": schema.SetAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("IDs of the destination Application Categories. Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_application_list_ids`.").String,
 				ElementType:         types.Int64Type,
+				Optional:            true,
+			},
+			"destination_application_category_all": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Matches all destination Application Categories. Only `true` is supported, omit it otherwise. Only for `PUBLIC_INTERNET` rules. Cannot be combined with `destination_application_list_ids`.").String,
 				Optional:            true,
 			},
 			"destination_application_list_ids": schema.SetAttribute{
@@ -262,7 +291,7 @@ func (r *AccessRuleResource) Schema(ctx context.Context, req resource.SchemaRequ
 				},
 			},
 			"destination_operator": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Logical operator between the destination conditions. With `AND`, the conditions are grouped by type (network objects, service objects, content categories, applications), a destination must match every group and any condition within a group. At least two groups must be configured. Destination Lists, Private Resources, Private Resource Groups, `destination_security_group_tag_ids`, `destination_literals` and `destination_geolocations` are not supported with `AND`. See the [Managing Access Rules guide](../guides/managing_access_rules) for examples.").AddStringEnumDescription("OR", "AND").AddDefaultValueDescription("OR").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Logical operator between the destination conditions. With `AND`, the conditions are grouped by type (network objects, service objects, content categories, applications), a destination must match every group and any condition within a group. At least two groups must be configured. Destination Lists, Private Resources, Private Resource Groups, `destination_private_resource_types`, `destination_security_group_tag_ids`, `destination_security_group_tag_all`, `destination_literals` and `destination_geolocations` are not supported with `AND`.").AddStringEnumDescription("OR", "AND").AddDefaultValueDescription("OR").String,
 				Optional:            true,
 				Computed:            true,
 				Validators: []validator.String{

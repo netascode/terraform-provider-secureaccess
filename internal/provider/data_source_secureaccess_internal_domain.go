@@ -64,23 +64,23 @@ func (d *InternalDomainDataSource) Schema(ctx context.Context, req datasource.Sc
 				Required:            true,
 			},
 			"domain": schema.StringAttribute{
-				MarkdownDescription: "Domain name.",
+				MarkdownDescription: helpers.NewAttributeDescription("Domain name.").String,
 				Computed:            true,
 			},
 			"description": schema.StringAttribute{
-				MarkdownDescription: "Description.",
+				MarkdownDescription: helpers.NewAttributeDescription("Description.").String,
 				Computed:            true,
 			},
 			"include_all_mobile_devices": schema.BoolAttribute{
-				MarkdownDescription: "Whether to include all mobile devices.",
+				MarkdownDescription: helpers.NewAttributeDescription("Whether to include all mobile devices.").String,
 				Computed:            true,
 			},
 			"include_all_virtual_appliances": schema.BoolAttribute{
-				MarkdownDescription: "Whether to include all virtual appliances.",
+				MarkdownDescription: helpers.NewAttributeDescription("Whether to include all virtual appliances.").String,
 				Computed:            true,
 			},
 			"site_ids": schema.ListAttribute{
-				MarkdownDescription: "The list of site IDs associated with the domain.",
+				MarkdownDescription: helpers.NewAttributeDescription("The list of site IDs associated with the domain.").String,
 				ElementType:         types.Int64Type,
 				Computed:            true,
 			},

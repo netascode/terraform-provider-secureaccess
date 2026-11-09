@@ -63,27 +63,27 @@ func (d *InternalNetworkDataSource) Schema(ctx context.Context, req datasource.S
 				Required:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Internal Network.",
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Internal Network.").String,
 				Computed:            true,
 			},
 			"prefix": schema.StringAttribute{
-				MarkdownDescription: "Subnet prefix.",
+				MarkdownDescription: helpers.NewAttributeDescription("Subnet prefix.").String,
 				Computed:            true,
 			},
 			"prefix_length": schema.Int64Attribute{
-				MarkdownDescription: "Subnet prefix length.",
+				MarkdownDescription: helpers.NewAttributeDescription("Subnet prefix length.").String,
 				Computed:            true,
 			},
 			"network_id": schema.Int64Attribute{
-				MarkdownDescription: "Network ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.",
+				MarkdownDescription: helpers.NewAttributeDescription("Network ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.").String,
 				Computed:            true,
 			},
 			"site_id": schema.Int64Attribute{
-				MarkdownDescription: "Site ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.",
+				MarkdownDescription: helpers.NewAttributeDescription("Site ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.").String,
 				Computed:            true,
 			},
 			"network_tunnel_group_id": schema.Int64Attribute{
-				MarkdownDescription: "Network Tunnel Group ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.",
+				MarkdownDescription: helpers.NewAttributeDescription("Network Tunnel Group ID associated with the Internal Network. Exactly one of `network_id`, `site_id`, or `tunnel_id` must be specified.").String,
 				Computed:            true,
 			},
 		},

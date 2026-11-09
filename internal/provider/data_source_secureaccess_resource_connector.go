@@ -67,36 +67,36 @@ func (d *ResourceConnectorDataSource) Schema(ctx context.Context, req datasource
 				Computed:            true,
 			},
 			"instance_id": schema.StringAttribute{
-				MarkdownDescription: "The instance ID of the Resource Connector.",
+				MarkdownDescription: helpers.NewAttributeDescription("The instance ID of the Resource Connector.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"enabled": schema.BoolAttribute{
-				MarkdownDescription: "Indicates whether the Connector can receive traffic.",
+				MarkdownDescription: helpers.NewAttributeDescription("Indicates whether the Connector can receive traffic.").String,
 				Computed:            true,
 			},
 			"confirmed": schema.BoolAttribute{
-				MarkdownDescription: "Indicates whether the Connector exists. Once confirmed, it cannot be changed.",
+				MarkdownDescription: helpers.NewAttributeDescription("Indicates whether the Connector exists. Once confirmed, it cannot be changed.").String,
 				Computed:            true,
 			},
 			"hostname": schema.StringAttribute{
-				MarkdownDescription: "Hostname of the Resource Connector.",
+				MarkdownDescription: helpers.NewAttributeDescription("Hostname of the Resource Connector.").String,
 				Computed:            true,
 			},
 			"status": schema.StringAttribute{
-				MarkdownDescription: "The status of the Resource Connector.",
+				MarkdownDescription: helpers.NewAttributeDescription("The status of the Resource Connector.").String,
 				Computed:            true,
 			},
 			"resource_connector_group_id": schema.Int64Attribute{
-				MarkdownDescription: "The ID of the Resource Connector Group to which this connector belongs.",
+				MarkdownDescription: helpers.NewAttributeDescription("The ID of the Resource Connector Group to which this connector belongs.").String,
 				Computed:            true,
 			},
 			"version": schema.StringAttribute{
-				MarkdownDescription: "The version of the Resource Connector.",
+				MarkdownDescription: helpers.NewAttributeDescription("The version of the Resource Connector.").String,
 				Computed:            true,
 			},
 			"delete_on_destroy": schema.BoolAttribute{
-				MarkdownDescription: "When `true`, the Resource Connector is removed from Secure Access on destroy. When `false`, it is only removed from the Terraform state.",
+				MarkdownDescription: helpers.NewAttributeDescription("When `true`, the Resource Connector is removed from Secure Access on destroy. When `false`, it is only removed from the Terraform state.").String,
 				Computed:            true,
 			},
 		},

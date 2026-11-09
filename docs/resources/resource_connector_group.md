@@ -14,9 +14,10 @@ This resource manages a Resource Connector Group.
 
 ```terraform
 resource "secureaccess_resource_connector_group" "example" {
-  name        = "my resource connector group"
-  region      = "us-west-2"
-  environment = "container"
+  name                 = "my resource connector group"
+  region               = "us-west-2"
+  environment          = "container"
+  private_resource_ids = [123]
 }
 ```
 
@@ -30,6 +31,11 @@ resource "secureaccess_resource_connector_group" "example" {
 - `name` (String) Name of the Resource Connector Group.
 - `region` (String) The region where to deploy Resource Connector Group on Cisco Secure Access.
 
+### Optional
+
+- `dns_servers` (Attributes List) Use alternate DNS servers to resolve private resources based on domain. (see [below for nested schema](#nestedatt--dns_servers))
+- `private_resource_ids` (List of Number) The list of private resource IDs associated with the Resource Connector Group.
+
 ### Read-Only
 
 - `connected_connectors_count` (Number) The number of Connectors in the Resource Connector Group that are connected.
@@ -41,6 +47,14 @@ resource "secureaccess_resource_connector_group" "example" {
 - `provisioning_key_expires_at` (String) The expiration date and time of the Resource Connector Group's provisioning key.
 - `status` (String) The label that describes the status of the Resource Connector Group.
 - `unable_to_sync_connectors_count` (Number) The number of Connectors in the Resource Connector Group that are unable to sync.
+
+<a id="nestedatt--dns_servers"></a>
+### Nested Schema for `dns_servers`
+
+Required:
+
+- `dns_server_id` (Number) The resource ID of the DNS server.
+- `domains` (String) A comma-separated list of domains.
 
 ## Import
 

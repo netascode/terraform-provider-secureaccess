@@ -60,12 +60,12 @@ func (d *ApplicationsDataSource) Schema(ctx context.Context, req datasource.Sche
 
 		Attributes: map[string]schema.Attribute{
 			"filter": schema.StringAttribute{
-				MarkdownDescription: "Case-insensitive substring used to filter applications by name.",
+				MarkdownDescription: helpers.NewAttributeDescription("Case-insensitive substring used to filter applications by name.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"items": schema.MapNestedAttribute{
-				MarkdownDescription: "Map of Applications. The key of the map is the name of the individual Application.",
+				MarkdownDescription: helpers.NewAttributeDescription("Map of Applications. The key of the map is the name of the individual Application.").String,
 				Optional:            true,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{

@@ -64,44 +64,44 @@ func (d *AccessPolicySettingsDataSource) Schema(ctx context.Context, req datasou
 				Computed:            true,
 			},
 			"zero_trust_access_authentication": schema.BoolAttribute{
-				MarkdownDescription: "Enable ZTA authentication timeout.",
+				MarkdownDescription: helpers.NewAttributeDescription("Enable ZTA authentication timeout.").String,
 				Computed:            true,
 			},
 			"zero_trust_access_authentication_timeout": schema.Int64Attribute{
-				MarkdownDescription: "Set the ZTA authentication timeout in minutes.",
+				MarkdownDescription: helpers.NewAttributeDescription("Set the ZTA authentication timeout in minutes.").String,
 				Computed:            true,
 			},
 			"editing_session_duration": schema.Int64Attribute{
-				MarkdownDescription: "How long an editing session lasts before it automatically expires.",
+				MarkdownDescription: helpers.NewAttributeDescription("How long an editing session lasts before it automatically expires.").String,
 				Computed:            true,
 			},
 			"editing_session_extension": schema.Int64Attribute{
-				MarkdownDescription: "Allow admins to extend their editing session once it's close to expiring. (minutes per extension)",
+				MarkdownDescription: helpers.NewAttributeDescription("Allow admins to extend their editing session once it's close to expiring. (minutes per extension)").String,
 				Computed:            true,
 			},
 			"global_ips_profile_id": schema.StringAttribute{
-				MarkdownDescription: "Set the IPS posture profile ID.",
+				MarkdownDescription: helpers.NewAttributeDescription("Set the IPS posture profile ID.").String,
 				Computed:            true,
 			},
 			"microsoft_365_compatibility": schema.BoolAttribute{
-				MarkdownDescription: "Enable or disable Microsoft 365 compatibility.",
+				MarkdownDescription: helpers.NewAttributeDescription("Enable or disable Microsoft 365 compatibility.").String,
 				Computed:            true,
 			},
 			"decryption_global": schema.BoolAttribute{
-				MarkdownDescription: "Enable or disable global IPS.",
+				MarkdownDescription: helpers.NewAttributeDescription("Enable or disable global IPS.").String,
 				Computed:            true,
 			},
 			"decryption_disable_for_sources": schema.ListAttribute{
-				MarkdownDescription: "List of sources for which decryption is disabled. Accepted formats include IP addresses and CIDR blocks.",
+				MarkdownDescription: helpers.NewAttributeDescription("List of sources for which decryption is disabled. Accepted formats include IP addresses and CIDR blocks.").String,
 				ElementType:         types.StringType,
 				Computed:            true,
 			},
 			"log_decrypted_internet_destinations": schema.BoolAttribute{
-				MarkdownDescription: "Log decrypted traffic to internet destinations.",
+				MarkdownDescription: helpers.NewAttributeDescription("Log decrypted traffic to internet destinations.").String,
 				Computed:            true,
 			},
 			"log_decrypted_private_resources": schema.BoolAttribute{
-				MarkdownDescription: "Log decrypted traffic to private resources.",
+				MarkdownDescription: helpers.NewAttributeDescription("Log decrypted traffic to private resources.").String,
 				Computed:            true,
 			},
 		},

@@ -154,6 +154,7 @@ type YamlConfigAttribute struct {
 	MaxFloat                    float64               `yaml:"max_float"`
 	MapKeyExample               string                `yaml:"map_key_example"`
 	MapKeyModelName             string                `yaml:"map_key_model_name"`
+	MapOfMaps                   bool                  `yaml:"map_of_maps"`
 	OrderedList                 bool                  `yaml:"ordered_list"`
 	StringPatterns              []string              `yaml:"string_patterns"`
 	StringMinLength             int64                 `yaml:"string_min_length"`

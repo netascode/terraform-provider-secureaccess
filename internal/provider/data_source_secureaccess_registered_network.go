@@ -68,28 +68,28 @@ func (d *RegisteredNetworkDataSource) Schema(ctx context.Context, req datasource
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Network.",
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Network.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"status": schema.StringAttribute{
-				MarkdownDescription: "Status of the Network.",
+				MarkdownDescription: helpers.NewAttributeDescription("Status of the Network.").String,
 				Computed:            true,
 			},
 			"is_dynamic": schema.BoolAttribute{
-				MarkdownDescription: "Specifies whether the IP is dynamic.",
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the IP is dynamic.").String,
 				Computed:            true,
 			},
 			"is_verified": schema.BoolAttribute{
-				MarkdownDescription: "Specifies whether the IP is verified.",
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the IP is verified.").String,
 				Computed:            true,
 			},
 			"ipv4_prefix": schema.StringAttribute{
-				MarkdownDescription: "IPv4 subnet prefix.",
+				MarkdownDescription: helpers.NewAttributeDescription("IPv4 subnet prefix.").String,
 				Computed:            true,
 			},
 			"ipv4_prefix_length": schema.Int64Attribute{
-				MarkdownDescription: "IPv4 subnet prefix length.",
+				MarkdownDescription: helpers.NewAttributeDescription("IPv4 subnet prefix length.").String,
 				Computed:            true,
 			},
 		},
