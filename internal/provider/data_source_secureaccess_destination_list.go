@@ -28,6 +28,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 // End of section. //template:end imports
@@ -127,11 +129,13 @@ func (d *DestinationListDataSource) Read(ctx context.Context, req datasource.Rea
 	}
 	resData := res.Get("data")
 
-	resData, err = destinationListReadDestinations(ctx, d.client, config.Id.ValueString(), resData, reqMods...)
+	destinations, err := destinationListReadDestinations(ctx, d.client, config.Id.ValueString(), reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
 	}
+	resDataTmp, _ := sjson.SetRaw(resData.String(), "destinations", destinations.Raw)
+	resData = gjson.Parse(resDataTmp)
 
 	config.fromBody(ctx, resData)
 

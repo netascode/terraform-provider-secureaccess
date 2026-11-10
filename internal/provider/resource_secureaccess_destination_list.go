@@ -161,11 +161,14 @@ func (r *DestinationListResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	resData, err = destinationListReadDestinations(ctx, r.client, plan.Id.ValueString(), resData, reqMods...)
+	destinations, err := destinationListReadDestinations(ctx, r.client, plan.Id.ValueString(), reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
 	}
+
+	resDataTmp, _ := sjson.SetRaw(resData.String(), "destinations", destinations.Raw)
+	resData = gjson.Parse(resDataTmp)
 
 	plan.fromBodyUnknowns(ctx, resData)
 
@@ -203,11 +206,14 @@ func (r *DestinationListResource) Read(ctx context.Context, req resource.ReadReq
 	}
 	resData := res.Get("data")
 
-	resData, err = destinationListReadDestinations(ctx, r.client, state.Id.ValueString(), resData, reqMods...)
+	destinations, err := destinationListReadDestinations(ctx, r.client, state.Id.ValueString(), reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
 	}
+
+	resDataTmp, _ := sjson.SetRaw(resData.String(), "destinations", destinations.Raw)
+	resData = gjson.Parse(resDataTmp)
 
 	imp, diags := helpers.IsFlagImporting(ctx, req)
 	if resp.Diagnostics.Append(diags...); resp.Diagnostics.HasError() {
@@ -309,12 +315,13 @@ func (r *DestinationListResource) Update(ctx context.Context, req resource.Updat
 		}
 
 		// Retrieve IDs of the newly created destinations
-		res, err := destinationListReadDestinations(ctx, r.client, plan.Id.ValueString(), gjson.Parse("{}"), reqMods...)
+		destinations, err := destinationListReadDestinations(ctx, r.client, plan.Id.ValueString(), reqMods...)
 		if err != nil {
 			resp.Diagnostics.AddError("Client Error", err.Error())
 			return
 		}
-		plan.fromBodyUnknowns(ctx, res)
+		resData, _ := sjson.SetRaw("{}", "destinations", destinations.Raw)
+		plan.fromBodyUnknowns(ctx, gjson.Parse(resData))
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
