@@ -1,4 +1,4 @@
-# Data source only, fully generated: a Lander Setting is found by its `id` or by its `name`
+# Data source only, fully generated: a  Notification Page is found by its `id` or by its `name`
 # APIBEHAVIOUR: the list ignores `page` (page 2 with a limit of one returned the only item again) and accepts `limit=1000&offset=0` (observed with one item on the int environment)
 # The list is read with the paginator that the client registers for `/policies/v2/` paths (offset/limit 1000), a response shorter than a page ends it
 # APIBEHAVIOUR: GET by id returns the same fields as a list item plus `brandingImageUrl`, which is not exposed, so a lookup by `id` and by `name` fills the same attributes
@@ -7,25 +7,25 @@
 #              `domainlistBlockMessage`, `domainlistBlockUrl`, `domainlistWarnMessage`, `fileTypeBlockMessage`, `fileTypeBlockUrl`, `phishBlockMessage`, `phishBlockUrl`, `securityBlockMessage`, `securityBlockUrl`),
 #              they were all `null` on the only Lander Setting in the list response of the int environment, so their types are not verified (a String attribute would read a JSON null as an empty string). Also not exposed: `brandingImageUrl`, `organizationId`, `createdAt`, `modifiedAt` and `markedForDeletion`
 ---
-name: Lander Setting
+name: Notification Page
 rest_endpoint: /policies/v2/landerSettings
-doc_category: Resources
+doc_category: Secure
 no_resource: true
 no_import: true
-ds_description: This data source reads a Lander Setting, found by its `id` or by its `name`.
+ds_description: This data source reads a Notification Page, found by its `id` or by its `name`.
 attributes:
   - model_name: name
     type: String
-    description: Name of the Lander Setting.
+    description: Name of the Notification Page.
     data_source_query: true
-    example: My Lander Setting
+    example: My Notification Page
   - model_name: isDefault
     type: Bool
-    description: Specifies whether this is the default Lander Setting.
+    description: Specifies whether this is the default Notification Page.
     example: true
   - model_name: isSwgDefault
     type: Bool
-    description: Specifies whether this is the default Lander Setting for the secure web gateway (SWG). The API returns null if it is not set, which is read as `false`.
+    description: Specifies whether this is the default Notification Page for the secure web gateway (SWG). The API returns null if it is not set, which is read as `false`.
     example: false
   - model_name: contactForm
     type: Bool

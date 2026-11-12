@@ -29,7 +29,7 @@ import (
 
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
-type LanderSetting struct {
+type NotificationPage struct {
 	Id                 types.String `tfsdk:"id"`
 	Name               types.String `tfsdk:"name"`
 	IsDefault          types.Bool   `tfsdk:"is_default"`
@@ -42,7 +42,7 @@ type LanderSetting struct {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin getPath
 
-func (data LanderSetting) getPath() string {
+func (data NotificationPage) getPath() string {
 	return "/policies/v2/landerSettings"
 }
 
@@ -54,7 +54,7 @@ func (data LanderSetting) getPath() string {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin fromBody
 
-func (data *LanderSetting) fromBody(ctx context.Context, res gjson.Result) {
+func (data *NotificationPage) fromBody(ctx context.Context, res gjson.Result) {
 	if value := res.Get("name"); value.Exists() {
 		data.Name = types.StringValue(value.String())
 	} else {

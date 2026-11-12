@@ -40,26 +40,26 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ datasource.DataSource              = &LanderSettingDataSource{}
-	_ datasource.DataSourceWithConfigure = &LanderSettingDataSource{}
+	_ datasource.DataSource              = &NotificationPageDataSource{}
+	_ datasource.DataSourceWithConfigure = &NotificationPageDataSource{}
 )
 
-func NewLanderSettingDataSource() datasource.DataSource {
-	return &LanderSettingDataSource{}
+func NewNotificationPageDataSource() datasource.DataSource {
+	return &NotificationPageDataSource{}
 }
 
-type LanderSettingDataSource struct {
+type NotificationPageDataSource struct {
 	client *secureaccess.Client
 }
 
-func (d *LanderSettingDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_lander_setting"
+func (d *NotificationPageDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_notification_page"
 }
 
-func (d *LanderSettingDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *NotificationPageDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This data source reads a Lander Setting, found by its `id` or by its `name`.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This data source reads a Notification Page, found by its `id` or by its `name`.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -68,16 +68,16 @@ func (d *LanderSettingDataSource) Schema(ctx context.Context, req datasource.Sch
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Name of the Lander Setting.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Notification Page.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"is_default": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether this is the default Lander Setting.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether this is the default Notification Page.").String,
 				Computed:            true,
 			},
 			"is_swg_default": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether this is the default Lander Setting for the secure web gateway (SWG). The API returns null if it is not set, which is read as `false`.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether this is the default Notification Page for the secure web gateway (SWG). The API returns null if it is not set, which is read as `false`.").String,
 				Computed:            true,
 			},
 			"contact_form": schema.BoolAttribute{
@@ -91,7 +91,7 @@ func (d *LanderSettingDataSource) Schema(ctx context.Context, req datasource.Sch
 		},
 	}
 }
-func (d *LanderSettingDataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
+func (d *NotificationPageDataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
 	return []datasource.ConfigValidator{
 		datasourcevalidator.ExactlyOneOf(
 			path.MatchRoot("id"),
@@ -100,7 +100,7 @@ func (d *LanderSettingDataSource) ConfigValidators(ctx context.Context) []dataso
 	}
 }
 
-func (d *LanderSettingDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
+func (d *NotificationPageDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -112,8 +112,8 @@ func (d *LanderSettingDataSource) Configure(_ context.Context, req datasource.Co
 
 // Section below is generated&owned by "gen/generator.go". //template:begin read
 
-func (d *LanderSettingDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var config LanderSetting
+func (d *NotificationPageDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var config NotificationPage
 
 	// Read config
 	diags := req.Config.Get(ctx, &config)
