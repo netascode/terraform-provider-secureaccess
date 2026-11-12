@@ -40,26 +40,26 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ datasource.DataSource              = &EnterpriseApplicationDataSource{}
-	_ datasource.DataSourceWithConfigure = &EnterpriseApplicationDataSource{}
+	_ datasource.DataSource              = &TenantControlDataSource{}
+	_ datasource.DataSourceWithConfigure = &TenantControlDataSource{}
 )
 
-func NewEnterpriseApplicationDataSource() datasource.DataSource {
-	return &EnterpriseApplicationDataSource{}
+func NewTenantControlDataSource() datasource.DataSource {
+	return &TenantControlDataSource{}
 }
 
-type EnterpriseApplicationDataSource struct {
+type TenantControlDataSource struct {
 	client *secureaccess.Client
 }
 
-func (d *EnterpriseApplicationDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_enterprise_application"
+func (d *TenantControlDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_tenant_control"
 }
 
-func (d *EnterpriseApplicationDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *TenantControlDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This data source reads an Enterprise Application, found by its `id` or by its `name`.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This data source reads a Tenant Control, found by its `id` or by its `name`.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -68,22 +68,22 @@ func (d *EnterpriseApplicationDataSource) Schema(ctx context.Context, req dataso
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Name of the Enterprise Application.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Tenant Control.").String,
 				Optional:            true,
 				Computed:            true,
 			},
 			"is_default": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether this is the default Enterprise Application.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether this is the default Tenant Control.").String,
 				Computed:            true,
 			},
 			"is_legacy": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether this is a legacy Enterprise Application.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether this is a legacy Tenant Control.").String,
 				Computed:            true,
 			},
 		},
 	}
 }
-func (d *EnterpriseApplicationDataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
+func (d *TenantControlDataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
 	return []datasource.ConfigValidator{
 		datasourcevalidator.ExactlyOneOf(
 			path.MatchRoot("id"),
@@ -92,7 +92,7 @@ func (d *EnterpriseApplicationDataSource) ConfigValidators(ctx context.Context) 
 	}
 }
 
-func (d *EnterpriseApplicationDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
+func (d *TenantControlDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -104,8 +104,8 @@ func (d *EnterpriseApplicationDataSource) Configure(_ context.Context, req datas
 
 // Section below is generated&owned by "gen/generator.go". //template:begin read
 
-func (d *EnterpriseApplicationDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var config EnterpriseApplication
+func (d *TenantControlDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var config TenantControl
 
 	// Read config
 	diags := req.Config.Get(ctx, &config)

@@ -321,7 +321,6 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewContentCategoryListDataSource,
 		NewContentCategoryListsDataSource,
 		NewDestinationListDataSource,
-		NewEnterpriseApplicationDataSource,
 		NewIdentitiesDataSource,
 		NewIdentityTypesDataSource,
 		NewInternalDomainDataSource,
@@ -339,6 +338,7 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewServiceObjectDataSource,
 		NewServiceObjectGroupDataSource,
 		NewSiteDataSource,
+		NewTenantControlDataSource,
 	}
 }
 

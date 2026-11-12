@@ -1,27 +1,27 @@
-# Data source only, fully generated: an Enterprise Application is found by its `id` or by its `name`
+# Data source only, fully generated: a Tenant Control is found by its `id` or by its `name`
 # APIBEHAVIOUR: the fields are in snake_case (`is_default`, `is_legacy`, `org_id`, ...)
 # APIBEHAVIOUR: the list ignores `page` (page 2 with a limit of one returned the only item again) and accepts `limit=1000&offset=0` (observed with one item on the int environment)
 # The list is read with the default paginator of the client (offset/limit 1000), a response shorter than a page ends it
 # APIBEHAVIOUR: GET by id returns the same fields as a list item, so a lookup by `id` and by `name` fills the same attributes
 # Not exposed: `restrictions` (an empty array on the int environment, so the elements are not known), `org_id`, `created_at` and `modified_at`
 ---
-name: Enterprise Application
+name: Tenant Control
 rest_endpoint: /policies/v2/enterpriseApplications
-doc_category: Resources
+doc_category: Secure
 no_resource: true
 no_import: true
-ds_description: This data source reads an Enterprise Application, found by its `id` or by its `name`.
+ds_description: This data source reads a Tenant Control, found by its `id` or by its `name`.
 attributes:
   - model_name: name
     type: String
-    description: Name of the Enterprise Application.
+    description: Name of the Tenant Control.
     data_source_query: true
-    example: My Enterprise Application
+    example: My Tenant Control
   - model_name: is_default
     type: Bool
-    description: Specifies whether this is the default Enterprise Application.
+    description: Specifies whether this is the default Tenant Control.
     example: true
   - model_name: is_legacy
     type: Bool
-    description: Specifies whether this is a legacy Enterprise Application.
+    description: Specifies whether this is a legacy Tenant Control.
     example: false

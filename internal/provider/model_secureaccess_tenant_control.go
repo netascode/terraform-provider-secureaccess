@@ -29,7 +29,7 @@ import (
 
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
-type EnterpriseApplication struct {
+type TenantControl struct {
 	Id        types.String `tfsdk:"id"`
 	Name      types.String `tfsdk:"name"`
 	IsDefault types.Bool   `tfsdk:"is_default"`
@@ -40,7 +40,7 @@ type EnterpriseApplication struct {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin getPath
 
-func (data EnterpriseApplication) getPath() string {
+func (data TenantControl) getPath() string {
 	return "/policies/v2/enterpriseApplications"
 }
 
@@ -52,7 +52,7 @@ func (data EnterpriseApplication) getPath() string {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin fromBody
 
-func (data *EnterpriseApplication) fromBody(ctx context.Context, res gjson.Result) {
+func (data *TenantControl) fromBody(ctx context.Context, res gjson.Result) {
 	if value := res.Get("name"); value.Exists() {
 		data.Name = types.StringValue(value.String())
 	} else {
