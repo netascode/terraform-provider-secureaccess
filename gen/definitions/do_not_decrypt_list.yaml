@@ -1,0 +1,106 @@
+# Manual resource: Create(), Update(), ModifyPlan() and ValidateConfig() are hand-written, the schema, toBody(), fromBody() and fromBodyPartial() are generated
+# Data source: fully generated, a list is found by `id` or by `name`, the object is taken from the list response
+# -> adjustBody(): `destinations` is required on create, also if there are none
+# -> Create(): at most 500 destinations are accepted on create, the rest is added with updates
+# -> Update(): PUT takes `add*`/`remove*` lists instead of full lists, Update() builds them from state vs. plan (applications and categories can only be added, see below)
+# -> ModifyPlan(): warns about a plan that removes applications or categories, Update() refuses it, the API cannot do it
+# -> ValidateConfig(): a destination that is listed more than once is rejected, a set cannot express that (the same destination with two comments)
+# `string_patterns` of `destination` reject empty values, whitespace, uppercase letters, URLs, a trailing dot and malformed IPv4 addresses or CIDR blocks
+# APIBEHAVIOUR: GET does not return destinations and applications (only totals), they are `write_only` and tracked in the Terraform state
+# APIBEHAVIOUR: GET returns `decryptExceptionCategories` as a list of `{categoryId, name}`, while a list of ids is written, they are `write_only` as well
+# APIBEHAVIOUR: response JSON is not wrapped, list endpoint returns a bare array
+# APIBEHAVIOUR: adding a destination that exists updates its comment, adding it without a comment keeps the old comment
+# APIBEHAVIOUR: PUT removal of a private IP address and of a CIDR block answered "destination not found", so all IP addresses and CIDR blocks are removed by id from the destination list `exceptiondomainlistId`
+# APIBEHAVIOUR: removing a destination that does not exist is an error, Update() checks the destination list and leaves such destinations out
+# APIBEHAVIOUR: domain names are stored in lowercase, URLs are rejected, a failed PUT does not change anything
+# APIBEHAVIOUR: applications and categories can be added, but not removed: PUT rejects `removeApplications` and `removeDecryptExceptionCategories` with 400 "is not an allowed field",
+#               also together with other changes, PATCH is not routed, and the application list behind the object (`exceptionapplicationlistId`) cannot be read through /policies/v2/applicationLists.
+#               The API documentation lists the remove fields. Observed on the int environment, assumed for production.
+# -> ModifyPlan() warns about a plan that removes them, Update() refuses it with an error before it sends anything, the way out is `terraform apply -replace`
+---
+name: Do Not Decrypt List
+rest_endpoint: /policies/v2/doNotDecryptLists
+doc_category: Resources
+adjust_body: true
+ds_description: >-
+  This data source reads a Do Not Decrypt List, found by its `id` or by its `name`.
+  The Secure Access API does not return the destinations and applications of a list, therefore they are always empty.
+res_description: >-
+  This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list,
+  and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform
+  are not detected and they are not populated by `terraform import`.
+  Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that
+  removes them is rejected on apply, replace the list instead (`terraform apply -replace=<resource address>`), which creates a new list with a new id.
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the Do Not Decrypt List.
+    example: my_do_not_decrypt_list
+    data_source_query: true
+    string_max_length: 1024
+  - model_name: destinations
+    type: Set
+    write_only: true
+    ds_description: Always empty, the Secure Access API does not return the destinations of a list.
+    description: Destinations that are excluded from decryption, domain names (in lowercase), IPv4 addresses or CIDR blocks. URLs are not supported. Large lists are split into multiple requests automatically.
+    attributes:
+      - model_name: destination
+        type: String
+        description: The destination value, a domain name in lowercase, an IPv4 address or an IPv4 CIDR block. URLs, whitespace and a trailing dot are not allowed.
+        example: example.com
+        id: true
+        mandatory: true
+        string_patterns:
+          - '^[^\s\v\p{Z}\x{85}]+$'
+          - '^\P{Lu}+$'
+          - '^[^/]+$|^[0-9.]+/[0-9]{1,2}$'
+          - '[^.]$'
+          - '[^0-9./]|^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:/(?:3[0-2]|[12]?[0-9]))?$'
+      - model_name: comment
+        type: String
+        description: Comment for the destination.
+        example: This is a comment for the destination.
+        string_min_length: 1
+        string_max_length: 255
+  - model_name: applications
+    type: Set
+    write_only: true
+    ds_description: Always empty, the Secure Access API does not return the applications of a list.
+    element_type: Int64
+    description: IDs of the applications that are excluded from decryption. They can be added to an existing list, but not removed.
+    example: 101
+    exclude_test: true
+  - model_name: decryptExceptionCategories
+    tf_name: decrypt_exception_categories
+    type: Set
+    write_only: true
+    ds_description: Always empty, the content categories of a list are not read back.
+    element_type: Int64
+    description: IDs of the content categories that are excluded from decryption. They can be added to an existing list, but not removed.
+    example: 12
+    exclude_test: true
+  # RO
+  - model_name: isDefault
+    type: Bool
+    description: Specifies whether this is the default Do Not Decrypt List.
+    computed: true
+    exclude_test: true
+  - model_name: totalDomains
+    type: Int64
+    description: Number of domains in the Do Not Decrypt List.
+    computed: true
+    computed_refresh_value: true
+    exclude_test: true
+  - model_name: totalIps
+    type: Int64
+    description: Number of IP addresses in the Do Not Decrypt List.
+    computed: true
+    computed_refresh_value: true
+    exclude_test: true
+  - model_name: totalApplications
+    type: Int64
+    description: Number of applications in the Do Not Decrypt List.
+    computed: true
+    computed_refresh_value: true
+    exclude_test: true
