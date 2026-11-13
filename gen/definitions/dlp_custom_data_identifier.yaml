@@ -1,0 +1,64 @@
+# Manual resource
+# PATCH with PUT body
+---
+name: DLP Custom Data Identifier
+rest_endpoint: /policies/v2/dlp/custom/dataIdentifiers
+doc_category: Secure
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the DLP Custom Data Identifier.
+    example: my_dlp_custom_data_identifier
+    data_source_query: true
+  - model_name: description
+    type: String
+    description: Description of the DLP Custom Identifier.
+    example: This is my DLP data classification.
+  # - model_name: type
+  #   type: String
+  #   description: Type of the DLP Custom Identifier.
+  #   computed: true
+  - model_name: countUniqueMatchesOnly
+    tf_name: unique_threshold
+    type: Bool
+    description: Whether to count only unique matches.
+    example: true
+  - model_name: thresholdRanges
+    type: List
+    description: Threshold ranges for the custom data identifier.
+    mandatory: true
+    attributes:
+      - model_name: minimum
+        type: Int64
+        description: Minimum threshold value.
+        mandatory: true
+        example: 1
+      - model_name: maximum
+        type: Int64
+        description: Maximum threshold value. Use `-1` for no maximum.
+        mandatory: true
+        example: 10
+      - model_name: severity
+        type: String
+        description: Severity level of the threshold range. One of [\"very-low\", \"low\", \"medium\", \"high\", \"critical\"] or any custom value.'
+        example: "low"
+  - model_name: terms
+    type: Set
+    element_type: String
+    description: Terms for the custom data identifier. `terms` and/or `patterns` must be provided.
+    example: "hello_term"
+    max_list: 100
+  - model_name: patterns
+    type: Set
+    element_type: String
+    description: The set of regex patterns for the custom data identifier. Each pattern must be at least three characters long and cannot start with ^ or end with $.  `terms` and/or `patterns` must be provided.
+    example: "pattern"
+    max_list: 10
+    minimum_test_value: '["pattern"]'
+  - model_name: proximity
+    type: Set
+    element_type: String
+    description: Proximity values.
+    example: "hello_proximity"
+    max_list: 10

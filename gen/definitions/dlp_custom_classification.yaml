@@ -1,0 +1,79 @@
+# Manual resource
+# PATCH with PUT body
+# GET for all elements does not contain the full details of the DLP Custom Classification. Need to make separate GET with specific ID
+---
+name: DLP Custom Classification
+rest_endpoint: /policies/v2/dlp/custom/classifications
+doc_category: Secure
+adjust_body: true
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the DLP Custom Classification.
+    example: my_dlp_custom_classification
+    data_source_query: true
+  - model_name: description
+    type: String
+    description: Description of the DLP Custom Classification.
+    example: My custom classification for sensitive data.
+  - model_name: classifierEvaluationStrategy
+    tf_name: evaluation_strategy
+    type: String
+    mandatory: true
+    example: any
+    description: Evaluation strategy of the Data Identifiers.
+    enum_values: ["any", "all"]
+  - model_name: dataIdentifiers
+    tf_name: included_data_identifiers
+    type: List
+    description: List of data identifiers included in the DLP Custom Classification.
+    minimum_test_value: "true"   # marks the block for the minimal test
+    attributes:
+      - model_name: id
+        type: String
+        mandatory: true
+        id: true
+        description: Identifier of the data identifier.
+        example: c9023098-7717-40e5-8e94-1f0687f125f6
+        minimum_test_value: secureaccess_dlp_custom_data_identifier.test1.id
+        test_value: secureaccess_dlp_custom_data_identifier.test1.id
+      # - model_name: name
+      #   type: String
+      #   computed: true
+      #   description: Name of the data identifier.
+  - model_name: excludedDataIdentifiers
+    tf_name: excluded_data_identifiers
+    type: List
+    description: List of data identifiers excluded from the DLP Custom Classification.
+    attributes:
+      - model_name: id
+        type: String
+        id: true
+        mandatory: true
+        description: Identifier of the data identifier.
+        example: c9023098-7717-40e5-8e94-1f0687f125f6
+        test_value: secureaccess_dlp_custom_data_identifier.test2.id
+      # - model_name: name
+      #   type: String
+      #   computed: true
+      #   description: Name of the data identifier.
+
+test_prerequisites: |-
+  resource "secureaccess_dlp_custom_data_identifier" "test1" {
+    name = "my_dlp_custom_classification_1"
+    threshold_ranges = [{
+      minimum = 1
+      maximum = 10
+    }]
+    patterns = ["pattern"]
+  }
+
+  resource "secureaccess_dlp_custom_data_identifier" "test2" {
+    name = "my_dlp_custom_classification_2"
+    threshold_ranges = [{
+      minimum = 1
+      maximum = 10
+    }]
+    patterns = ["pattern"]
+  }
