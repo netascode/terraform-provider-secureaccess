@@ -1,0 +1,76 @@
+# Data source only, fully generated: a Threat Category is found by its `id` or by its `name`
+# APIBEHAVIOUR: the route is case sensitive. `/policies/v2/threatcategories`, as it is spelled in the internal Security Profiles guide, answers 404 "no Route matched" on the int environment, `/policies/v2/threatCategories` answers 200
+# APIBEHAVIOUR: the list ignores `page` and `limit` and returns all items in a single response (observed with two items on the int environment)
+# APIBEHAVIOUR: GET by id returns `categories` in addition to the fields of a list item. A data source found by `name` takes the object from the list response, so `categories` is not exposed, a lookup by `id` and by `name` returns the same
+# APIBEHAVIOUR: `isSwgDefault` was `null` for one of the two items and `true` for the other on the int environment, the generated fromBody() reads a JSON null as `false`
+# The list is read with the default paginator of the client (offset/limit 1000), the response is shorter than a page, which ends it
+# Not exposed: `categories` (see above), `categoryBits`, `organizationId`, `createdAt`, `modifiedAt` and `markedForDeletion`
+---
+name: Threat Category
+rest_endpoint: /policies/v2/threatCategories
+doc_category: Resources
+no_resource: true
+no_import: true
+ds_description: This data source reads a Threat Category, found by its `id` or by its `name`.
+attributes:
+  - model_name: name
+    type: String
+    description: Name of the Threat Category.
+    data_source_query: true
+    example: My Threat Category
+  - model_name: bundleTypeId
+    type: Int64
+    description: ID of the bundle type of the Threat Category.
+    example: 1
+  - model_name: isDefault
+    type: Bool
+    description: Specifies whether this is the default Threat Category.
+    example: true
+  - model_name: isSwgDefault
+    type: Bool
+    description: Specifies whether this is the default Threat Category for the secure web gateway (SWG). The API returns null if it is not set, which is read as `false`.
+    example: false
+  - model_name: ampScan
+    type: Bool
+    description: Specifies whether AMP scan is enabled.
+    example: false
+  - model_name: botnetProtection
+    type: Bool
+    description: Specifies whether botnet protection is enabled.
+    example: true
+  - model_name: fileInspection
+    type: Bool
+    description: Specifies whether file inspection is enabled.
+    example: false
+  - model_name: ipFiltering
+    type: Bool
+    description: Specifies whether IP filtering is enabled.
+    example: false
+  - model_name: malwareProtection
+    type: Bool
+    description: Specifies whether malware protection is enabled.
+    example: true
+  - model_name: malwareUrlProxy
+    type: Bool
+    description: Specifies whether the malware URL proxy is enabled.
+    example: false
+  - model_name: phishingProtection
+    type: Bool
+    description: Specifies whether phishing protection is enabled.
+    example: true
+  - model_name: superBotnet
+    type: Bool
+    description: Specifies whether super botnet is enabled.
+    example: true
+  - model_name: superMalware
+    type: Bool
+    description: Specifies whether super malware is enabled.
+    example: true
+  - model_name: suspiciousResponseFiltering
+    type: Bool
+    description: Specifies whether suspicious response filtering is enabled.
+    example: false
+  - model_name: urlProxyHttps
+    type: Bool
+    description: Specifies whether URL proxy HTTPS is enabled.
+    example: false
