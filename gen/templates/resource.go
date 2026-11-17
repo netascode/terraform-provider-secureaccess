@@ -163,6 +163,16 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 					float64validator.Between({{.MinFloat}}, {{.MaxFloat}}),
 				},
 				{{- else if or (ne .MinList 0) (ne .MaxList 0)}}
+				{{- if isSet .}}
+				Validators: []validator.Set{
+					{{- if ne .MinList 0}}
+					setvalidator.SizeAtLeast({{.MinList}}),
+					{{- end}}
+					{{- if ne .MaxList 0}}
+					setvalidator.SizeAtMost({{.MaxList}}),
+					{{- end}}
+				},
+				{{- else}}
 				Validators: []validator.List{
 					{{- if ne .MinList 0}}
 					listvalidator.SizeAtLeast({{.MinList}}),
@@ -171,6 +181,7 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 					listvalidator.SizeAtMost({{.MaxList}}),
 					{{- end}}
 				},
+				{{- end}}
 				{{- end}}
 				{{- if and (len .DefaultValue) (eq .Type "Int64")}}
 				Default:             int64default.StaticInt64({{.DefaultValue}}),
@@ -459,6 +470,16 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 											},
 										},
 										{{- if or (ne .MinList 0) (ne .MaxList 0)}}
+										{{- if isSet .}}
+										Validators: []validator.Set{
+											{{- if ne .MinList 0}}
+											setvalidator.SizeAtLeast({{.MinList}}),
+											{{- end}}
+											{{- if ne .MaxList 0}}
+											setvalidator.SizeAtMost({{.MaxList}}),
+											{{- end}}
+										},
+										{{- else}}
 										Validators: []validator.List{
 											{{- if ne .MinList 0}}
 											listvalidator.SizeAtLeast({{.MinList}}),
@@ -469,12 +490,23 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 										},
 										{{- end}}
 										{{- end}}
+										{{- end}}
 									},
 									{{- end}}
 									{{- end}}
 								},
 							},
 							{{- if or (ne .MinList 0) (ne .MaxList 0)}}
+							{{- if isSet .}}
+							Validators: []validator.Set{
+								{{- if ne .MinList 0}}
+								setvalidator.SizeAtLeast({{.MinList}}),
+								{{- end}}
+								{{- if ne .MaxList 0}}
+								setvalidator.SizeAtMost({{.MaxList}}),
+								{{- end}}
+							},
+							{{- else}}
 							Validators: []validator.List{
 								{{- if ne .MinList 0}}
 								listvalidator.SizeAtLeast({{.MinList}}),
@@ -483,6 +515,7 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 								listvalidator.SizeAtMost({{.MaxList}}),
 								{{- end}}
 							},
+							{{- end}}
 							{{- end}}
 							{{- end}}
 						},
