@@ -1,0 +1,405 @@
+# Manual resource
+# Missing: Endpoint Channels, Browser Controls, Email Notifications Custom Recipients (Broken API)
+# PATCH with PUT body
+# Get return list of rules, with no details, so Data source need to read by ID
+---
+name: DLP Real Time Rule
+rest_endpoint: /policies/v2/dlp/realTime/rules
+adjust_body: true
+doc_category: Secure
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the DLP Real Time Rule.
+    example: my_dlp_real_time_rule
+    data_source_query: true
+  - model_name: description
+    type: String
+    description: Description of the rule.
+    example: My real time rule
+  - model_name: severity
+    type: String
+    description: Severity of the rule.
+    mandatory: true
+    example: CRITICAL
+    enum_values: ["CRITICAL", "ALERT", "WARNING", "INFO"]
+  # - model_name: type
+  #   type: String
+  #   description: Description of the DLP Real Time Rule.
+  #   example: My real time rule.
+  - model_name: enabled
+    type: Bool
+    mandatory: true
+    description: Whether the rule is enabled.
+    example: true
+
+  # Data Classification
+  - model_name: scannableContexts
+    tf_name: data_classification_scannable_contexts
+    type: Set
+    element_type: String
+    mandatory: true
+    description: Select where to search for the selected data classifications.
+    example: "CONTENT"
+    enum_values: ["CONTENT", "FILENAME"]
+  - model_name: classifications
+    tf_name: data_classifications
+    mandatory: true
+    type: Set
+    description: Classifications to scan using OR boolean logic.
+    attributes:
+      - model_name: id
+        id: true
+        mandatory: true
+        type: String
+        description: ID of the classification.
+        example: 39b3b945-2e21-4831-bbbc-86fc5200ddf7
+        test_value: data.secureaccess_dlp_builtin_classification.test.id
+      - model_name: name
+        type: String
+        description: Name of the classification.
+        example: Built-in PCI Classification
+        test_value: data.secureaccess_dlp_builtin_classification.test.name
+  
+  # Files Control
+  - model_name: mipTags
+    tf_name: file_labels
+    type: Set
+    element_type: String
+    description: Up to 10 labels that this rule will search for when inspecting document properties. Applicable only when `unclassified_files_scan` is not set to `true`.
+    example: "Confidential"
+    max_list: 10
+  - model_name: fileSizeConfigType
+    tf_name: file_size_configuration_type
+    type: String
+    description: Configuration type for file size control.
+    example: "RANGE"
+    enum_values: ["RANGE"]
+  - model_name: fileSizeFrom
+    tf_name: file_size_from
+    type: Int64
+    description: Minimum file size for file control.
+    example: 1024
+  - model_name: fileSizeFromUnit
+    tf_name: file_size_from_unit
+    type: String
+    description: Unit of the minimum file size for file control.
+    example: "KB"
+    enum_values: ["KB", "MB"]
+  - model_name: fileSizeTo
+    tf_name: file_size_to
+    type: Int64
+    description: Maximum file size for file control.
+    example: 51200
+  - model_name: fileSizeToUnit
+    tf_name: file_size_to_unit
+    type: String
+    description: Unit of the maximum file size for file control.
+    example: "KB"
+    enum_values: ["KB", "MB"]
+  - model_name: fileTypesIncluded
+    tf_name: file_types_included
+    type: Set
+    description: File types included for file control.
+    attributes:
+      - model_name: id
+        id: true
+        mandatory: true
+        type: Int64
+        description: ID of the file type.
+        example: 250
+      - model_name: name
+        type: String
+        description: Name of the file type.
+        example: cdr
+  - model_name: fileTypeGroupsIncluded
+    tf_name: file_type_groups_included
+    type: Set
+    description: File type groups included for file control.
+    attributes:
+      - model_name: id
+        id: true
+        mandatory: true
+        type: Int64
+        description: ID of the file type group.
+        example: 6
+      - model_name: name
+        type: String
+        description: Name of the file type group.
+        example: Documents
+        exclude_test: true
+  - model_name: fileTypesExcluded
+    tf_name: file_types_excluded
+    type: Set
+    description: File types excluded from file control.
+    attributes:
+      - model_name: id
+        id: true
+        mandatory: true
+        type: Int64
+        description: ID of the file type.
+        example: 156
+      - model_name: name
+        type: String
+        description: Name of the file type.
+        example: dbf
+  - model_name: fileTypeGroupsExcluded
+    tf_name: file_type_groups_excluded
+    type: Set
+    description: File type groups excluded from file control.
+    attributes:
+      - model_name: id
+        id: true
+        mandatory: true
+        type: Int64
+        description: ID of the file type group.
+        example: 2
+      - model_name: name
+        type: String
+        description: Name of the file type group.
+        example: Compressed files
+  - model_name: detectUnclassifiedFiles
+    tf_name: unclassified_files_scan
+    type: Bool
+    description: Scan and log files with no labels. Applicable only when `file_labels` is unset.
+    example: false
+  
+  # Identities
+  - model_name: identities
+    tf_name: identities_included
+    type: Set
+    mandatory: true
+    description: Identities included for scanning. Use `type_id` to specify whole types of identities (i.a. Network Tunnel Groups). Add `id` to specify individual identities within `type_id`.
+    attributes:
+      - model_name: originId
+        tf_name: id
+        type: Int64
+        description: ID of the identity.
+        example: 1442790899
+        exclude_test: true
+      - model_name: originTypeId
+        tf_name: type_id
+        mandatory: true
+        id: true
+        type: Int64
+        description: Type ID of the identity.
+        example: 7
+  - model_name: excludedIdentities
+    tf_name: identities_excluded
+    type: Set
+    description: Identities excluded from scanning. Use `type_id` to specify whole types of identities (i.a. Network Tunnel Groups). Add `id` to specify individual identities within `type_id`.
+    attributes:
+      - model_name: originId
+        tf_name: id
+        type: Int64
+        description: ID of the identity.
+        exclude_example: true
+        exclude_test: true
+      - model_name: originTypeId
+        tf_name: type_id
+        mandatory: true
+        id: true
+        type: Int64
+        description: Type ID of the identity.
+        example: 40
+  
+  # Destinations
+  - model_name: allDestinationsScope
+    tf_name: all_destinations_scope
+    type: String
+    mandatory: true
+    enum_values: ["NONE", "FILES_AND_FORMS", "FILES_AND_VETTED_APPS_FORMS"]
+    description: Scan traffic for all destinations specified by the scope. Use `NONE` to specify destinations manually.
+    example: "FILES_AND_FORMS"
+  - model_name: destinationListIds
+    tf_name: destination_list_included_ids
+    type: Set
+    element_type: String
+    description: Destination list IDs included for scanning.
+    exclude_example: true
+    exclude_test: true
+  - model_name: excludedDestinationListIds
+    tf_name: destination_list_excluded_ids
+    type: Set
+    element_type: String
+    description: Destination list IDs excluded from scanning.
+    exclude_example: true
+    exclude_test: true
+  - model_name: applications
+    tf_name: applications_included
+    type: Set
+    description: Applications included for scanning.
+    exclude_example: true
+    exclude_test: true
+    attributes:
+      - model_name: id
+        tf_name: id
+        type: Int64
+        mandatory: true
+        description: ID of the application.
+      - model_name: trafficDirection
+        tf_name: traffic_direction
+        type: String
+        mandatory: true
+        description: Traffic direction of the application.
+        enum_values: ["REQUEST", "RESPONSE", "BOTH"]
+  - model_name: excludedApplicationIds
+    tf_name: applications_excluded
+    type: Set
+    element_type: String
+    description: Applications excluded from scanning.
+    exclude_example: true
+    exclude_test: true
+  - model_name: applicationCategories
+    tf_name: application_categories_included
+    type: Set
+    description: Application categories included for scanning.
+    exclude_example: true
+    exclude_test: true
+    attributes:
+      - model_name: id
+        tf_name: id
+        type: Int64
+        mandatory: true
+        description: ID of the application category.
+      - model_name: trafficDirection
+        tf_name: traffic_direction
+        mandatory: true
+        type: String
+        description: Traffic direction of the application.
+        enum_values: ["REQUEST", "RESPONSE", "BOTH"]
+  - model_name: excludedApplicationCategoryIds
+    tf_name: application_categories_excluded
+    type: Set
+    element_type: String
+    description: Application categories excluded from scanning.
+    exclude_example: true
+    exclude_test: true
+  - model_name: privateResources
+    tf_name: private_resources_included
+    type: Set
+    description: Private resources included for scanning.
+    exclude_example: true
+    exclude_test: true
+    attributes:
+      - model_name: id
+        tf_name: id
+        type: Int64
+        mandatory: true
+        description: ID of the private resource.
+      - model_name: trafficDirection
+        tf_name: traffic_direction
+        type: String
+        mandatory: true
+        description: Traffic direction of the private resource.
+        enum_values: ["REQUEST", "RESPONSE", "BOTH"]
+  - model_name: excludedPrivateResources
+    tf_name: private_resources_excluded
+    type: Set
+    description: Private resources excluded from scanning.
+    exclude_example: true
+    exclude_test: true
+    attributes:
+      - model_name: id
+        tf_name: id
+        type: Int64
+        mandatory: true
+        description: ID of the private resource.
+      - model_name: trafficDirection
+        tf_name: traffic_direction
+        mandatory: true
+        type: String
+        description: Traffic direction of the private resource.
+        enum_values: ["REQUEST", "RESPONSE", "BOTH"]
+  - model_name: privateResourceGroups
+    tf_name: private_resource_groups_included
+    type: Set
+    description: Private resource groups included for scanning.
+    exclude_example: true
+    exclude_test: true
+    attributes:
+      - model_name: id
+        tf_name: id
+        type: Int64
+        mandatory: true
+        description: ID of the private resource group.
+      - model_name: trafficDirection
+        tf_name: traffic_direction
+        type: String
+        mandatory: true
+        description: Traffic direction of the private resource.
+        enum_values: ["REQUEST", "RESPONSE", "BOTH"]
+  - model_name: excludedPrivateResourceGroups
+    tf_name: private_resource_groups_excluded
+    type: Set
+    description: Private resource groups excluded from scanning.
+    exclude_example: true
+    exclude_test: true
+    attributes:
+      - model_name: id
+        tf_name: id
+        type: Int64
+        mandatory: true
+        description: ID of the private resource group.
+      - model_name: trafficDirection
+        tf_name: traffic_direction
+        mandatory: true
+        type: String
+        description: Traffic direction of the private resource.
+        enum_values: ["REQUEST", "RESPONSE", "BOTH"]
+
+  # Action
+  - model_name: action
+    type: String
+    mandatory: true
+    description: Action associated with the rule.
+    example: BLOCK
+    enum_values: ["BLOCK", "MONITOR"]
+  - model_name: overrideBlock
+    type: Bool
+    description: Allow override with business justification. Requires `notification_popup` to be set to `true`.
+    example: false
+
+  # User Notifications
+  - model_name: popupNotification
+    tf_name: notification_popup
+    type: Bool
+    description: Sends endpoint notifications to the user's machine.
+    example: true
+  - model_name: edlpNotificationTemplateId
+    tf_name: notification_template_id
+    type: String
+    description: ID of the notification template for custom notifications.
+    exclude_example: true
+    exclude_test: true
+  - model_name: notifyActor
+    tf_name: email_notify_actor
+    type: Bool
+    description: Sends email notifications to the actor.
+    example: true
+  - model_name: notifyManager
+    tf_name: email_notify_actors_manager
+    type: Bool
+    description: Sends email notifications to the actors' manager.
+    example: true
+  - model_name: customEmailsNotification
+    tf_name: email_notify_custom_recipients
+    type: Set
+    element_type: String
+    description: Sends email notifications to custom email addresses.
+    example: user1@example.com
+    exclude_test: true # This is failing on PATCH
+  # notificationTemplateUuid conditionally added in model_secureaccess_dlp_real_time_rule.go
+  - model_name: notificationTemplateUuid
+    tf_name: email_notification_template_id
+    type: String
+    description: UUID of the notification template.
+    example: 00000000-0000-0000-0000-000000000000
+    exclude_example: true
+    exclude_test: true
+
+test_prerequisites: |-
+  data "secureaccess_dlp_builtin_classification" "test" {
+    name = "Built-in PCI Classification"
+  }
