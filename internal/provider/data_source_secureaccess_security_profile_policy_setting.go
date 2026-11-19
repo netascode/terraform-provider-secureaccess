@@ -90,6 +90,10 @@ func (d *SecurityProfilePolicySettingDataSource) Schema(ctx context.Context, req
 				MarkdownDescription: helpers.NewAttributeDescription("Mask of the blocked AI supply chain categories (Web UI AI Supply Chain Blocking). The API returns `0` if the blocking is off, otherwise a mask string, according to the Security Profiles API guide its first digit adds up 2 for Prohibited Suppliers, 4 for Code Execution and 8 for Copyleft License (as a hexadecimal digit) and the 53 digits after it are 0.").String,
 				Computed:            true,
 			},
+			"ai_semantic_inspection": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether AI Semantic Inspection is enabled (Web UI AI Semantic Inspection). The Security Profiles API guide does not describe this setting, the match with the Web UI option comes from the name of the API field (`mcpSemanticInspection`).").String,
+				Computed:            true,
+			},
 			"reporting": schema.StringAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Reporting setting of the Policy Setting.").String,
 				Computed:            true,

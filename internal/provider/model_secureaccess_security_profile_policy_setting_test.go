@@ -80,7 +80,7 @@ func policySettingBody(t *testing.T, over map[string]any) string {
 	t.Helper()
 	body := map[string]any{
 		"name": "p", "intelligentProxyHttps": false, "intelligentProxy": false, "swgDisplayBlockPage": 0,
-		"saml": 0, "safeSearch": false, "aiSupplyChainCategories": "0", "reporting": "enabled",
+		"saml": 0, "safeSearch": false, "aiSupplyChainCategories": "0", "mcpSemanticInspection": false, "reporting": "enabled",
 	}
 	for k, v := range over {
 		body[k] = v
@@ -96,6 +96,7 @@ func TestSecurityProfilePolicySettingFromBody(t *testing.T) {
 	type want struct {
 		name, ai, reporting                       string
 		decryption, proxy, blockPage, sso, search bool
+		semantic                                  bool
 	}
 	tests := []struct {
 		name string
@@ -113,6 +114,13 @@ func TestSecurityProfilePolicySettingFromBody(t *testing.T) {
 		{"only block page mode", policySettingBody(t, map[string]any{"swgDisplayBlockPage": 1}), want{name: "p", ai: "0", reporting: "enabled", blockPage: true}},
 		{"only single sign-on", policySettingBody(t, map[string]any{"saml": 1}), want{name: "p", ai: "0", reporting: "enabled", sso: true}},
 		{"only safe search", policySettingBody(t, map[string]any{"safeSearch": true}), want{name: "p", ai: "0", reporting: "enabled", search: true}},
+		{"only ai semantic inspection", policySettingBody(t, map[string]any{"mcpSemanticInspection": true}), want{name: "p", ai: "0", reporting: "enabled", semantic: true}},
+		{
+			// the AI supply chain mask is a different setting from AI Semantic Inspection, one must not turn on the other
+			name: "only an AI supply chain category",
+			body: policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingAllAiCategories}),
+			want: want{name: "p", ai: policySettingAllAiCategories, reporting: "enabled"},
+		},
 		{
 			// the guide: Decryption sets intelligentProxy and intelligentProxyHttps to true and swgDisplayBlockPage to 0
 			name: "the state of Decryption in the guide",
@@ -127,14 +135,14 @@ func TestSecurityProfilePolicySettingFromBody(t *testing.T) {
 		},
 		{
 			name: "everything on, other strings",
-			body: policySettingBody(t, map[string]any{"name": "all", "intelligentProxyHttps": true, "intelligentProxy": true, "swgDisplayBlockPage": 1, "saml": 1, "safeSearch": true, "aiSupplyChainCategories": policySettingAllAiCategories, "reporting": "disabled"}),
-			want: want{name: "all", ai: policySettingAllAiCategories, reporting: "disabled", decryption: true, proxy: true, blockPage: true, sso: true, search: true},
+			body: policySettingBody(t, map[string]any{"name": "all", "intelligentProxyHttps": true, "intelligentProxy": true, "swgDisplayBlockPage": 1, "saml": 1, "safeSearch": true, "aiSupplyChainCategories": policySettingAllAiCategories, "mcpSemanticInspection": true, "reporting": "disabled"}),
+			want: want{name: "all", ai: policySettingAllAiCategories, reporting: "disabled", decryption: true, proxy: true, blockPage: true, sso: true, search: true, semantic: true},
 		},
 		{"a number other than 1 is true, as the data source documents", policySettingBody(t, map[string]any{"saml": 2, "swgDisplayBlockPage": 2}), want{name: "p", ai: "0", reporting: "enabled", sso: true, blockPage: true}},
 		{
 			// documented in the definition: the generated fromBody() reads a JSON null as an empty string and as false
 			name: "a JSON null is read as an empty string and as false",
-			body: policySettingBody(t, map[string]any{"name": nil, "reporting": nil, "aiSupplyChainCategories": nil, "intelligentProxy": nil, "saml": nil}),
+			body: policySettingBody(t, map[string]any{"name": nil, "reporting": nil, "aiSupplyChainCategories": nil, "intelligentProxy": nil, "saml": nil, "mcpSemanticInspection": nil}),
 			want: want{},
 		},
 	}
@@ -157,6 +165,7 @@ func TestSecurityProfilePolicySettingFromBody(t *testing.T) {
 				{"end_user_notification", got.EndUserNotification, types.BoolValue(tt.want.blockPage)},
 				{"single_sign_on", got.SingleSignOn, types.BoolValue(tt.want.sso)},
 				{"safe_search", got.SafeSearch, types.BoolValue(tt.want.search)},
+				{"ai_semantic_inspection", got.AiSemanticInspection, types.BoolValue(tt.want.semantic)},
 			} {
 				if !c.got.Equal(c.want) {
 					t.Errorf("%s = %s, want %s", c.attr, c.got, c.want)
@@ -172,7 +181,7 @@ func TestSecurityProfilePolicySettingFromBody(t *testing.T) {
 			"id": got.Id.IsNull(), "name": got.Name.IsNull(), "ai_supply_chain_categories": got.AiSupplyChainCategories.IsNull(),
 			"reporting": got.Reporting.IsNull(), "decryption_enabled": got.DecryptionEnabled.IsNull(),
 			"intelligent_proxy": got.IntelligentProxy.IsNull(), "end_user_notification": got.EndUserNotification.IsNull(),
-			"single_sign_on": got.SingleSignOn.IsNull(), "safe_search": got.SafeSearch.IsNull(),
+			"single_sign_on": got.SingleSignOn.IsNull(), "safe_search": got.SafeSearch.IsNull(), "ai_semantic_inspection": got.AiSemanticInspection.IsNull(),
 		} {
 			if !null {
 				t.Errorf("%s is not null", attr)
@@ -209,7 +218,7 @@ func TestSecurityProfilePolicySettingSchema(t *testing.T) {
 		}
 	}
 	sort.Strings(names)
-	want := "ai_supply_chain_categories,decryption_enabled,end_user_notification,id,intelligent_proxy,name,reporting,safe_search,single_sign_on"
+	want := "ai_semantic_inspection,ai_supply_chain_categories,decryption_enabled,end_user_notification,id,intelligent_proxy,name,reporting,safe_search,single_sign_on"
 	if got := strings.Join(names, ","); got != want {
 		t.Errorf("attributes = %s\nwant       %s", got, want)
 	}
@@ -319,7 +328,7 @@ func TestSecurityProfilePolicySettingDataSourceRead(t *testing.T) {
 		if state.Name.ValueString() != "Default Policy" || state.Reporting.ValueString() != "enabled" || state.AiSupplyChainCategories.ValueString() != "0" {
 			t.Errorf("state = %+v", state)
 		}
-		for attr, v := range map[string]types.Bool{"decryption_enabled": state.DecryptionEnabled, "intelligent_proxy": state.IntelligentProxy, "end_user_notification": state.EndUserNotification, "single_sign_on": state.SingleSignOn, "safe_search": state.SafeSearch} {
+		for attr, v := range map[string]types.Bool{"decryption_enabled": state.DecryptionEnabled, "intelligent_proxy": state.IntelligentProxy, "end_user_notification": state.EndUserNotification, "single_sign_on": state.SingleSignOn, "safe_search": state.SafeSearch, "ai_semantic_inspection": state.AiSemanticInspection} {
 			if v.IsNull() || v.ValueBool() {
 				t.Errorf("%s = %s, want false", attr, v)
 			}
@@ -329,14 +338,14 @@ func TestSecurityProfilePolicySettingDataSourceRead(t *testing.T) {
 	t.Run("reads the settings that are on", func(t *testing.T) {
 		server := newPolicySettingServer(t, func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(policySettingBody(t, map[string]any{"intelligentProxy": true, "safeSearch": true, "saml": 1})))
+			_, _ = w.Write([]byte(policySettingBody(t, map[string]any{"intelligentProxy": true, "safeSearch": true, "saml": 1, "mcpSemanticInspection": true})))
 		})
 		state, resp := readPolicySetting(t, server, "44444444")
 		if resp.Diagnostics.HasError() {
 			t.Fatalf("unexpected error: %v", resp.Diagnostics)
 		}
-		got := map[string]bool{"decryption_enabled": state.DecryptionEnabled.ValueBool(), "intelligent_proxy": state.IntelligentProxy.ValueBool(), "end_user_notification": state.EndUserNotification.ValueBool(), "single_sign_on": state.SingleSignOn.ValueBool(), "safe_search": state.SafeSearch.ValueBool()}
-		want := map[string]bool{"decryption_enabled": false, "intelligent_proxy": true, "end_user_notification": false, "single_sign_on": true, "safe_search": true}
+		got := map[string]bool{"decryption_enabled": state.DecryptionEnabled.ValueBool(), "intelligent_proxy": state.IntelligentProxy.ValueBool(), "end_user_notification": state.EndUserNotification.ValueBool(), "single_sign_on": state.SingleSignOn.ValueBool(), "safe_search": state.SafeSearch.ValueBool(), "ai_semantic_inspection": state.AiSemanticInspection.ValueBool()}
+		want := map[string]bool{"decryption_enabled": false, "intelligent_proxy": true, "end_user_notification": false, "single_sign_on": true, "safe_search": true, "ai_semantic_inspection": true}
 		for attr := range want {
 			if got[attr] != want[attr] {
 				t.Errorf("%s = %t, want %t", attr, got[attr], want[attr])

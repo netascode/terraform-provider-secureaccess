@@ -38,6 +38,7 @@ type SecurityProfilePolicySetting struct {
 	SingleSignOn            types.Bool   `tfsdk:"single_sign_on"`
 	SafeSearch              types.Bool   `tfsdk:"safe_search"`
 	AiSupplyChainCategories types.String `tfsdk:"ai_supply_chain_categories"`
+	AiSemanticInspection    types.Bool   `tfsdk:"ai_semantic_inspection"`
 	Reporting               types.String `tfsdk:"reporting"`
 }
 
@@ -92,6 +93,11 @@ func (data *SecurityProfilePolicySetting) fromBody(ctx context.Context, res gjso
 		data.AiSupplyChainCategories = types.StringValue(value.String())
 	} else {
 		data.AiSupplyChainCategories = types.StringNull()
+	}
+	if value := res.Get("mcpSemanticInspection"); value.Exists() {
+		data.AiSemanticInspection = types.BoolValue(value.Bool())
+	} else {
+		data.AiSemanticInspection = types.BoolNull()
 	}
 	if value := res.Get("reporting"); value.Exists() {
 		data.Reporting = types.StringValue(value.String())

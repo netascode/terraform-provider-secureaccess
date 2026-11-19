@@ -8,8 +8,9 @@
 # APIBEHAVIOUR: `saml` and `swgDisplayBlockPage` are numbers (0 on all 28 Policy Settings of the int environment, the guide says 0 or 1), the generated fromBody() reads them as a Bool (0 is `false`, anything else `true`)
 # The Web UI names (Decryption, Single Sign-On, SafeSearch, AI Supply Chain Blocking, Block page mode) are from the Security Profiles API guide. According to the guide, Decryption sets `intelligentProxy` and `intelligentProxyHttps` to true and `swgDisplayBlockPage` to 0, Block page mode sets `intelligentProxy` to true, `intelligentProxyHttps` to false and `swgDisplayBlockPage` to 1, and the AI Supply Chain Blocking values are `0` (off) or a mask string.
 #              That was not observed: on the 28 Policy Settings of the int environment Decryption (`intelligentProxyHttps`), Block page mode and Single Sign-On were off on all, `intelligentProxy` was true on 26 of them anyway, SafeSearch was on for 1, `aiSupplyChainCategories` was `0` and `reporting` was `enabled` on all
+# `mcpSemanticInspection` is exposed as `ai_semantic_inspection` (Web UI AI Semantic Inspection, the inspection of MCP traffic). The guide does not mention AI Semantic Inspection at all, the match comes from the name of the API field only. It is a JSON boolean, false on all 28 Policy Settings of the int environment, and it was never seen enabled, so the match was not confirmed by changing the option in the Web UI
 # Not exposed: `isDefault` (false in the list and null by `id` on all of them, even on the one named Default Policy, so it does not tell which one is the default), `fileInspectionId` (null on all, type not known), `categoryIds` and `categoryNames` (empty on all, type of the elements not known), `decryptExceptionCategories`, `upIntelligentProxy`, `upIntelligentProxyHttps`, `ipFiltering`,
-#              `whitelistOnly`, `mcpSemanticInspection`, `httpHeaderConstraints`, `httpHeaderContentLength` and `cdrDownload` (not described in the guide, the same value on all: false, 0 or "0"), `exceptiondomainlistId` (0 on all, looks like an internal id), `organizationId`, `createdAt`, `modifiedAt` and `markedForDeletion`
+#              `whitelistOnly`, `httpHeaderConstraints`, `httpHeaderContentLength` and `cdrDownload` (not described in the guide, the same value on all: false, 0 or "0"), `exceptiondomainlistId` (0 on all, looks like an internal id), `organizationId`, `createdAt`, `modifiedAt` and `markedForDeletion`
 ---
 name: Security Profile Policy Setting
 rest_endpoint: /policies/v2/policysettings
@@ -49,6 +50,11 @@ attributes:
     type: String
     description: Mask of the blocked AI supply chain categories (Web UI AI Supply Chain Blocking). The API returns `0` if the blocking is off, otherwise a mask string, according to the Security Profiles API guide its first digit adds up 2 for Prohibited Suppliers, 4 for Code Execution and 8 for Copyleft License (as a hexadecimal digit) and the 53 digits after it are 0.
     example: "0"
+  - model_name: mcpSemanticInspection
+    tf_name: ai_semantic_inspection
+    type: Bool
+    description: Specifies whether AI Semantic Inspection is enabled (Web UI AI Semantic Inspection). The Security Profiles API guide does not describe this setting, the match with the Web UI option comes from the name of the API field (`mcpSemanticInspection`).
+    example: false
   - model_name: reporting
     type: String
     description: Reporting setting of the Policy Setting.
