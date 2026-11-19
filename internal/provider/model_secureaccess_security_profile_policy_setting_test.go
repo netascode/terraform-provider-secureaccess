@@ -154,7 +154,7 @@ func TestSecurityProfilePolicySettingFromBody(t *testing.T) {
 				{"reporting", got.Reporting, types.StringValue(tt.want.reporting)},
 				{"decryption_enabled", got.DecryptionEnabled, types.BoolValue(tt.want.decryption)},
 				{"intelligent_proxy", got.IntelligentProxy, types.BoolValue(tt.want.proxy)},
-				{"block_page_mode", got.BlockPageMode, types.BoolValue(tt.want.blockPage)},
+				{"end_user_notification", got.EndUserNotification, types.BoolValue(tt.want.blockPage)},
 				{"single_sign_on", got.SingleSignOn, types.BoolValue(tt.want.sso)},
 				{"safe_search", got.SafeSearch, types.BoolValue(tt.want.search)},
 			} {
@@ -171,7 +171,7 @@ func TestSecurityProfilePolicySettingFromBody(t *testing.T) {
 		for attr, null := range map[string]bool{
 			"id": got.Id.IsNull(), "name": got.Name.IsNull(), "ai_supply_chain_categories": got.AiSupplyChainCategories.IsNull(),
 			"reporting": got.Reporting.IsNull(), "decryption_enabled": got.DecryptionEnabled.IsNull(),
-			"intelligent_proxy": got.IntelligentProxy.IsNull(), "block_page_mode": got.BlockPageMode.IsNull(),
+			"intelligent_proxy": got.IntelligentProxy.IsNull(), "end_user_notification": got.EndUserNotification.IsNull(),
 			"single_sign_on": got.SingleSignOn.IsNull(), "safe_search": got.SafeSearch.IsNull(),
 		} {
 			if !null {
@@ -209,7 +209,7 @@ func TestSecurityProfilePolicySettingSchema(t *testing.T) {
 		}
 	}
 	sort.Strings(names)
-	want := "ai_supply_chain_categories,block_page_mode,decryption_enabled,id,intelligent_proxy,name,reporting,safe_search,single_sign_on"
+	want := "ai_supply_chain_categories,decryption_enabled,end_user_notification,id,intelligent_proxy,name,reporting,safe_search,single_sign_on"
 	if got := strings.Join(names, ","); got != want {
 		t.Errorf("attributes = %s\nwant       %s", got, want)
 	}
@@ -319,7 +319,7 @@ func TestSecurityProfilePolicySettingDataSourceRead(t *testing.T) {
 		if state.Name.ValueString() != "Default Policy" || state.Reporting.ValueString() != "enabled" || state.AiSupplyChainCategories.ValueString() != "0" {
 			t.Errorf("state = %+v", state)
 		}
-		for attr, v := range map[string]types.Bool{"decryption_enabled": state.DecryptionEnabled, "intelligent_proxy": state.IntelligentProxy, "block_page_mode": state.BlockPageMode, "single_sign_on": state.SingleSignOn, "safe_search": state.SafeSearch} {
+		for attr, v := range map[string]types.Bool{"decryption_enabled": state.DecryptionEnabled, "intelligent_proxy": state.IntelligentProxy, "end_user_notification": state.EndUserNotification, "single_sign_on": state.SingleSignOn, "safe_search": state.SafeSearch} {
 			if v.IsNull() || v.ValueBool() {
 				t.Errorf("%s = %s, want false", attr, v)
 			}
@@ -335,8 +335,8 @@ func TestSecurityProfilePolicySettingDataSourceRead(t *testing.T) {
 		if resp.Diagnostics.HasError() {
 			t.Fatalf("unexpected error: %v", resp.Diagnostics)
 		}
-		got := map[string]bool{"decryption_enabled": state.DecryptionEnabled.ValueBool(), "intelligent_proxy": state.IntelligentProxy.ValueBool(), "block_page_mode": state.BlockPageMode.ValueBool(), "single_sign_on": state.SingleSignOn.ValueBool(), "safe_search": state.SafeSearch.ValueBool()}
-		want := map[string]bool{"decryption_enabled": false, "intelligent_proxy": true, "block_page_mode": false, "single_sign_on": true, "safe_search": true}
+		got := map[string]bool{"decryption_enabled": state.DecryptionEnabled.ValueBool(), "intelligent_proxy": state.IntelligentProxy.ValueBool(), "end_user_notification": state.EndUserNotification.ValueBool(), "single_sign_on": state.SingleSignOn.ValueBool(), "safe_search": state.SafeSearch.ValueBool()}
+		want := map[string]bool{"decryption_enabled": false, "intelligent_proxy": true, "end_user_notification": false, "single_sign_on": true, "safe_search": true}
 		for attr := range want {
 			if got[attr] != want[attr] {
 				t.Errorf("%s = %t, want %t", attr, got[attr], want[attr])

@@ -34,7 +34,7 @@ type SecurityProfilePolicySetting struct {
 	Name                    types.String `tfsdk:"name"`
 	DecryptionEnabled       types.Bool   `tfsdk:"decryption_enabled"`
 	IntelligentProxy        types.Bool   `tfsdk:"intelligent_proxy"`
-	BlockPageMode           types.Bool   `tfsdk:"block_page_mode"`
+	EndUserNotification     types.Bool   `tfsdk:"end_user_notification"`
 	SingleSignOn            types.Bool   `tfsdk:"single_sign_on"`
 	SafeSearch              types.Bool   `tfsdk:"safe_search"`
 	AiSupplyChainCategories types.String `tfsdk:"ai_supply_chain_categories"`
@@ -74,9 +74,9 @@ func (data *SecurityProfilePolicySetting) fromBody(ctx context.Context, res gjso
 		data.IntelligentProxy = types.BoolNull()
 	}
 	if value := res.Get("swgDisplayBlockPage"); value.Exists() {
-		data.BlockPageMode = types.BoolValue(value.Bool())
+		data.EndUserNotification = types.BoolValue(value.Bool())
 	} else {
-		data.BlockPageMode = types.BoolNull()
+		data.EndUserNotification = types.BoolNull()
 	}
 	if value := res.Get("saml"); value.Exists() {
 		data.SingleSignOn = types.BoolValue(value.Bool())
