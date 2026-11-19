@@ -31,6 +31,8 @@ import (
 func TestAccDataSourceSecureAccessDoNotDecryptList(t *testing.T) {
 	var checks []resource.TestCheckFunc
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_do_not_decrypt_list.test", "name", "my_do_not_decrypt_list"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_do_not_decrypt_list.test", "destinations.0.destination", "example.com"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_do_not_decrypt_list.test", "destinations.0.comment", "This is a comment for the destination."))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,

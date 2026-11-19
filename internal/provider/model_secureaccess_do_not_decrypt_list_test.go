@@ -21,6 +21,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,13 +32,16 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
@@ -334,7 +338,7 @@ func TestDoNotDecryptListToUpdateSteps(t *testing.T) {
 		if len(putSent) != 501 || putSent[0] != "host0.example.com" || putSent[500] != "host500.example.com" || len(listSent) != 500 || listSent[0] != "10.1.0.0" || listSent[499] != "10.1.2.99" {
 			t.Errorf("removals do not carry every destination exactly once, in order: %d domains (%v...%v), %d IPs (%v...%v)", len(putSent), putSent[:1], putSent[len(putSent)-1:], len(listSent), listSent[:1], listSent[len(listSent)-1:])
 		}
-		if !slices.Equal(put, []int{500, 1}) || !slices.Equal(list, []int{doNotDecryptListListRemovalChunk, 500 - doNotDecryptListListRemovalChunk}) {
+		if !slices.Equal(put, []int{500, 1}) || !slices.Equal(list, []int{destinationListMaxDestinationsPerRequest, 500 - destinationListMaxDestinationsPerRequest}) {
 			t.Errorf("PUT removals = %v, destination list removals = %v", put, list)
 		}
 	})
@@ -599,38 +603,256 @@ func TestDoNotDecryptListCreateBody(t *testing.T) {
 	})
 }
 
-// Destinations, applications and categories are not returned in the form that is written, so they are write only:
-// the generated fromBody and fromBodyPartial never touch them.
-func TestDoNotDecryptListWriteOnlyAttributes(t *testing.T) {
+// The destinations are read from the destination list behind the object (Read() puts them into the body as `destinations`),
+// applications and categories are not returned in the form that is written, so they are write only: the generated
+// fromBody and fromBodyPartial never touch them.
+func TestDoNotDecryptListFromBodyWithDestinations(t *testing.T) {
 	ctx := context.Background()
-	response := gjson.Parse(`{"name":"n","isDefault":false,"decryptExceptionCategories":[{"categoryId":12,"name":"A"}],"totalDomains":1,"totalIps":0,"totalApplications":0}`)
+	// the body that Read() builds: the object, with the destinations of the destination list behind it as `destinations`
+	response := gjson.Parse(`{"name":"n","isDefault":false,"decryptExceptionCategories":[{"categoryId":12,"name":"A"}],"totalDomains":2,"totalIps":0,"totalApplications":0,` +
+		`"destinations":[{"id":1,"destination":"a.com","comment":"x","type":"domain"},{"id":2,"destination":"c.com","comment":null,"type":"domain"}]}`)
+	destinationNames := func(items []DoNotDecryptListDestinations) []string {
+		var out []string
+		for _, item := range items {
+			out = append(out, item.Destination.ValueString())
+		}
+		return out
+	}
 
-	t.Run("a refresh keeps what is in the state", func(t *testing.T) {
+	t.Run("a refresh reads the destinations of the state, applications and categories stay as they are", func(t *testing.T) {
 		state := DoNotDecryptList{
 			Name:                       types.StringValue("n"),
-			Destinations:               []DoNotDecryptListDestinations{dndDestination("a.com", "x")},
+			Destinations:               []DoNotDecryptListDestinations{dndDestination("a.com", "old"), dndDestination("b.com", "y"), dndDestination("c.com", "")},
 			Applications:               dndInt64Set(101),
 			DecryptExceptionCategories: dndInt64Set(12, 27),
 			IsDefault:                  types.BoolValue(false),
 		}
 		state.fromBodyPartial(ctx, response)
-		if len(state.Destinations) != 1 || !slices.Equal(helpers.Int64SetElements(ctx, state.Applications), []int64{101}) ||
+		// a.com is read (the comment changed outside of Terraform), b.com is gone from the destination list and is dropped,
+		// c.com has no comment in the state and keeps none
+		if got, want := destinationNames(state.Destinations), []string{"a.com", "c.com"}; !slices.Equal(got, want) {
+			t.Fatalf("destinations = %v, want %v (a destination that was removed outside of Terraform is dropped)", got, want)
+		}
+		if got := state.Destinations[0].Comment.ValueString(); got != "x" {
+			t.Errorf("the comment of a.com = %q, want the one of the destination list", got)
+		}
+		if !state.Destinations[1].Comment.IsNull() {
+			t.Errorf("a destination without a comment in the state must keep none, got %v", state.Destinations[1].Comment)
+		}
+		if !slices.Equal(helpers.Int64SetElements(ctx, state.Applications), []int64{101}) ||
 			!slices.Equal(helpers.Int64SetElements(ctx, state.DecryptExceptionCategories), []int64{12, 27}) {
 			t.Errorf("write only attributes changed by a refresh: %+v", state)
 		}
-		if state.TotalDomains.ValueInt64() != 1 {
+		if state.TotalDomains.ValueInt64() != 2 {
 			t.Errorf("the totals are read: %v", state.TotalDomains)
 		}
 	})
 
-	t.Run("an import leaves them empty", func(t *testing.T) {
+	t.Run("a destination that was added outside of Terraform is not read by a refresh", func(t *testing.T) {
+		state := DoNotDecryptList{Name: types.StringValue("n"), Destinations: []DoNotDecryptListDestinations{dndDestination("a.com", "x")}}
+		state.fromBodyPartial(ctx, response)
+		if got, want := destinationNames(state.Destinations), []string{"a.com"}; !slices.Equal(got, want) {
+			t.Errorf("destinations = %v, want %v (only the destinations of the state are managed)", got, want)
+		}
+	})
+
+	t.Run("an import reads all destinations and leaves applications and categories empty", func(t *testing.T) {
 		var imported DoNotDecryptList
 		imported.fromBody(ctx, response)
-		if imported.Destinations != nil || !imported.Applications.IsNull() || !imported.DecryptExceptionCategories.IsNull() {
-			t.Errorf("got %+v", imported)
+		if got, want := destinationNames(imported.Destinations), []string{"a.com", "c.com"}; !slices.Equal(got, want) {
+			t.Fatalf("destinations = %v, want %v", got, want)
 		}
-		if imported.Name.ValueString() != "n" || imported.TotalDomains.ValueInt64() != 1 {
+		if got := imported.Destinations[0].Comment.ValueString(); got != "x" {
+			t.Errorf("the comment of a.com = %q", got)
+		}
+		if !imported.Applications.IsNull() || !imported.DecryptExceptionCategories.IsNull() {
+			t.Errorf("applications and categories are not read: %+v", imported)
+		}
+		if imported.Name.ValueString() != "n" || imported.TotalDomains.ValueInt64() != 2 {
 			t.Errorf("name and totals must be read: %+v", imported)
+		}
+	})
+}
+
+// dndReadAPI is a fake API for the tests of the read functions. It serves the Do Not Decrypt Lists API and the
+// destinations of destination lists, and keeps the paths of the requests it got.
+type dndReadAPI struct {
+	mu       sync.Mutex
+	paths    []string
+	listHas  bool // the items of the list carry exceptiondomainlistId
+	destCode int  // status of the answer for the destinations, 0 is 200
+}
+
+func (a *dndReadAPI) requests() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return slices.Clone(a.paths)
+}
+
+func newDndReadClient(t *testing.T, listHas bool, destCode int) (*secureaccess.Client, *dndReadAPI) {
+	t.Helper()
+	api := &dndReadAPI{listHas: listHas, destCode: destCode}
+	object := func(withList bool) map[string]any {
+		o := map[string]any{"id": 5, "name": "n", "isDefault": false, "totalDomains": 2, "totalIps": 0, "totalApplications": 0}
+		if withList {
+			o["exceptiondomainlistId"] = 777
+		}
+		return o
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/auth/v2/token" {
+			api.mu.Lock()
+			api.paths = append(api.paths, r.URL.Path)
+			api.mu.Unlock()
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/auth/v2/token":
+			_, _ = io.WriteString(w, `{"access_token":"t","token_type":"bearer","expires_in":3600}`)
+		case r.URL.Path == "/policies/v2/doNotDecryptLists":
+			b, _ := json.Marshal([]any{object(api.listHas)})
+			_, _ = w.Write(b)
+		case r.URL.Path == "/policies/v2/doNotDecryptLists/5":
+			b, _ := json.Marshal(object(true))
+			_, _ = w.Write(b)
+		case r.URL.Path == "/policies/v2/destinationlists/777/destinations":
+			if api.destCode != 0 {
+				w.WriteHeader(api.destCode)
+				_, _ = io.WriteString(w, `{"message":"no"}`)
+				return
+			}
+			_, _ = io.WriteString(w, `{"data":[{"id":1,"destination":"a.com","comment":"x","type":"domain"},{"id":2,"destination":"c.com","type":"domain"}],"meta":{"total":2}}`)
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	client, err := secureaccess.NewClient(server.URL, "key", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return client, api
+}
+
+func TestDoNotDecryptListWithDestinations(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("the destinations of the destination list are added to the object", func(t *testing.T) {
+		client, api := newDndReadClient(t, true, 0)
+		object := gjson.Parse(`{"id":5,"name":"n","exceptiondomainlistId":777,"totalDomains":2}`)
+		body, err := doNotDecryptListWithDestinations(ctx, client, object)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := body.Get("destinations.#.destination").Raw; got != `["a.com","c.com"]` {
+			t.Errorf("destinations = %s in %s", got, body.Raw)
+		}
+		if body.Get("name").String() != "n" || body.Get("totalDomains").Int() != 2 || body.Get("exceptiondomainlistId").Int() != 777 {
+			t.Errorf("the rest of the object must stay: %s", body.Raw)
+		}
+		if got := api.requests(); !slices.Equal(got, []string{"/policies/v2/destinationlists/777/destinations"}) {
+			t.Errorf("requests = %v", got)
+		}
+	})
+
+	t.Run("an object without a destination list is an error and nothing is requested", func(t *testing.T) {
+		client, api := newDndReadClient(t, true, 0)
+		for _, object := range []string{`{"id":5,"name":"n"}`, `{"id":5,"exceptiondomainlistId":0}`} {
+			if _, err := doNotDecryptListWithDestinations(ctx, client, gjson.Parse(object)); err == nil || !strings.Contains(err.Error(), "exceptiondomainlistId") {
+				t.Errorf("%s: err = %v, want one that names exceptiondomainlistId", object, err)
+			}
+		}
+		if got := api.requests(); len(got) != 0 {
+			t.Errorf("requests = %v, want none", got)
+		}
+	})
+
+	t.Run("a failing destination request is an error", func(t *testing.T) {
+		client, _ := newDndReadClient(t, true, http.StatusBadRequest)
+		if _, err := doNotDecryptListWithDestinations(ctx, client, gjson.Parse(`{"id":5,"exceptiondomainlistId":777}`)); err == nil || !strings.Contains(err.Error(), "failed to retrieve destinations") {
+			t.Errorf("err = %v", err)
+		}
+	})
+}
+
+// The data source reads the destinations of the destination list behind the object that it found, however it found it.
+func TestDoNotDecryptListDataSourceRead(t *testing.T) {
+	ctx := context.Background()
+	read := func(t *testing.T, client *secureaccess.Client, id, name types.String) (datasource.ReadResponse, DoNotDecryptList) {
+		t.Helper()
+		d := &DoNotDecryptListDataSource{client: client}
+		var schemaResp datasource.SchemaResponse
+		d.Schema(ctx, datasource.SchemaRequest{}, &schemaResp)
+		config := DoNotDecryptList{
+			Id: id, Name: name,
+			Applications:               types.SetNull(types.Int64Type),
+			DecryptExceptionCategories: types.SetNull(types.Int64Type),
+		}
+		nullRaw := tftypes.NewValue(schemaResp.Schema.Type().TerraformType(ctx), nil)
+		configState := tfsdk.State{Schema: schemaResp.Schema, Raw: nullRaw}
+		if diags := configState.Set(ctx, &config); diags.HasError() {
+			t.Fatal(diags)
+		}
+		resp := datasource.ReadResponse{State: tfsdk.State{Schema: schemaResp.Schema, Raw: nullRaw}}
+		d.Read(ctx, datasource.ReadRequest{Config: tfsdk.Config{Schema: schemaResp.Schema, Raw: configState.Raw}}, &resp)
+		var out DoNotDecryptList
+		if !resp.Diagnostics.HasError() {
+			if diags := resp.State.Get(ctx, &out); diags.HasError() {
+				t.Fatal(diags)
+			}
+		}
+		return resp, out
+	}
+	names := func(items []DoNotDecryptListDestinations) []string {
+		var out []string
+		for _, item := range items {
+			out = append(out, item.Destination.ValueString())
+		}
+		return out
+	}
+
+	for name, tc := range map[string]struct {
+		id, name types.String
+		listHas  bool
+		want     []string
+	}{
+		"by name, the list carries the destination list": {types.StringNull(), types.StringValue("n"), true,
+			[]string{"/policies/v2/doNotDecryptLists", "/policies/v2/destinationlists/777/destinations"}},
+		"by name, the list lacks the destination list": {types.StringNull(), types.StringValue("n"), false,
+			[]string{"/policies/v2/doNotDecryptLists", "/policies/v2/doNotDecryptLists/5", "/policies/v2/destinationlists/777/destinations"}},
+		"by id": {types.StringValue("5"), types.StringNull(), true,
+			[]string{"/policies/v2/doNotDecryptLists/5", "/policies/v2/destinationlists/777/destinations"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			client, api := newDndReadClient(t, tc.listHas, 0)
+			resp, got := read(t, client, tc.id, tc.name)
+			if resp.Diagnostics.HasError() {
+				t.Fatal(resp.Diagnostics)
+			}
+			if got.Id.ValueString() != "5" || got.Name.ValueString() != "n" || got.TotalDomains.ValueInt64() != 2 {
+				t.Errorf("id, name and totals: %+v", got)
+			}
+			if want := []string{"a.com", "c.com"}; !slices.Equal(names(got.Destinations), want) {
+				t.Fatalf("destinations = %v, want %v", names(got.Destinations), want)
+			}
+			if got.Destinations[0].Comment.ValueString() != "x" {
+				t.Errorf("the comment of a.com = %q", got.Destinations[0].Comment.ValueString())
+			}
+			if !got.Applications.IsNull() || !got.DecryptExceptionCategories.IsNull() {
+				t.Errorf("applications and categories are not read: %+v", got)
+			}
+			if reqs := api.requests(); !slices.Equal(reqs, tc.want) {
+				t.Errorf("requests = %v, want %v", reqs, tc.want)
+			}
+		})
+	}
+
+	t.Run("a failing destination request is an error", func(t *testing.T) {
+		client, _ := newDndReadClient(t, true, http.StatusBadRequest)
+		resp, _ := read(t, client, types.StringValue("5"), types.StringNull())
+		if !resp.Diagnostics.HasError() || !strings.Contains(resp.Diagnostics.Errors()[0].Detail(), "failed to retrieve destinations") {
+			t.Errorf("diagnostics = %v", resp.Diagnostics)
 		}
 	})
 }
@@ -967,6 +1189,341 @@ func TestDoNotDecryptListModifyPlan(t *testing.T) {
 		diags := run(state, unknownPlan)
 		if got := summaries(diags); !slices.Equal(got, []string{applications}) || diags.HasError() {
 			t.Errorf("got %v (HasError %v)", got, diags.HasError())
+		}
+	})
+}
+
+func TestDoNotDecryptListWithoutEmptyComments(t *testing.T) {
+	in := gjson.Parse(`[{"id":1,"destination":"a.com","comment":"x"},{"id":2,"destination":"b.com","comment":null},{"id":3,"destination":"c.com","comment":""},{"id":4,"destination":"d.com"}]`)
+	got := gjson.Parse(doNotDecryptListWithoutEmptyComments(in))
+	if n := len(got.Array()); n != 4 {
+		t.Fatalf("got %d destinations, want 4: %s", n, got.Raw)
+	}
+	if got.Get("0.comment").String() != "x" {
+		t.Errorf("a comment must stay: %s", got.Raw)
+	}
+	for _, i := range []string{"1", "2", "3"} {
+		if got.Get(i + ".comment").Exists() {
+			t.Errorf("destination %s: a null, empty or missing comment must not be there: %s", i, got.Raw)
+		}
+	}
+	if got.Get("#.destination").Raw != `["a.com","b.com","c.com","d.com"]` || got.Get("#.id").Raw != `[1,2,3,4]` {
+		t.Errorf("the other fields must stay: %s", got.Raw)
+	}
+	if empty := doNotDecryptListWithoutEmptyComments(gjson.Parse(`[]`)); empty != `[]` {
+		t.Errorf("an empty list stays empty, got %s", empty)
+	}
+}
+
+// A list that has no destination list is read as one without destinations if its totals say so.
+func TestDoNotDecryptListWithDestinationsWithoutDestinationList(t *testing.T) {
+	client, api := newDndReadClient(t, true, 0)
+	body, err := doNotDecryptListWithDestinations(context.Background(), client, gjson.Parse(`{"id":5,"name":"n","totalDomains":0,"totalIps":0}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body.Get("destinations").Raw != `[]` || body.Get("name").String() != "n" {
+		t.Errorf("body = %s", body.Raw)
+	}
+	for _, object := range []string{`{"id":5,"totalDomains":1,"totalIps":0}`, `{"id":5,"totalDomains":0}`, `{"id":5}`} {
+		if _, err := doNotDecryptListWithDestinations(context.Background(), client, gjson.Parse(object)); err == nil {
+			t.Errorf("%s: an object that may have destinations but no destination list must be an error", object)
+		}
+	}
+	if got := api.requests(); len(got) != 0 {
+		t.Errorf("requests = %v, want none", got)
+	}
+}
+
+// dndReadServer drives the real resource through the framework server (tfprotov6): ImportResourceState sets the private
+// `importing` flag that Read() needs, so the import and the refresh branch of Read() can both be run without a seam.
+type dndReadServer struct {
+	t       *testing.T
+	srv     tfprotov6.ProviderServer
+	resType tftypes.Type
+}
+
+func newDndReadServer(t *testing.T, apiURL string) *dndReadServer {
+	t.Helper()
+	ctx := context.Background()
+	t.Setenv("SECUREACCESS_URL", apiURL)
+	t.Setenv("SECUREACCESS_API_KEY", "key")
+	t.Setenv("SECUREACCESS_API_KEY_SECRET", "secret")
+	srv := providerserver.NewProtocol6(New("test")())()
+	sch, err := srv.GetProviderSchema(ctx, &tfprotov6.GetProviderSchemaRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	provType := sch.Provider.ValueType().(tftypes.Object)
+	vals := map[string]tftypes.Value{}
+	for k, typ := range provType.AttributeTypes {
+		vals[k] = tftypes.NewValue(typ, nil)
+	}
+	cfg, err := tfprotov6.NewDynamicValue(provType, tftypes.NewValue(provType, vals))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cr, err := srv.ConfigureProvider(ctx, &tfprotov6.ConfigureProviderRequest{TerraformVersion: "1.9.0", Config: &cfg}); err != nil || len(cr.Diagnostics) > 0 {
+		t.Fatal(err, cr.Diagnostics)
+	}
+	return &dndReadServer{t: t, srv: srv, resType: sch.ResourceSchemas["secureaccess_do_not_decrypt_list"].ValueType()}
+}
+
+// destinations returns the destinations of a state, sorted, with their comments (nil for a null comment).
+func (s *dndReadServer) destinations(state *tfprotov6.DynamicValue) map[string]*string {
+	s.t.Helper()
+	v, err := state.Unmarshal(s.resType)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	var obj map[string]tftypes.Value
+	if err := v.As(&obj); err != nil {
+		s.t.Fatal(err)
+	}
+	out := map[string]*string{}
+	if obj["destinations"].IsNull() {
+		return out
+	}
+	var set []tftypes.Value
+	if err := obj["destinations"].As(&set); err != nil {
+		s.t.Fatal(err)
+	}
+	for _, e := range set {
+		var o map[string]tftypes.Value
+		if err := e.As(&o); err != nil {
+			s.t.Fatal(err)
+		}
+		var d string
+		if err := o["destination"].As(&d); err != nil {
+			s.t.Fatal(err)
+		}
+		if o["comment"].IsNull() {
+			out[d] = nil
+			continue
+		}
+		var c string
+		if err := o["comment"].As(&c); err != nil {
+			s.t.Fatal(err)
+		}
+		out[d] = &c
+	}
+	return out
+}
+
+func (s *dndReadServer) read(state *tfprotov6.DynamicValue, private []byte) *tfprotov6.ReadResourceResponse {
+	s.t.Helper()
+	rr, err := s.srv.ReadResource(context.Background(), &tfprotov6.ReadResourceRequest{TypeName: "secureaccess_do_not_decrypt_list", CurrentState: state, Private: private})
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	return rr
+}
+
+func (s *dndReadServer) importThenRead(id string) *tfprotov6.ReadResourceResponse {
+	s.t.Helper()
+	imp, err := s.srv.ImportResourceState(context.Background(), &tfprotov6.ImportResourceStateRequest{TypeName: "secureaccess_do_not_decrypt_list", ID: id})
+	if err != nil || len(imp.Diagnostics) > 0 {
+		s.t.Fatal(err, imp.Diagnostics)
+	}
+	return s.read(imp.ImportedResources[0].State, imp.ImportedResources[0].Private)
+}
+
+// stateWith is a prior state of the list with id 5 (a refresh, no import flag).
+func (s *dndReadServer) stateWith(destinations ...DoNotDecryptListDestinations) *tfprotov6.DynamicValue {
+	s.t.Helper()
+	sch := dndTestSchema(s.t)
+	model := dndTestModel(dndInt64Set(1), dndInt64Set(2))
+	model.Id = types.StringValue("5")
+	model.Destinations = destinations
+	st := dndTestState(s.t, sch, &model)
+	dv, err := tfprotov6.NewDynamicValue(sch.Type().TerraformType(context.Background()), st.Raw)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	return &dv
+}
+
+// Read() of the resource: after an import (private flag) all destinations of the destination list are read, a refresh
+// only updates the destinations of the state, a null or empty comment of the API is no comment, and a destination list
+// that cannot be read fails the refresh instead of emptying the state.
+func TestDoNotDecryptListResourceRead(t *testing.T) {
+	var mu sync.Mutex
+	const withList = `{"id":5,"name":"n","isDefault":false,"exceptiondomainlistId":777,"totalDomains":2,"totalIps":0,"totalApplications":0}`
+	object := withList
+	destCode := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/auth/v2/token":
+			_, _ = io.WriteString(w, `{"access_token":"t","token_type":"bearer","expires_in":3600}`)
+		case "/policies/v2/doNotDecryptLists/5":
+			_, _ = io.WriteString(w, object)
+		case "/policies/v2/destinationlists/777/destinations":
+			if destCode != 0 {
+				w.WriteHeader(destCode)
+				_, _ = io.WriteString(w, `{"message":"no"}`)
+				return
+			}
+			_, _ = io.WriteString(w, `{"data":[{"id":1,"destination":"a.com","comment":"x","type":"domain"},{"id":2,"destination":"c.com","comment":null,"type":"domain"},{"id":3,"destination":"d.com","comment":"","type":"domain"}],"meta":{"total":3}}`)
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	s := newDndReadServer(t, server.URL)
+	set := func(o string, code int) { mu.Lock(); object, destCode = o, code; mu.Unlock() }
+	comment := func(m map[string]*string, destination string) string {
+		c, ok := m[destination]
+		switch {
+		case !ok:
+			return "(not there)"
+		case c == nil:
+			return "(null)"
+		}
+		return *c
+	}
+
+	t.Run("after an import all destinations are read, a null or empty comment is no comment", func(t *testing.T) {
+		rr := s.importThenRead("5")
+		if len(rr.Diagnostics) > 0 {
+			t.Fatal(rr.Diagnostics)
+		}
+		got := s.destinations(rr.NewState)
+		if len(got) != 3 || comment(got, "a.com") != "x" || comment(got, "c.com") != "(null)" || comment(got, "d.com") != "(null)" {
+			t.Errorf("destinations = a.com:%s c.com:%s d.com:%s (%d in total), want x, null, null (3)", comment(got, "a.com"), comment(got, "c.com"), comment(got, "d.com"), len(got))
+		}
+	})
+
+	t.Run("a refresh updates the destinations of the state only", func(t *testing.T) {
+		rr := s.read(s.stateWith(dndDestination("a.com", "old"), dndDestination("b.com", "")), nil)
+		if len(rr.Diagnostics) > 0 {
+			t.Fatal(rr.Diagnostics)
+		}
+		got := s.destinations(rr.NewState)
+		if len(got) != 1 || comment(got, "a.com") != "x" {
+			t.Errorf("destinations = %v, want only a.com with the comment of the destination list (b.com is gone, c.com and d.com are not managed)", got)
+		}
+	})
+
+	t.Run("a destination list that cannot be read fails the refresh", func(t *testing.T) {
+		set(withList, http.StatusBadRequest)
+		defer set(withList, 0)
+		if rr := s.read(s.stateWith(dndDestination("a.com", "x")), nil); len(rr.Diagnostics) == 0 {
+			t.Errorf("a failing destination request must fail the refresh, got the state %v", s.destinations(rr.NewState))
+		}
+	})
+
+	t.Run("an object without a destination list but with destinations fails the refresh", func(t *testing.T) {
+		set(`{"id":5,"name":"n","isDefault":false,"totalDomains":2,"totalIps":0,"totalApplications":0}`, 0)
+		defer set(withList, 0)
+		if rr := s.read(s.stateWith(dndDestination("a.com", "x")), nil); len(rr.Diagnostics) == 0 {
+			t.Errorf("an object without exceptiondomainlistId must fail the refresh")
+		}
+	})
+
+	t.Run("an object without a destination list and without destinations is read as empty", func(t *testing.T) {
+		set(`{"id":5,"name":"n","isDefault":false,"totalDomains":0,"totalIps":0,"totalApplications":0}`, 0)
+		defer set(withList, 0)
+		rr := s.read(s.stateWith(dndDestination("a.com", "x")), nil)
+		if len(rr.Diagnostics) > 0 {
+			t.Fatal(rr.Diagnostics)
+		}
+		if got := s.destinations(rr.NewState); len(got) != 0 {
+			t.Errorf("destinations = %v, want none", got)
+		}
+	})
+}
+
+// Update() removes IP addresses through the destination list behind the object, and treats a destination that the API
+// reports as not found as removed if it is not in the destination list anymore (a destination that disappeared between
+// the refresh and the apply).
+func TestDoNotDecryptListUpdateRemovals(t *testing.T) {
+	ctx := context.Background()
+	var mu sync.Mutex
+	var reqs []string
+	putFailures := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		defer mu.Unlock()
+		if r.URL.Path != "/auth/v2/token" {
+			reqs = append(reqs, r.Method+" "+r.URL.Path+" "+string(body))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/auth/v2/token":
+			_, _ = io.WriteString(w, `{"access_token":"t","token_type":"bearer","expires_in":3600}`)
+		case r.Method == http.MethodGet && r.URL.Path == "/policies/v2/doNotDecryptLists/1":
+			_, _ = io.WriteString(w, `{"id":1,"name":"n","isDefault":false,"exceptiondomainlistId":777,"totalDomains":1,"totalIps":1,"totalApplications":0}`)
+		case r.Method == http.MethodGet && r.URL.Path == "/policies/v2/destinationlists/777/destinations":
+			_, _ = io.WriteString(w, `{"data":[{"id":11,"destination":"a.com","type":"domain"},{"id":12,"destination":"10.10.10.10","type":"ipv4"}],"meta":{"total":2}}`)
+		case r.Method == http.MethodDelete && r.URL.Path == "/policies/v2/destinationlists/777/destinations/remove":
+			_, _ = io.WriteString(w, `{}`)
+		case r.Method == http.MethodPut && r.URL.Path == "/policies/v2/doNotDecryptLists/1":
+			if putFailures > 0 {
+				putFailures--
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = io.WriteString(w, `{"message":"destination 'b.com' not found"}`)
+				return
+			}
+			_, _ = io.WriteString(w, `{"id":1,"name":"n","isDefault":false,"totalDomains":1,"totalIps":0,"totalApplications":0}`)
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	client, err := secureaccess.NewClient(server.URL, "key", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &DoNotDecryptListResource{client: client}
+	s := dndTestSchema(t)
+	null := types.SetNull(types.Int64Type)
+	update := func(t *testing.T, before []DoNotDecryptListDestinations, after ...DoNotDecryptListDestinations) ([]string, resource.UpdateResponse) {
+		t.Helper()
+		mu.Lock()
+		reqs = nil
+		mu.Unlock()
+		state, plan := dndTestModel(null, null), dndTestModel(null, null)
+		state.Destinations, plan.Destinations = before, after
+		prior := dndTestState(t, s, &state)
+		resp := resource.UpdateResponse{State: dndTestState(t, s, &state)}
+		r.Update(ctx, resource.UpdateRequest{Plan: dndTestPlan(t, s, &plan), State: prior}, &resp)
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(reqs), resp
+	}
+
+	t.Run("an IP address is removed through the destination list behind the object", func(t *testing.T) {
+		got, resp := update(t, []DoNotDecryptListDestinations{dndDestination("a.com", ""), dndDestination("10.10.10.10", "")}, dndDestination("a.com", ""))
+		if resp.Diagnostics.HasError() {
+			t.Fatal(resp.Diagnostics)
+		}
+		want := []string{
+			"GET /policies/v2/doNotDecryptLists/1 ",
+			"GET /policies/v2/destinationlists/777/destinations ",
+			"DELETE /policies/v2/destinationlists/777/destinations/remove [12]",
+			"GET /policies/v2/doNotDecryptLists/1 ",
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("requests = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("a domain that is gone is left out and the removal is repeated", func(t *testing.T) {
+		putFailures = 1
+		got, resp := update(t, []DoNotDecryptListDestinations{dndDestination("a.com", ""), dndDestination("b.com", "")}, dndDestination("a.com", ""))
+		if resp.Diagnostics.HasError() {
+			t.Fatal(resp.Diagnostics)
+		}
+		if len(got) != 4 || !strings.Contains(got[0], `"removeDestinations":[{"destination":"b.com"}]`) ||
+			got[1] != "GET /policies/v2/doNotDecryptLists/1 " || got[2] != "GET /policies/v2/destinationlists/777/destinations " ||
+			strings.Contains(got[3], "removeDestinations") {
+			t.Errorf("requests = %v", got)
 		}
 	})
 }

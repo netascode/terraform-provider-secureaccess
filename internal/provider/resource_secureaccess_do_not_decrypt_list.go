@@ -67,7 +67,7 @@ func (r *DoNotDecryptListResource) Metadata(ctx context.Context, req resource.Me
 func (r *DoNotDecryptListResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Do Not Decrypt List. The Secure Access API does not return the destinations and applications of a list, and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`. Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that removes them is rejected on apply, replace the list instead (`terraform apply -replace=<resource address>`), which creates a new list with a new id.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Do Not Decrypt List. The destinations are read from the destination list behind it, only the destinations of the configuration are managed: one that is removed outside of Terraform is detected, one that is added outside of it is not. The Secure Access API does not return the applications of a list, and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`. Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that removes them is rejected on apply, replace the list instead (`terraform apply -replace=<resource address>`), which creates a new list with a new id.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -207,8 +207,9 @@ func (r *DoNotDecryptListResource) Create(ctx context.Context, req resource.Crea
 	helpers.SetFlagImporting(ctx, false, resp.Private, &resp.Diagnostics)
 }
 
-// Section below is generated&owned by "gen/generator.go". //template:begin read
-
+// Read reads the object and the destinations of the destination list behind it, which the API does not return with the
+// object, the same way as the destination list does: they are put into the body as `destinations` before the generated
+// fromBody() and fromBodyPartial() read it. This function is not generated (it has no template markers).
 func (r *DoNotDecryptListResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state DoNotDecryptList
 
@@ -233,6 +234,12 @@ func (r *DoNotDecryptListResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
+	body, err := doNotDecryptListWithDestinations(ctx, r.client, res.Result, reqMods...)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+		return
+	}
+
 	imp, diags := helpers.IsFlagImporting(ctx, req)
 	if resp.Diagnostics.Append(diags...); resp.Diagnostics.HasError() {
 		return
@@ -240,9 +247,9 @@ func (r *DoNotDecryptListResource) Read(ctx context.Context, req resource.ReadRe
 
 	// After `terraform import` we switch to a full read.
 	if imp {
-		state.fromBody(ctx, res.Result)
+		state.fromBody(ctx, body)
 	} else {
-		state.fromBodyPartial(ctx, res.Result)
+		state.fromBodyPartial(ctx, body)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", state.Id.ValueString()))
@@ -252,8 +259,6 @@ func (r *DoNotDecryptListResource) Read(ctx context.Context, req resource.ReadRe
 
 	helpers.SetFlagImporting(ctx, false, resp.Private, &resp.Diagnostics)
 }
-
-// End of section. //template:end read
 
 func (r *DoNotDecryptListResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state DoNotDecryptList
@@ -286,8 +291,8 @@ func (r *DoNotDecryptListResource) Update(ctx context.Context, req resource.Upda
 	}
 
 	// The API takes lists of items to add and to remove instead of the full lists, which can require multiple requests.
-	// If one of them fails after others were accepted, the state is set to what the API holds by then. The API does not
-	// return destinations and applications, so Terraform could not find out about the difference otherwise.
+	// If one of them fails after others were accepted, the state is set to what the API holds by then. The next refresh
+	// corrects the destinations, but the applications and categories are not read back, so the state has to track them.
 	steps := plan.toUpdateSteps(ctx, state)
 	interim := state
 	objectPath := plan.getPath() + "/" + url.QueryEscape(plan.Id.ValueString())
@@ -389,13 +394,13 @@ func (r *DoNotDecryptListResource) readDestinationList(ctx context.Context, obje
 	if err != nil {
 		return object, "", nil, fmt.Errorf("failed to retrieve object (GET): %w, %s", err, object.String())
 	}
-	listId := object.Get("exceptiondomainlistId").String()
-	if listId == "" || listId == "0" {
-		return object, "", nil, fmt.Errorf("the object has no destination list (exceptiondomainlistId), got: %s", object.String())
-	}
-	destinations, err := r.client.GetAll(ctx, doNotDecryptListDestinationListPath(listId), reqMods...)
+	listId, err := doNotDecryptListDestinationListId(object.Result)
 	if err != nil {
-		return object, listId, nil, fmt.Errorf("failed to retrieve destinations (GET): %w, %s", err, destinations.String())
+		return object, "", nil, err
+	}
+	destinations, err := destinationListReadDestinations(ctx, r.client, listId, reqMods...)
+	if err != nil {
+		return object, listId, nil, err
 	}
 	return object, listId, destinations.Array(), nil
 }
@@ -477,11 +482,11 @@ func (r *DoNotDecryptListResource) removeThroughDestinationList(ctx context.Cont
 		tflog.Warn(ctx, fmt.Sprintf("%s: %s are not in the destination list anymore, skipping their removal", objectPath, strings.Join(skipped, ", ")))
 	}
 
-	for i := 0; i < len(ids); i += doNotDecryptListListRemovalChunk {
-		end := min(i+doNotDecryptListListRemovalChunk, len(ids))
+	for i := 0; i < len(ids); i += destinationListMaxDestinationsPerRequest {
+		end := min(i+destinationListMaxDestinationsPerRequest, len(ids))
 		tflog.Debug(ctx, fmt.Sprintf("%s: Removing destinations %d-%d of %d from destination list %s", objectPath, i, end, len(ids), listId))
 		body, _ := json.Marshal(ids[i:end])
-		resDel, err := r.client.DeleteWithBody(ctx, doNotDecryptListDestinationListPath(listId)+"/remove", string(body), reqMods...)
+		resDel, err := r.client.DeleteWithBody(ctx, destinationListDestinationsPath(listId)+"/remove", string(body), reqMods...)
 		if err != nil {
 			return object, skipped, fmt.Errorf("failed to remove destinations %d-%d (DELETE): %w, %s", i, end, err, resDel.String())
 		}

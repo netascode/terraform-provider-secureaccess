@@ -20,8 +20,8 @@ package provider
 // Section below is generated&owned by "gen/generator.go". //template:begin imports
 import (
 	"context"
+	"fmt"
 	"net/netip"
-	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
@@ -31,6 +31,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -121,6 +123,25 @@ func (data *DoNotDecryptList) fromBody(ctx context.Context, res gjson.Result) {
 	} else {
 		data.Name = types.StringNull()
 	}
+	if value := res.Get("destinations"); value.Exists() {
+		data.Destinations = make([]DoNotDecryptListDestinations, 0, int(value.Get("#").Int()))
+		value.ForEach(func(k, res gjson.Result) bool {
+			parent := &data
+			data := DoNotDecryptListDestinations{}
+			if value := res.Get("destination"); value.Exists() {
+				data.Destination = types.StringValue(value.String())
+			} else {
+				data.Destination = types.StringNull()
+			}
+			if value := res.Get("comment"); value.Exists() {
+				data.Comment = types.StringValue(value.String())
+			} else {
+				data.Comment = types.StringNull()
+			}
+			(*parent).Destinations = append((*parent).Destinations, data)
+			return true
+		})
+	}
 	if value := res.Get("isDefault"); value.Exists() {
 		data.IsDefault = types.BoolValue(value.Bool())
 	} else {
@@ -156,6 +177,54 @@ func (data *DoNotDecryptList) fromBodyPartial(ctx context.Context, res gjson.Res
 		data.Name = types.StringValue(value.String())
 	} else {
 		data.Name = types.StringNull()
+	}
+	destinationsArray := res.Get("destinations")
+	for i := 0; i < len(data.Destinations); i++ {
+		keys := [...]string{"destination"}
+		keyValues := [...]string{data.Destinations[i].Destination.ValueString()}
+
+		parent := &data
+		data := (*parent).Destinations[i]
+		var res gjson.Result
+
+		destinationsArray.ForEach(
+			func(_, v gjson.Result) bool {
+				found := false
+				for ik := range keys {
+					if helpers.GetKeyValue(v.Get(keys[ik])) != keyValues[ik] {
+						found = false
+						break
+					}
+					found = true
+				}
+				if found {
+					res = v
+					return false
+				}
+				return true
+			},
+		)
+		if !res.Exists() {
+			tflog.Debug(ctx, fmt.Sprintf("removing Destinations[%d] = %+v",
+				i,
+				(*parent).Destinations[i],
+			))
+			(*parent).Destinations = slices.Delete((*parent).Destinations, i, i+1)
+			i--
+
+			continue
+		}
+		if value := res.Get("destination"); value.Exists() && !data.Destination.IsNull() {
+			data.Destination = types.StringValue(value.String())
+		} else {
+			data.Destination = types.StringNull()
+		}
+		if value := res.Get("comment"); value.Exists() && !data.Comment.IsNull() {
+			data.Comment = types.StringValue(value.String())
+		} else {
+			data.Comment = types.StringNull()
+		}
+		(*parent).Destinations[i] = data
 	}
 	if value := res.Get("isDefault"); value.Exists() && !data.IsDefault.IsNull() {
 		data.IsDefault = types.BoolValue(value.Bool())
@@ -228,17 +297,60 @@ func (data DoNotDecryptList) adjustBody(ctx context.Context, req string) string 
 // for create as well as for the add and remove lists of an update.
 const doNotDecryptListMaxItemsPerRequest = 500
 
-// doNotDecryptListListRemovalChunk is the number of destinations that are removed from a destination list (see
-// doNotDecryptListDestinationListPath) with a single request, the same limit that applies to the destination lists
-// themselves.
-const doNotDecryptListListRemovalChunk = 499
+// doNotDecryptListDestinationListId returns the id of the destination list behind a Do Not Decrypt List
+// (`exceptiondomainlistId` of the object), the list that holds its domains, IP addresses and CIDR blocks. This is a list
+// of the destination lists API (/policies/v2/destinationlists), see destinationListDestinationsPath, it is never the id
+// of the Do Not Decrypt List itself. The Do Not Decrypt Lists API has no /destinations path.
+func doNotDecryptListDestinationListId(object gjson.Result) (string, error) {
+	listId := object.Get("exceptiondomainlistId").String()
+	if listId == "" || listId == "0" {
+		return "", fmt.Errorf("the object has no destination list (exceptiondomainlistId), got: %s", object.String())
+	}
+	return listId, nil
+}
 
-// doNotDecryptListDestinationListPath is the path of the destinations of a destination list. This is the destination
-// lists API (/policies/v2/destinationlists), not the Do Not Decrypt Lists API, which has no /destinations path.
-// The id to pass is `exceptiondomainlistId` of a Do Not Decrypt List, the destination list that holds its domains, IP
-// addresses and CIDR blocks. It is never the id of the Do Not Decrypt List itself.
-func doNotDecryptListDestinationListPath(listId string) string {
-	return "/policies/v2/destinationlists/" + url.QueryEscape(listId) + "/destinations"
+// doNotDecryptListWithDestinations returns the object with the destinations of the destination list behind it as
+// `destinations`. The API returns only their totals with the object. This is how the destination list puts them into its
+// body, so that fromBody() and fromBodyPartial() read them together with the rest.
+// An object without a destination list is read as one without destinations if its totals say so, otherwise it is an error.
+func doNotDecryptListWithDestinations(ctx context.Context, client *secureaccess.Client, object gjson.Result, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
+	listId, err := doNotDecryptListDestinationListId(object)
+	if err != nil {
+		domains, ips := object.Get("totalDomains"), object.Get("totalIps")
+		if !domains.Exists() || !ips.Exists() || domains.Int()+ips.Int() != 0 {
+			return object, err
+		}
+		body, err := sjson.SetRaw(object.Raw, "destinations", "[]")
+		if err != nil {
+			return object, fmt.Errorf("failed to add the destinations to the object: %w", err)
+		}
+		return gjson.Parse(body), nil
+	}
+	destinations, err := destinationListReadDestinations(ctx, client, listId, reqMods...)
+	if err != nil {
+		return object, err
+	}
+	body, err := sjson.SetRaw(object.Raw, "destinations", doNotDecryptListWithoutEmptyComments(destinations))
+	if err != nil {
+		return object, fmt.Errorf("failed to add the destinations to the object: %w", err)
+	}
+	return gjson.Parse(body), nil
+}
+
+// doNotDecryptListWithoutEmptyComments returns the destinations (a JSON array) without the `comment` of those whose
+// comment is null or empty. The configuration cannot hold an empty comment (a comment has at least one character), and
+// the generated fromBody() reads a null as an empty string, so such a destination would differ from the configuration
+// after an import, and the next update would remove it and add it again. How the API returns a missing comment is not
+// known, this makes no difference.
+func doNotDecryptListWithoutEmptyComments(destinations gjson.Result) string {
+	result := destinations.Raw
+	destinations.ForEach(func(index, destination gjson.Result) bool {
+		if comment := destination.Get("comment"); comment.Exists() && (comment.Type == gjson.Null || comment.String() == "") {
+			result, _ = sjson.Delete(result, fmt.Sprintf("%d.comment", index.Int()))
+		}
+		return true
+	})
+	return result
 }
 
 // doNotDecryptListDestinationsBody builds a JSON array of destinations. Comments are left out if withComment is false,
@@ -371,11 +483,11 @@ func doNotDecryptListChangeSteps(name string, add bool, destinations []DoNotDecr
 }
 
 // doNotDecryptListListRemovalSteps builds the steps that remove IP addresses and CIDR blocks through the destination
-// list, in chunks of doNotDecryptListListRemovalChunk.
+// list (see destinationListDestinationsPath), in chunks of destinationListMaxDestinationsPerRequest.
 func doNotDecryptListListRemovalSteps(destinations []DoNotDecryptListDestinations) []doNotDecryptListStep {
 	var steps []doNotDecryptListStep
-	for i := 0; i < len(destinations); i += doNotDecryptListListRemovalChunk {
-		end := min(i+doNotDecryptListListRemovalChunk, len(destinations))
+	for i := 0; i < len(destinations); i += destinationListMaxDestinationsPerRequest {
+		end := min(i+destinationListMaxDestinationsPerRequest, len(destinations))
 		steps = append(steps, doNotDecryptListStep{viaList: true, removeDestinations: destinations[i:end]})
 	}
 	return steps
@@ -536,8 +648,8 @@ func doNotDecryptListAddInt64(ctx context.Context, set types.Set, add []int64) t
 }
 
 // applyStep applies the changes of a request that the API accepted to the model. It is used to keep track of what the
-// API holds if a later request of the same update fails: the API does not return destinations and applications, so
-// the state could not be corrected by a refresh.
+// API holds if a later request of the same update fails. The next refresh would correct the destinations (they are read
+// from the destination list), but not the applications and categories, which are not read back.
 func (data *DoNotDecryptList) applyStep(ctx context.Context, name types.String, step doNotDecryptListStep) {
 	if !step.viaList {
 		data.Name = name

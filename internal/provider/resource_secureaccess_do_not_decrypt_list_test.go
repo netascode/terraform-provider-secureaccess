@@ -37,6 +37,8 @@ import (
 func TestAccSecureAccessDoNotDecryptList(t *testing.T) {
 	var checks []resource.TestCheckFunc
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "name", "my_do_not_decrypt_list"))
+	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "destinations.0.destination", "example.com"))
+	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_do_not_decrypt_list.test", "destinations.0.comment", "This is a comment for the destination."))
 
 	var steps []resource.TestStep
 	if os.Getenv("SKIP_MINIMUM_TEST") == "" {
@@ -91,9 +93,9 @@ func testAccSecureAccessDoNotDecryptListConfig_all() string {
 
 // End of section. //template:end testAccConfigAll
 
-// Manual test: adding, changing and removing destinations is done with separate add/remove lists in the API, as it does
-// not return the destinations, only the totals. IP addresses and CIDR blocks are removed through the destination list
-// behind the object, as the update request of the API did not find some of them.
+// Manual test: adding, changing and removing destinations is done with separate add/remove lists in the API, which
+// returns only the totals with the object (the destinations are read from the destination list behind it). IP addresses
+// and CIDR blocks are removed through that destination list, as the update request of the API did not find some of them.
 func TestAccSecureAccessDoNotDecryptList_Sequential(t *testing.T) {
 	config := func(name string, destinations ...string) string {
 		cfg := `resource "secureaccess_do_not_decrypt_list" "test" {` + "\n" +
@@ -247,9 +249,11 @@ func removeDestinationsOutsideTerraform(t *testing.T, listName string, destinati
 	}
 }
 
-// Manual test: destinations that were removed outside of Terraform (the API does not return them, so Terraform cannot see
-// it) can still be removed from the configuration: removing a destination that does not exist is an error of the API,
-// which the provider checks against the destination list and treats as removed.
+// Manual test: destinations that were removed outside of Terraform are seen by the refresh (it reads the destination list
+// behind the object), so removing them from the configuration afterwards is a clean plan. Removing a destination that does
+// not exist is an error of the API, which Update() checks against the destination list and treats as removed; that
+// safeguard only matters if the destination disappears between the refresh and the apply, which is covered by
+// TestDoNotDecryptListUpdateRemovals.
 func TestAccSecureAccessDoNotDecryptList_RemovedOutsideTerraform(t *testing.T) {
 	config := func(destinations ...string) string {
 		cfg := `resource "secureaccess_do_not_decrypt_list" "test" {` + "\n" +
@@ -273,6 +277,36 @@ func TestAccSecureAccessDoNotDecryptList_RemovedOutsideTerraform(t *testing.T) {
 				Config:    config("a.example.com"),
 				Check:     testAccDoNotDecryptListTotals("1", "1", "0"),
 			},
+		},
+	})
+}
+
+// Manual test: destinations that are removed outside of Terraform are detected by a refresh and restored by the next
+// apply, and an import reads the destinations and their comments (a destination without a comment stays without).
+func TestAccSecureAccessDoNotDecryptList_ReadBack(t *testing.T) {
+	config := `resource "secureaccess_do_not_decrypt_list" "test" {
+	name = "my_do_not_decrypt_list_readback"
+	destinations = [
+		{ destination = "a.example.com", comment = "with comment" },
+		{ destination = "b.example.com" },
+		{ destination = "10.10.10.10" },
+	]
+}
+`
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{Config: config, Check: testAccDoNotDecryptListTotals("3", "2", "1")},
+			{
+				// the refresh sees that two destinations are gone, so the plan adds them again
+				PreConfig:          removeDestinationsOutsideTerraform(t, "my_do_not_decrypt_list_readback", "b.example.com", "10.10.10.10"),
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{Config: config, Check: testAccDoNotDecryptListTotals("3", "2", "1")},
+			{ResourceName: "secureaccess_do_not_decrypt_list.test", ImportState: true, ImportStateVerify: true},
 		},
 	})
 }

@@ -3,12 +3,12 @@
 page_title: "secureaccess_do_not_decrypt_list Data Source - terraform-provider-secureaccess"
 subcategory: "Resources"
 description: |-
-  This data source reads a Do Not Decrypt List, found by its id or by its name. The Secure Access API does not return the destinations and applications of a list, therefore they are always empty.
+  This data source reads a Do Not Decrypt List, found by its id or by its name. The Secure Access API does not return the applications of a list, and returns its content categories in a different form than they are written, therefore both are always empty.
 ---
 
 # secureaccess_do_not_decrypt_list (Data Source)
 
-This data source reads a Do Not Decrypt List, found by its `id` or by its `name`. The Secure Access API does not return the destinations and applications of a list, therefore they are always empty.
+This data source reads a Do Not Decrypt List, found by its `id` or by its `name`. The Secure Access API does not return the applications of a list, and returns its content categories in a different form than they are written, therefore both are always empty.
 
 ## Example Usage
 
@@ -30,7 +30,7 @@ data "secureaccess_do_not_decrypt_list" "example" {
 
 - `applications` (Set of Number) Always empty, the Secure Access API does not return the applications of a list.
 - `decrypt_exception_categories` (Set of Number) Always empty, the content categories of a list are not read back.
-- `destinations` (Attributes Set) Always empty, the Secure Access API does not return the destinations of a list. (see [below for nested schema](#nestedatt--destinations))
+- `destinations` (Attributes Set) Destinations that are excluded from decryption, domain names (in lowercase), IPv4 addresses or CIDR blocks. URLs are not supported. Large lists are split into multiple requests automatically. (see [below for nested schema](#nestedatt--destinations))
 - `is_default` (Boolean) Specifies whether this is the default Do Not Decrypt List.
 - `total_applications` (Number) Number of applications in the Do Not Decrypt List.
 - `total_domains` (Number) Number of domains in the Do Not Decrypt List.

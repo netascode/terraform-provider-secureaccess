@@ -59,7 +59,7 @@ func (d *DoNotDecryptListDataSource) Metadata(_ context.Context, req datasource.
 func (d *DoNotDecryptListDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This data source reads a Do Not Decrypt List, found by its `id` or by its `name`. The Secure Access API does not return the destinations and applications of a list, therefore they are always empty.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This data source reads a Do Not Decrypt List, found by its `id` or by its `name`. The Secure Access API does not return the applications of a list, and returns its content categories in a different form than they are written, therefore both are always empty.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -73,7 +73,7 @@ func (d *DoNotDecryptListDataSource) Schema(ctx context.Context, req datasource.
 				Computed:            true,
 			},
 			"destinations": schema.SetNestedAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Always empty, the Secure Access API does not return the destinations of a list.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Destinations that are excluded from decryption, domain names (in lowercase), IPv4 addresses or CIDR blocks. URLs are not supported. Large lists are split into multiple requests automatically.").String,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -136,8 +136,9 @@ func (d *DoNotDecryptListDataSource) Configure(_ context.Context, req datasource
 
 // End of section. //template:end model
 
-// Section below is generated&owned by "gen/generator.go". //template:begin read
-
+// Read finds the object by its id or its name, like the generated data sources do, and adds the destinations of the
+// destination list behind it, which the API does not return with the object, as `destinations` before the generated
+// fromBody() reads the body (see the resource). This function is not generated (it has no template markers).
 func (d *DoNotDecryptListDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var config DoNotDecryptList
 
@@ -182,7 +183,8 @@ func (d *DoNotDecryptListDataSource) Read(ctx context.Context, req datasource.Re
 		}
 	}
 
-	if !res.Exists() {
+	// An object found by its name comes from the list. It is retrieved by its id if it lacks the destination list.
+	if _, listErr := doNotDecryptListDestinationListId(res.Result); !res.Exists() || listErr != nil {
 		urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
 		var err error
 		res, err = d.client.Get(ctx, urlPath, reqMods...)
@@ -192,12 +194,16 @@ func (d *DoNotDecryptListDataSource) Read(ctx context.Context, req datasource.Re
 		}
 	}
 
-	config.fromBody(ctx, res.Result)
+	body, err := doNotDecryptListWithDestinations(ctx, d.client, res.Result, reqMods...)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+		return
+	}
+
+	config.fromBody(ctx, body)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", config.Id.ValueString()))
 
 	diags = resp.State.Set(ctx, &config)
 	resp.Diagnostics.Append(diags...)
 }
-
-// End of section. //template:end read
