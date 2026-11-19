@@ -91,7 +91,7 @@ func (d *SecurityProfilePolicySettingDataSource) Schema(ctx context.Context, req
 				Computed:            true,
 			},
 			"ai_semantic_inspection": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether AI Semantic Inspection is enabled (Web UI AI Semantic Inspection). The Security Profiles API guide does not describe this setting, the match with the Web UI option comes from the name of the API field (`mcpSemanticInspection`).").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether AI Semantic Inspection is enabled (Web UI AI Semantic Inspection). The Security Profiles API guide does not describe this setting. It is matched to the Web UI option by the name of the API field (`mcpSemanticInspection`), and this match has not been confirmed.").String,
 				Computed:            true,
 			},
 			"reporting": schema.StringAttribute{

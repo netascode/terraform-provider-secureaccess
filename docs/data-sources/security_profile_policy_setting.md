@@ -27,7 +27,7 @@ data "secureaccess_security_profile_policy_setting" "example" {
 
 ### Read-Only
 
-- `ai_semantic_inspection` (Boolean) Specifies whether AI Semantic Inspection is enabled (Web UI AI Semantic Inspection). The Security Profiles API guide does not describe this setting, the match with the Web UI option comes from the name of the API field (`mcpSemanticInspection`).
+- `ai_semantic_inspection` (Boolean) Specifies whether AI Semantic Inspection is enabled (Web UI AI Semantic Inspection). The Security Profiles API guide does not describe this setting. It is matched to the Web UI option by the name of the API field (`mcpSemanticInspection`), and this match has not been confirmed.
 - `ai_supply_chain_categories` (String) Mask of the blocked AI supply chain categories (Web UI AI Supply Chain Blocking). The API returns `0` if the blocking is off, otherwise a mask string, according to the Security Profiles API guide its first digit adds up 2 for Prohibited Suppliers, 4 for Code Execution and 8 for Copyleft License (as a hexadecimal digit) and the 53 digits after it are 0.
 - `decryption_enabled` (Boolean) Specifies whether Decryption is enabled (Web UI Decryption, Enabled). According to the Security Profiles API guide, enabling Decryption sets it to true.
 - `end_user_notification` (Boolean) Specifies whether the Block page mode of the End-User Notifications is enabled (Web UI End-User Notifications, Block page mode). The API returns 0 or 1, which is read as `false` or `true`.

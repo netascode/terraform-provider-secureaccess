@@ -39,7 +39,8 @@ import (
 
 // This file is not generated. It tests the data source security_profile_policy_setting with the payload that the Secure
 // Access API returns for the Default Policy (only the ids and the dates are made up), and with the other states of the
-// settings that the Security Profiles API guide describes.
+// settings that the Security Profiles API guide describes. The cases for ai_semantic_inspection are synthetic: the guide does
+// not describe that setting and it was never seen enabled.
 
 // A Policy Setting as returned by GET /policies/v2/policysettings/{id}, every setting is off.
 const policySettingDefaultPayload = `{
@@ -349,6 +350,26 @@ func TestSecurityProfilePolicySettingDataSourceRead(t *testing.T) {
 		for attr := range want {
 			if got[attr] != want[attr] {
 				t.Errorf("%s = %t, want %t", attr, got[attr], want[attr])
+			}
+		}
+	})
+
+	t.Run("reads AI Semantic Inspection alone, without turning on another setting", func(t *testing.T) {
+		server := newPolicySettingServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(policySettingBody(t, map[string]any{"mcpSemanticInspection": true})))
+		})
+		state, resp := readPolicySetting(t, server, "66666666")
+		if resp.Diagnostics.HasError() {
+			t.Fatalf("unexpected error: %v", resp.Diagnostics)
+		}
+		got := map[string]types.Bool{
+			"decryption_enabled": state.DecryptionEnabled, "intelligent_proxy": state.IntelligentProxy, "end_user_notification": state.EndUserNotification,
+			"single_sign_on": state.SingleSignOn, "safe_search": state.SafeSearch, "ai_semantic_inspection": state.AiSemanticInspection,
+		}
+		for attr, v := range got {
+			if want := attr == "ai_semantic_inspection"; v.IsNull() || v.ValueBool() != want {
+				t.Errorf("%s = %s, want %t", attr, v, want)
 			}
 		}
 	})
