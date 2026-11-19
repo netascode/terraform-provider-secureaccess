@@ -311,6 +311,7 @@ func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.
 		NewServiceObjectResource,
 		NewServiceObjectGroupResource,
 		NewSiteResource,
+		NewZTANetworkLocationResource,
 		NewZTATrustedNetworkResource,
 	}
 }
@@ -351,6 +352,7 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewServiceObjectDataSource,
 		NewServiceObjectGroupDataSource,
 		NewSiteDataSource,
+		NewZTANetworkLocationDataSource,
 		NewZTATrustedNetworkDataSource,
 	}
 }
