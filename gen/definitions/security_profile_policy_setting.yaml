@@ -1,0 +1,61 @@
+# Data source only, fully generated: the Policy Setting of a Security Profile is found by its `id`
+# The Secure Access API creates one Policy Setting for every Security Profile, the `id` of the Policy Setting of a profile is the `policySettingGroupId` of that profile (observed on the int environment: all 28 profiles had a different Policy Setting, and no Policy Setting was left without a profile)
+# There is no lookup by `name`: the names are not unique (22 different names in the 28 Policy Settings of the int environment) and a user does not pick a Policy Setting, it belongs to a profile
+# Without a lookup by `name` the list is never read, the data source only does GET /policies/v2/policysettings/{id}, so the pagination of the list does not matter
+# APIBEHAVIOUR: GET of the `id` 999999999 returned 404 `object_not_found`, GET of the `id` abc returned 400 (`int_invalid`)
+# APIBEHAVIOUR: a list item and GET by `id` differ (compared on all 28 Policy Settings of the int environment): `fileInspection` is only in the list, `categoryIds` and `categoryNames` (empty on all) only in GET by `id`, `isDefault` is false in the list and null by `id`, `createdAt` and `modifiedAt` are numbers in the list and strings by `id`. Only GET by `id` is used
+# APIBEHAVIOUR: none of the exposed attributes was null in GET by `id` of the 28 Policy Settings of the int environment (the generated fromBody() would read a JSON null as an empty string or as `false`)
+# APIBEHAVIOUR: `saml` and `swgDisplayBlockPage` are numbers (0 on all 28 Policy Settings of the int environment, the guide says 0 or 1), the generated fromBody() reads them as a Bool (0 is `false`, anything else `true`)
+# The Web UI names (Decryption, Single Sign-On, SafeSearch, AI Supply Chain Blocking, Block page mode) are from the Security Profiles API guide. According to the guide, Decryption sets `intelligentProxy` and `intelligentProxyHttps` to true and `swgDisplayBlockPage` to 0, Block page mode sets `intelligentProxy` to true, `intelligentProxyHttps` to false and `swgDisplayBlockPage` to 1, and the AI Supply Chain Blocking values are `0` (off) or a mask string.
+#              That was not observed: on the 28 Policy Settings of the int environment Decryption (`intelligentProxyHttps`), Block page mode and Single Sign-On were off on all, `intelligentProxy` was true on 26 of them anyway, SafeSearch was on for 1, `aiSupplyChainCategories` was `0` and `reporting` was `enabled` on all
+# `mcpSemanticInspection` is exposed as `ai_semantic_inspection` (Web UI AI Semantic Inspection). The guide does not mention AI Semantic Inspection at all, so the Web UI name is not from the guide, and the match with the API field is only by the words Semantic Inspection in the name of the field. It is a JSON boolean, false on all 28 Policy Settings of the int environment. The match has not been checked by changing the option in the Web UI and reading the Policy Setting back
+# Not exposed: `isDefault` (false in the list and null by `id` on all of them, even on the one named Default Policy, so it does not tell which one is the default), `fileInspectionId` (null on all, type not known), `fileInspection` (only in the list, false on all, not in GET by `id`), `categoryIds` and `categoryNames` (empty on all, type of the elements not known), `decryptExceptionCategories`, `upIntelligentProxy`, `upIntelligentProxyHttps`, `ipFiltering`,
+#              `whitelistOnly`, `httpHeaderConstraints`, `httpHeaderContentLength` and `cdrDownload` (not described in the guide, the same value on all: false, 0 or "0"), `exceptiondomainlistId` (0 on all, looks like an internal id), `organizationId`, `createdAt`, `modifiedAt` and `markedForDeletion`
+---
+name: Security Profile Policy Setting
+rest_endpoint: /policies/v2/policysettings
+doc_category: Secure
+no_resource: true
+no_import: true
+ds_description: This data source reads the Policy Setting of a Security Profile, found by its `id`. The `id` of the Policy Setting of a Security Profile is the `policySettingGroupId` of that profile.
+attributes:
+  - model_name: name
+    type: String
+    description: Name of the Policy Setting.
+    example: Default Policy
+  - model_name: intelligentProxyHttps
+    tf_name: decryption_enabled
+    type: Bool
+    description: Specifies whether Decryption is enabled (Web UI Decryption, Enabled). According to the Security Profiles API guide, enabling Decryption sets it to true.
+    example: false
+  - model_name: intelligentProxy
+    type: Bool
+    description: Specifies whether the intelligent proxy is enabled. According to the Security Profiles API guide, the API also sets it to true when Decryption or Block page mode is enabled, but it can be true without either of them.
+    example: false
+  - model_name: swgDisplayBlockPage
+    tf_name: end_user_notification
+    type: Bool
+    description: Specifies whether the Block page mode of the End-User Notifications is enabled (Web UI End-User Notifications, Block page mode). The API returns 0 or 1, which is read as `false` or `true`.
+    example: false
+  - model_name: saml
+    tf_name: single_sign_on
+    type: Bool
+    description: Specifies whether Single Sign-On (SSO) is enabled. The API returns 0 or 1, which is read as `false` or `true`.
+    example: false
+  - model_name: safeSearch
+    type: Bool
+    description: Specifies whether SafeSearch is enabled.
+    example: false
+  - model_name: aiSupplyChainCategories
+    type: String
+    description: Mask of the blocked AI supply chain categories (Web UI AI Supply Chain Blocking). The API returns `0` if the blocking is off, otherwise a mask string, according to the Security Profiles API guide its first digit adds up 2 for Prohibited Suppliers, 4 for Code Execution and 8 for Copyleft License (as a hexadecimal digit) and the 53 digits after it are 0.
+    example: "0"
+  - model_name: mcpSemanticInspection
+    tf_name: ai_semantic_inspection
+    type: Bool
+    description: Specifies whether AI Semantic Inspection is enabled (Web UI AI Semantic Inspection). The Security Profiles API guide does not describe this setting. It is matched to the Web UI option by the name of the API field (`mcpSemanticInspection`), and this match has not been confirmed.
+    example: false
+  - model_name: reporting
+    type: String
+    description: Reporting setting of the Policy Setting.
+    example: enabled
