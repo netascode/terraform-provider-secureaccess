@@ -19,6 +19,7 @@ package helpers
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -135,6 +136,31 @@ func DifferenceStringSet(ctx context.Context, a basetypes.SetValue, b basetypes.
 	}
 
 	return types.SetValueMust(types.StringType, diff)
+}
+
+// Int64SetElements returns the elements of an Int64 set, or nil if the set is null or unknown.
+func Int64SetElements(ctx context.Context, set basetypes.SetValue) []int64 {
+	if set.IsNull() || set.IsUnknown() {
+		return nil
+	}
+
+	var elements []int64
+	set.ElementsAs(ctx, &elements, false)
+
+	return elements
+}
+
+// DifferenceInt64 returns the values that are present in `a`, but not in `b`, in the order of `a`.
+// Mind the argument order: DifferenceStringSet returns the elements that are present in its second argument.
+func DifferenceInt64(a, b []int64) []int64 {
+	var diff []int64
+	for _, v := range a {
+		if !slices.Contains(b, v) {
+			diff = append(diff, v)
+		}
+	}
+
+	return diff
 }
 
 // GetKeyValue returns a canonical string of a gjson value for matching list elements by their id attributes.
