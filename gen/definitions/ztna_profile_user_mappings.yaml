@@ -1,0 +1,46 @@
+# Manual resource
+# APIBEHAVIOUR: mappings are changed with PATCH add/remove operations, there is no POST/PUT/DELETE
+# -> Create() / Update() (GET all current mappings and revision, PATCH add/remove operations to match the plan, see setMappings())
+#    API rejects adding an already mapped or removing a not mapped user (400), the whole PATCH is then rejected
+# -> Delete() (PATCH remove operations for the users in state, with the revision from state)
+# -> Read() (GetAll for the items, `rev` is read separately from a single page, as GetAll does not return it)
+# -> ImportState() (import ID is the profile ID)
+---
+name: ZTA Profile User Mappings
+rest_endpoint: /deployments/v2/ztna/profiles/%v/userMappings
+doc_category: Connect
+no_data_source: true
+skip_minimum_test: true
+test_tags: ["TF_VAR_ad_user_id"]
+attributes:
+  - model_name: profileId
+    tf_name: zta_profile_id
+    type: String
+    reference: true
+    description: ID of the ZTNA Profile.
+    example: acde070d-8c4c-4f0d-9d8a-162843c10333
+    test_value: secureaccess_zta_profile.test.id
+  - model_name: rev
+    tf_name: revision
+    type: Int64
+    computed: true
+    description: Revision of the ZTNA Profile, incremented on each change.
+  - model_name: items
+    tf_name: users
+    type: Set
+    description: List of users mapped to the ZTNA Profile.
+    mandatory: true
+    attributes:
+      - model_name: id
+        type: String
+        description: ID of the user.
+        example: "12345678"
+        test_value: var.ad_user_id
+
+test_prerequisites: |-
+  variable "ad_user_id" { default = null } // tests will set $TF_VAR_ad_user_id
+
+  resource "secureaccess_zta_profile" "test" {
+    name     = "my ztna profile user mappings"
+    priority = 1
+  }
