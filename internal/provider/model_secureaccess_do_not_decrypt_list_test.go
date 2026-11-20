@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -603,14 +604,14 @@ func TestDoNotDecryptListCreateBody(t *testing.T) {
 	})
 }
 
-// The destinations are read from the destination list behind the object (Read() puts them into the body as `destinations`),
-// applications and categories are not returned in the form that is written, so they are write only: the generated
-// fromBody and fromBodyPartial never touch them.
+// The destinations and the applications are read from the lists behind the object (Read() puts them into the body as
+// `destinations` and `applications`), the categories are not returned in the form that is written, so they are write only:
+// the generated fromBody and fromBodyPartial never touch them.
 func TestDoNotDecryptListFromBodyWithDestinations(t *testing.T) {
 	ctx := context.Background()
 	// the body that Read() builds: the object, with the destinations of the destination list behind it as `destinations`
-	response := gjson.Parse(`{"name":"n","isDefault":false,"decryptExceptionCategories":[{"categoryId":12,"name":"A"}],"totalDomains":2,"totalIps":0,"totalApplications":0,` +
-		`"destinations":[{"id":1,"destination":"a.com","comment":"x","type":"domain"},{"id":2,"destination":"c.com","comment":null,"type":"domain"}]}`)
+	response := gjson.Parse(`{"name":"n","isDefault":false,"decryptExceptionCategories":[{"categoryId":12,"name":"A"}],"totalDomains":2,"totalIps":0,"totalApplications":2,"exceptionapplicationlistId":888,` +
+		`"applications":[101,102],"destinations":[{"id":1,"destination":"a.com","comment":"x","type":"domain"},{"id":2,"destination":"c.com","comment":null,"type":"domain"}]}`)
 	destinationNames := func(items []DoNotDecryptListDestinations) []string {
 		var out []string
 		for _, item := range items {
@@ -619,7 +620,7 @@ func TestDoNotDecryptListFromBodyWithDestinations(t *testing.T) {
 		return out
 	}
 
-	t.Run("a refresh reads the destinations of the state, applications and categories stay as they are", func(t *testing.T) {
+	t.Run("a refresh reads the destinations of the state and all applications, the categories stay as they are", func(t *testing.T) {
 		state := DoNotDecryptList{
 			Name:                       types.StringValue("n"),
 			Destinations:               []DoNotDecryptListDestinations{dndDestination("a.com", "old"), dndDestination("b.com", "y"), dndDestination("c.com", "")},
@@ -639,9 +640,14 @@ func TestDoNotDecryptListFromBodyWithDestinations(t *testing.T) {
 		if !state.Destinations[1].Comment.IsNull() {
 			t.Errorf("a destination without a comment in the state must keep none, got %v", state.Destinations[1].Comment)
 		}
-		if !slices.Equal(helpers.Int64SetElements(ctx, state.Applications), []int64{101}) ||
-			!slices.Equal(helpers.Int64SetElements(ctx, state.DecryptExceptionCategories), []int64{12, 27}) {
-			t.Errorf("write only attributes changed by a refresh: %+v", state)
+		if !slices.Equal(helpers.Int64SetElements(ctx, state.Applications), []int64{101, 102}) {
+			t.Errorf("applications = %v, want all applications of the list (102 was added outside of Terraform)", helpers.Int64SetElements(ctx, state.Applications))
+		}
+		if !slices.Equal(helpers.Int64SetElements(ctx, state.DecryptExceptionCategories), []int64{12, 27}) {
+			t.Errorf("the write only categories changed by a refresh: %+v", state)
+		}
+		if state.ApplicationExceptionListId.ValueInt64() != 888 {
+			t.Errorf("application_exception_list_id = %v, want 888", state.ApplicationExceptionListId)
 		}
 		if state.TotalDomains.ValueInt64() != 2 {
 			t.Errorf("the totals are read: %v", state.TotalDomains)
@@ -656,7 +662,7 @@ func TestDoNotDecryptListFromBodyWithDestinations(t *testing.T) {
 		}
 	})
 
-	t.Run("an import reads all destinations and leaves applications and categories empty", func(t *testing.T) {
+	t.Run("an import reads all destinations and all applications and leaves the categories empty", func(t *testing.T) {
 		var imported DoNotDecryptList
 		imported.fromBody(ctx, response)
 		if got, want := destinationNames(imported.Destinations), []string{"a.com", "c.com"}; !slices.Equal(got, want) {
@@ -665,8 +671,8 @@ func TestDoNotDecryptListFromBodyWithDestinations(t *testing.T) {
 		if got := imported.Destinations[0].Comment.ValueString(); got != "x" {
 			t.Errorf("the comment of a.com = %q", got)
 		}
-		if !imported.Applications.IsNull() || !imported.DecryptExceptionCategories.IsNull() {
-			t.Errorf("applications and categories are not read: %+v", imported)
+		if !slices.Equal(helpers.Int64SetElements(ctx, imported.Applications), []int64{101, 102}) || !imported.DecryptExceptionCategories.IsNull() {
+			t.Errorf("applications must be read, categories not: %+v", imported)
 		}
 		if imported.Name.ValueString() != "n" || imported.TotalDomains.ValueInt64() != 2 {
 			t.Errorf("name and totals must be read: %+v", imported)
@@ -679,8 +685,10 @@ func TestDoNotDecryptListFromBodyWithDestinations(t *testing.T) {
 type dndReadAPI struct {
 	mu       sync.Mutex
 	paths    []string
-	listHas  bool // the items of the list carry exceptiondomainlistId
-	destCode int  // status of the answer for the destinations, 0 is 200
+	listHas  bool  // the items of the list carry exceptiondomainlistId and exceptionapplicationlistId
+	destCode int   // status of the answer for the destinations, 0 is 200
+	apps     []any // the applications of the exception application list 888, none: the object has no such list
+	appsCode int   // status of the answer for the applications, 0 is 200
 }
 
 func (a *dndReadAPI) requests() []string {
@@ -691,11 +699,21 @@ func (a *dndReadAPI) requests() []string {
 
 func newDndReadClient(t *testing.T, listHas bool, destCode int) (*secureaccess.Client, *dndReadAPI) {
 	t.Helper()
-	api := &dndReadAPI{listHas: listHas, destCode: destCode}
+	return newDndReadClientWithApplications(t, listHas, destCode, nil, 0)
+}
+
+func newDndReadClientWithApplications(t *testing.T, listHas bool, destCode int, apps []any, appsCode int) (*secureaccess.Client, *dndReadAPI) {
+	t.Helper()
+	api := &dndReadAPI{listHas: listHas, destCode: destCode, apps: apps, appsCode: appsCode}
 	object := func(withList bool) map[string]any {
-		o := map[string]any{"id": 5, "name": "n", "isDefault": false, "totalDomains": 2, "totalIps": 0, "totalApplications": 0}
+		o := map[string]any{"id": 5, "name": "n", "isDefault": false, "totalDomains": 2, "totalIps": 0, "totalApplications": len(apps)}
 		if withList {
 			o["exceptiondomainlistId"] = 777
+			if len(apps) > 0 {
+				o["exceptionapplicationlistId"] = 888
+			} else {
+				o["exceptionapplicationlistId"] = nil
+			}
 		}
 		return o
 	}
@@ -715,6 +733,13 @@ func newDndReadClient(t *testing.T, listHas bool, destCode int) (*secureaccess.C
 		case r.URL.Path == "/policies/v2/doNotDecryptLists/5":
 			b, _ := json.Marshal(object(true))
 			_, _ = w.Write(b)
+		case r.URL.Path == "/policies/v2/exceptionApplicationLists/888/applications":
+			if api.appsCode != 0 {
+				w.WriteHeader(api.appsCode)
+				_, _ = io.WriteString(w, `{"message":"no"}`)
+				return
+			}
+			excPaged(w, r, api.apps)
 		case r.URL.Path == "/policies/v2/destinationlists/777/destinations":
 			if api.destCode != 0 {
 				w.WriteHeader(api.destCode)
@@ -839,8 +864,11 @@ func TestDoNotDecryptListDataSourceRead(t *testing.T) {
 			if got.Destinations[0].Comment.ValueString() != "x" {
 				t.Errorf("the comment of a.com = %q", got.Destinations[0].Comment.ValueString())
 			}
-			if !got.Applications.IsNull() || !got.DecryptExceptionCategories.IsNull() {
-				t.Errorf("applications and categories are not read: %+v", got)
+			if got.Applications.IsNull() || len(got.Applications.Elements()) != 0 || !got.DecryptExceptionCategories.IsNull() {
+				t.Errorf("a list without applications has an empty set of applications and no categories: %+v", got)
+			}
+			if got.ApplicationExceptionListId.IsNull() || got.ApplicationExceptionListId.ValueInt64() != 0 {
+				t.Errorf("application_exception_list_id = %v, want 0 for a list without applications (the API returns null)", got.ApplicationExceptionListId)
 			}
 			if reqs := api.requests(); !slices.Equal(reqs, tc.want) {
 				t.Errorf("requests = %v, want %v", reqs, tc.want)
@@ -1524,6 +1552,361 @@ func TestDoNotDecryptListUpdateRemovals(t *testing.T) {
 			got[1] != "GET /policies/v2/doNotDecryptLists/1 " || got[2] != "GET /policies/v2/destinationlists/777/destinations " ||
 			strings.Contains(got[3], "removeDestinations") {
 			t.Errorf("requests = %v", got)
+		}
+	})
+}
+
+// attribute returns one attribute of a state of the resource.
+func (s *dndReadServer) attribute(state *tfprotov6.DynamicValue, name string) tftypes.Value {
+	s.t.Helper()
+	v, err := state.Unmarshal(s.resType)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	var obj map[string]tftypes.Value
+	if err := v.As(&obj); err != nil {
+		s.t.Fatal(err)
+	}
+	return obj[name]
+}
+
+// applications returns the applications of a state, sorted.
+func (s *dndReadServer) applications(state *tfprotov6.DynamicValue) []int64 {
+	s.t.Helper()
+	attr := s.attribute(state, "applications")
+	if attr.IsNull() {
+		return nil
+	}
+	var set []tftypes.Value
+	if err := attr.As(&set); err != nil {
+		s.t.Fatal(err)
+	}
+	var out []int64
+	for _, e := range set {
+		var n big.Float
+		if err := e.As(&n); err != nil {
+			s.t.Fatal(err)
+		}
+		v, _ := n.Int64()
+		out = append(out, v)
+	}
+	slices.Sort(out)
+	return out
+}
+
+func (s *dndReadServer) applicationListId(state *tfprotov6.DynamicValue) string {
+	s.t.Helper()
+	attr := s.attribute(state, "application_exception_list_id")
+	if attr.IsNull() {
+		return "null"
+	}
+	var n big.Float
+	if err := attr.As(&n); err != nil {
+		s.t.Fatal(err)
+	}
+	return n.Text('f', 0)
+}
+
+func TestDoNotDecryptListWithApplications(t *testing.T) {
+	ctx := context.Background()
+	const listPath = "/policies/v2/exceptionApplicationLists/888/applications?page=1&limit=1000"
+
+	t.Run("the applications of the exception application list are added to the object, in the order of the API", func(t *testing.T) {
+		client, api := newDndReadClientWithApplications(t, true, 0, excApps(3), 0)
+		object := gjson.Parse(`{"id":5,"name":"n","exceptionapplicationlistId":888,"totalApplications":3}`)
+		body, err := doNotDecryptListWithApplications(ctx, client, object)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := body.Get("applications").Raw; got != `[1000,1003,1006]` {
+			t.Errorf("applications = %s in %s", got, body.Raw)
+		}
+		if body.Get("name").String() != "n" || body.Get("exceptionapplicationlistId").Int() != 888 || body.Get("totalApplications").Int() != 3 {
+			t.Errorf("the rest of the object must stay: %s", body.Raw)
+		}
+		if got := api.requests(); !slices.Equal(got, []string{"/policies/v2/exceptionApplicationLists/888/applications"}) {
+			t.Errorf("requests = %v, want one request for the applications, nothing else", got)
+		}
+	})
+
+	t.Run("more than 1000 applications are read page by page", func(t *testing.T) {
+		client, api := newDndReadClientWithApplications(t, true, 0, excApps(2345), 0)
+		body, err := doNotDecryptListWithApplications(ctx, client, gjson.Parse(`{"id":5,"exceptionapplicationlistId":888,"totalApplications":2345}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := body.Get("applications.#").Int(); got != 2345 || body.Get("applications.2344").Int() != int64(1000+2344*3) {
+			t.Errorf("read %d applications", got)
+		}
+		if got := len(api.requests()); got != 3 {
+			t.Errorf("requests = %d, want 3 pages of 1000", got)
+		}
+	})
+
+	t.Run("an object without an exception application list and without applications has none, and no request is sent", func(t *testing.T) {
+		for _, object := range []string{
+			`{"id":5,"exceptionapplicationlistId":null,"totalApplications":0}`,
+			`{"id":5,"exceptionapplicationlistId":0,"totalApplications":0}`,
+			`{"id":5,"totalApplications":0}`,
+		} {
+			client, api := newDndReadClientWithApplications(t, true, 0, nil, 0)
+			body, err := doNotDecryptListWithApplications(ctx, client, gjson.Parse(object))
+			if err != nil {
+				t.Fatalf("%s: %v", object, err)
+			}
+			if body.Get("applications").Raw != `[]` || len(api.requests()) != 0 {
+				t.Errorf("%s: applications = %s, requests = %v, want [] and no request", object, body.Get("applications").Raw, api.requests())
+			}
+		}
+	})
+
+	t.Run("an object without an exception application list but with applications is an error", func(t *testing.T) {
+		for object, want := range map[string]string{
+			`{"id":5,"exceptionapplicationlistId":null,"totalApplications":3}`: "its totalApplications is 3",
+			`{"id":5,"exceptionapplicationlistId":0,"totalApplications":3}`:    "its totalApplications is 3",
+			`{"id":5,"exceptionapplicationlistId":"x","totalApplications":2}`:  "no exception application list",
+			`{"id":5,"exceptionapplicationlistId":-4,"totalApplications":2}`:   "no exception application list",
+			`{"id":5}`: "no exception application list",
+		} {
+			client, api := newDndReadClientWithApplications(t, true, 0, nil, 0)
+			_, err := doNotDecryptListWithApplications(ctx, client, gjson.Parse(object))
+			if err == nil || !strings.Contains(err.Error(), want) {
+				t.Errorf("%s: err = %v, want %q", object, err, want)
+			}
+			if len(api.requests()) != 0 {
+				t.Errorf("%s: requests = %v, want none", object, api.requests())
+			}
+		}
+	})
+
+	t.Run("an exception application list that cannot be read is an error", func(t *testing.T) {
+		client, _ := newDndReadClientWithApplications(t, true, 0, excApps(3), http.StatusBadRequest)
+		_, err := doNotDecryptListWithApplications(ctx, client, gjson.Parse(`{"id":5,"exceptionapplicationlistId":888,"totalApplications":3}`))
+		if err == nil || !strings.Contains(err.Error(), "failed to read the applications of the exception application list") || !strings.Contains(err.Error(), "StatusCode 400") {
+			t.Errorf("err = %v", err)
+		}
+	})
+
+	t.Run("an application without a numeric id or one that is listed twice is an error", func(t *testing.T) {
+		for name, tc := range map[string]struct {
+			apps []any
+			want string
+		}{
+			"no id":        {[]any{excApp(0), map[string]any{"applicationName": "x"}}, "expected a number as applicationId"},
+			"a string id":  {[]any{excApp(0), map[string]any{"applicationId": "7"}}, "expected a number as applicationId"},
+			"listed twice": {[]any{excApp(0), excApp(1), excApp(0)}, "the application 1000 is listed more than once"},
+		} {
+			client, _ := newDndReadClientWithApplications(t, true, 0, tc.apps, 0)
+			_, err := doNotDecryptListWithApplications(ctx, client, gjson.Parse(`{"id":5,"exceptionapplicationlistId":888,"totalApplications":3}`))
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("%s: err = %v, want %q", name, err, tc.want)
+			}
+		}
+	})
+
+	t.Run("the destinations and the applications are both added by doNotDecryptListWithLists", func(t *testing.T) {
+		client, api := newDndReadClientWithApplications(t, true, 0, excApps(2), 0)
+		body, err := doNotDecryptListWithLists(ctx, client, gjson.Parse(`{"id":5,"name":"n","exceptiondomainlistId":777,"exceptionapplicationlistId":888,"totalDomains":2,"totalApplications":2}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if body.Get("destinations.#.destination").Raw != `["a.com","c.com"]` || body.Get("applications").Raw != `[1000,1003]` {
+			t.Errorf("body = %s", body.Raw)
+		}
+		if got := api.requests(); len(got) != 2 {
+			t.Errorf("requests = %v, want the destinations and the applications", got)
+		}
+	})
+
+	t.Run("the query of the applications is page and limit 1000", func(t *testing.T) {
+		var queries []string
+		var mu sync.Mutex
+		client, _ := newDndReadClientWithApplications(t, true, 0, excApps(1), 0)
+		_ = client
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/auth/v2/token" {
+				_, _ = io.WriteString(w, `{"access_token":"t","token_type":"bearer","expires_in":3600}`)
+				return
+			}
+			mu.Lock()
+			queries = append(queries, r.URL.Path+"?"+r.URL.RawQuery)
+			mu.Unlock()
+			excPaged(w, r, excApps(1))
+		}))
+		defer server.Close()
+		c, err := secureaccess.NewClient(server.URL, "key", "secret")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := doNotDecryptListWithApplications(ctx, c, gjson.Parse(`{"id":5,"exceptionapplicationlistId":888,"totalApplications":1}`)); err != nil {
+			t.Fatal(err)
+		}
+		if len(queries) != 1 || queries[0] != listPath {
+			t.Errorf("queries = %v, want %s", queries, listPath)
+		}
+	})
+}
+
+func TestDoNotDecryptListDataSourceReadApplications(t *testing.T) {
+	ctx := context.Background()
+	for name, tc := range map[string]struct {
+		id, name types.String
+		listHas  bool
+		want     []string
+	}{
+		"by id": {types.StringValue("5"), types.StringNull(), true,
+			[]string{"/policies/v2/doNotDecryptLists/5", "/policies/v2/destinationlists/777/destinations", "/policies/v2/exceptionApplicationLists/888/applications"}},
+		"by name, the list carries both lists": {types.StringNull(), types.StringValue("n"), true,
+			[]string{"/policies/v2/doNotDecryptLists", "/policies/v2/destinationlists/777/destinations", "/policies/v2/exceptionApplicationLists/888/applications"}},
+		"by name, the list lacks both lists, the object is read by its id": {types.StringNull(), types.StringValue("n"), false,
+			[]string{"/policies/v2/doNotDecryptLists", "/policies/v2/doNotDecryptLists/5", "/policies/v2/destinationlists/777/destinations", "/policies/v2/exceptionApplicationLists/888/applications"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			client, api := newDndReadClientWithApplications(t, tc.listHas, 0, excApps(3), 0)
+			d := &DoNotDecryptListDataSource{client: client}
+			var schemaResp datasource.SchemaResponse
+			d.Schema(ctx, datasource.SchemaRequest{}, &schemaResp)
+			config := DoNotDecryptList{Id: tc.id, Name: tc.name, Applications: types.SetNull(types.Int64Type), DecryptExceptionCategories: types.SetNull(types.Int64Type)}
+			nullRaw := tftypes.NewValue(schemaResp.Schema.Type().TerraformType(ctx), nil)
+			configState := tfsdk.State{Schema: schemaResp.Schema, Raw: nullRaw}
+			if diags := configState.Set(ctx, &config); diags.HasError() {
+				t.Fatal(diags)
+			}
+			resp := datasource.ReadResponse{State: tfsdk.State{Schema: schemaResp.Schema, Raw: nullRaw}}
+			d.Read(ctx, datasource.ReadRequest{Config: tfsdk.Config{Schema: schemaResp.Schema, Raw: configState.Raw}}, &resp)
+			if resp.Diagnostics.HasError() {
+				t.Fatal(resp.Diagnostics)
+			}
+			var got DoNotDecryptList
+			if diags := resp.State.Get(ctx, &got); diags.HasError() {
+				t.Fatal(diags)
+			}
+			if ids := helpers.Int64SetElements(ctx, got.Applications); !slices.Equal(ids, []int64{1000, 1003, 1006}) {
+				t.Errorf("applications = %v, want the 3 applications of the exception application list", ids)
+			}
+			if got.ApplicationExceptionListId.ValueInt64() != 888 || got.TotalApplications.ValueInt64() != 3 {
+				t.Errorf("application_exception_list_id = %v, total_applications = %v", got.ApplicationExceptionListId, got.TotalApplications)
+			}
+			if !got.DecryptExceptionCategories.IsNull() {
+				t.Errorf("the categories are not read: %v", got.DecryptExceptionCategories)
+			}
+			if reqs := api.requests(); !slices.Equal(reqs, tc.want) {
+				t.Errorf("requests = %v, want %v", reqs, tc.want)
+			}
+		})
+	}
+
+	t.Run("an exception application list that cannot be read is an error", func(t *testing.T) {
+		client, _ := newDndReadClientWithApplications(t, true, 0, excApps(3), http.StatusBadRequest)
+		d := &DoNotDecryptListDataSource{client: client}
+		var schemaResp datasource.SchemaResponse
+		d.Schema(ctx, datasource.SchemaRequest{}, &schemaResp)
+		config := DoNotDecryptList{Id: types.StringValue("5"), Applications: types.SetNull(types.Int64Type), DecryptExceptionCategories: types.SetNull(types.Int64Type)}
+		nullRaw := tftypes.NewValue(schemaResp.Schema.Type().TerraformType(ctx), nil)
+		configState := tfsdk.State{Schema: schemaResp.Schema, Raw: nullRaw}
+		if diags := configState.Set(ctx, &config); diags.HasError() {
+			t.Fatal(diags)
+		}
+		resp := datasource.ReadResponse{State: tfsdk.State{Schema: schemaResp.Schema, Raw: nullRaw}}
+		d.Read(ctx, datasource.ReadRequest{Config: tfsdk.Config{Schema: schemaResp.Schema, Raw: configState.Raw}}, &resp)
+		if !resp.Diagnostics.HasError() || !strings.Contains(resp.Diagnostics.Errors()[0].Detail(), "failed to read the applications") {
+			t.Errorf("diagnostics = %v", resp.Diagnostics)
+		}
+		if !resp.State.Raw.IsNull() {
+			t.Errorf("state must stay empty after an error, got %s", resp.State.Raw)
+		}
+	})
+}
+
+// Read() of the resource reads the applications back: a refresh shows the applications that were added outside of
+// Terraform (the API cannot remove them again), an import reads them, and an exception application list that cannot be
+// read fails the refresh instead of emptying the state.
+func TestDoNotDecryptListResourceReadApplications(t *testing.T) {
+	var mu sync.Mutex
+	object := `{"id":5,"name":"n","isDefault":false,"exceptiondomainlistId":777,"exceptionapplicationlistId":888,"totalDomains":2,"totalIps":0,"totalApplications":3}`
+	apps := excApps(3)
+	appsCode := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/auth/v2/token":
+			_, _ = io.WriteString(w, `{"access_token":"t","token_type":"bearer","expires_in":3600}`)
+		case "/policies/v2/doNotDecryptLists/5":
+			_, _ = io.WriteString(w, object)
+		case "/policies/v2/destinationlists/777/destinations":
+			_, _ = io.WriteString(w, `{"data":[{"id":1,"destination":"a.com","type":"domain"}],"meta":{"total":1}}`)
+		case "/policies/v2/exceptionApplicationLists/888/applications":
+			if appsCode != 0 {
+				w.WriteHeader(appsCode)
+				_, _ = io.WriteString(w, `{"message":"no"}`)
+				return
+			}
+			excPaged(w, r, apps)
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	s := newDndReadServer(t, server.URL)
+	set := func(o string, a []any, code int) { mu.Lock(); object, apps, appsCode = o, a, code; mu.Unlock() }
+	original := object
+
+	t.Run("a refresh reads all applications, also those that were added outside of Terraform", func(t *testing.T) {
+		// the state (applications 1 and the categories 2) is replaced by the 3 applications of the list
+		rr := s.read(s.stateWith(dndDestination("a.com", "")), nil)
+		if len(rr.Diagnostics) > 0 {
+			t.Fatal(rr.Diagnostics)
+		}
+		if got := s.applications(rr.NewState); !slices.Equal(got, []int64{1000, 1003, 1006}) {
+			t.Errorf("applications = %v, want the 3 applications of the exception application list", got)
+		}
+		if got := s.applicationListId(rr.NewState); got != "888" {
+			t.Errorf("application_exception_list_id = %s, want 888", got)
+		}
+	})
+
+	t.Run("an import reads the applications", func(t *testing.T) {
+		rr := s.importThenRead("5")
+		if len(rr.Diagnostics) > 0 {
+			t.Fatal(rr.Diagnostics)
+		}
+		if got := s.applications(rr.NewState); !slices.Equal(got, []int64{1000, 1003, 1006}) {
+			t.Errorf("applications = %v after an import", got)
+		}
+	})
+
+	t.Run("a list that lost its applications outside of Terraform is read as it is", func(t *testing.T) {
+		set(`{"id":5,"name":"n","isDefault":false,"exceptiondomainlistId":777,"exceptionapplicationlistId":null,"totalDomains":2,"totalIps":0,"totalApplications":0}`, nil, 0)
+		defer set(original, excApps(3), 0)
+		rr := s.read(s.stateWith(dndDestination("a.com", "")), nil)
+		if len(rr.Diagnostics) > 0 {
+			t.Fatal(rr.Diagnostics)
+		}
+		if got := s.applications(rr.NewState); len(got) != 0 {
+			t.Errorf("applications = %v, want none", got)
+		}
+		if got := s.applicationListId(rr.NewState); got != "0" {
+			t.Errorf("application_exception_list_id = %s, want 0 for the null of the API", got)
+		}
+	})
+
+	t.Run("an exception application list that cannot be read fails the refresh", func(t *testing.T) {
+		set(original, excApps(3), http.StatusBadRequest)
+		defer set(original, excApps(3), 0)
+		rr := s.read(s.stateWith(dndDestination("a.com", "")), nil)
+		if len(rr.Diagnostics) == 0 {
+			t.Errorf("a failing request for the applications must fail the refresh, got the applications %v", s.applications(rr.NewState))
+		}
+	})
+
+	t.Run("an object that has applications but no exception application list fails the refresh", func(t *testing.T) {
+		set(`{"id":5,"name":"n","isDefault":false,"exceptiondomainlistId":777,"exceptionapplicationlistId":null,"totalDomains":2,"totalIps":0,"totalApplications":3}`, nil, 0)
+		defer set(original, excApps(3), 0)
+		if rr := s.read(s.stateWith(dndDestination("a.com", "")), nil); len(rr.Diagnostics) == 0 {
+			t.Errorf("an object with totalApplications 3 and no exceptionapplicationlistId must fail the refresh")
 		}
 	})
 }

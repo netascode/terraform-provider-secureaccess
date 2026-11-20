@@ -4,12 +4,15 @@
 # -> Create(): at most 500 destinations are accepted on create, the rest is added with updates
 # -> Read(): the destinations are read from the destination list `exceptiondomainlistId` with destinationListReadDestinations() and put into the body as `destinations` before fromBody() and fromBodyPartial(), like the destination list does, the same in the data source.
 #    A `comment` that is null or empty is dropped from them first: the configuration cannot hold an empty comment and the generated fromBody() would read a null as an empty string (how the API returns a missing comment is not known)
+#    The applications are read from the exception application list `exceptionapplicationlistId` (readExceptionApplicationListPages(), the paging of the data sources application_exception_list and application_exception_lists) and put into the body as `applications` the same way.
+#    An object whose `exceptionapplicationlistId` is null or 0 has no applications if its `totalApplications` says so, otherwise the read is an error. Each application must have a numeric `applicationId`, an application that is listed twice is an error.
 # -> Update(): PUT takes `add*`/`remove*` lists instead of full lists, Update() builds them from state vs. plan (applications and categories can only be added, see below)
 # -> ModifyPlan(): warns about a plan that removes applications or categories, Update() refuses it, the API cannot do it
 # -> ValidateConfig(): a destination that is listed more than once is rejected, a set cannot express that (the same destination with two comments)
 # `string_patterns` of `destination` reject empty values, whitespace, uppercase letters, URLs, a trailing dot and malformed IPv4 addresses or CIDR blocks
 # APIBEHAVIOUR: GET does not return the destinations (only `totalDomains` and `totalIps`), they are read from the destination list `exceptiondomainlistId`
-# APIBEHAVIOUR: GET does not return the applications (only `totalApplications`), they are `write_only` and tracked in the Terraform state
+# APIBEHAVIOUR: GET does not return the applications (only `totalApplications` and `exceptionapplicationlistId`), they are read from the exception application list that `exceptionapplicationlistId` points to (GET /policies/v2/exceptionApplicationLists/{id}/applications)
+# APIBEHAVIOUR: `exceptionapplicationlistId` is null after create without applications, 0 after only content categories were added, and the id of the list from the first application on (observed on the int environment). The generated fromBody() reads the null as 0.
 # APIBEHAVIOUR: GET returns `decryptExceptionCategories` as a list of `{categoryId, name}`, while a list of ids is written, they are `write_only` as well
 # APIBEHAVIOUR: response JSON is not wrapped, list endpoint returns a bare array
 # APIBEHAVIOUR: adding a destination that exists updates its comment, adding it without a comment keeps the old comment
@@ -17,7 +20,7 @@
 # APIBEHAVIOUR: removing a destination that does not exist is an error, Update() checks the destination list and leaves such destinations out
 # APIBEHAVIOUR: domain names are stored in lowercase, URLs are rejected, a failed PUT does not change anything
 # APIBEHAVIOUR: applications and categories can be added, but not removed: PUT rejects `removeApplications` and `removeDecryptExceptionCategories` with 400 "is not an allowed field",
-#               also together with other changes, PATCH is not routed, and the application list behind the object (`exceptionapplicationlistId`) cannot be read through /policies/v2/applicationLists.
+#               also together with other changes, PATCH is not routed, and the list behind the object (`exceptionapplicationlistId`) cannot be read through /policies/v2/applicationLists, only through /policies/v2/exceptionApplicationLists.
 #               The API documentation lists the remove fields. Observed on the int environment, assumed for production.
 # -> ModifyPlan() warns about a plan that removes them, Update() refuses it with an error before it sends anything, the way out is `terraform apply -replace`
 ---
@@ -26,14 +29,15 @@ rest_endpoint: /policies/v2/doNotDecryptLists
 doc_category: Resources
 adjust_body: true
 ds_description: >-
-  This data source reads a Do Not Decrypt List, found by its `id` or by its `name`.
-  The Secure Access API does not return the applications of a list, and returns its content categories in a different form than they are written, therefore both are always empty.
+  This data source reads a Do Not Decrypt List, found by its `id` or by its `name`. Its destinations and applications are read from the lists behind it.
+  The Secure Access API returns the content categories of a list in a different form than they are written, therefore they are always empty.
 res_description: >-
   This resource manages a Do Not Decrypt List. The destinations are read from the destination list behind it, only the destinations
   of the configuration are managed: one that is removed outside of Terraform is detected, one that is added outside of it is not.
-  The Secure Access API does not return the applications of a list, and returns the content categories in a different form than they
-  are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`.
-  Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that
+  The applications are read from the exception application list behind the Do Not Decrypt List (see `application_exception_list_id`): an application that
+  is added outside of Terraform is detected, and it cannot be removed again because the API does not allow it. The Secure Access API returns the content
+  categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by
+  `terraform import`. Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that
   removes them is rejected on apply, replace the list instead (`terraform apply -replace=<resource address>`), which creates a new list with a new id.
 attributes:
   - model_name: name
@@ -67,10 +71,8 @@ attributes:
         string_max_length: 255
   - model_name: applications
     type: Set
-    write_only: true
-    ds_description: Always empty, the Secure Access API does not return the applications of a list.
     element_type: Int64
-    description: IDs of the applications that are excluded from decryption. They can be added to an existing list, but not removed.
+    description: IDs of the applications that are excluded from decryption. They can be added to an existing list, but not removed. They are read from the exception application list behind the Do Not Decrypt List.
     example: 101
     exclude_test: true
   - model_name: decryptExceptionCategories
@@ -103,6 +105,13 @@ attributes:
   - model_name: totalApplications
     type: Int64
     description: Number of applications in the Do Not Decrypt List.
+    computed: true
+    computed_refresh_value: true
+    exclude_test: true
+  - model_name: exceptionapplicationlistId
+    tf_name: application_exception_list_id
+    type: Int64
+    description: Id of the exception application list that holds the applications of the Do Not Decrypt List, the `id` of the `secureaccess_application_exception_list` data source. The API returns null until the first application is added, and 0 if only content categories were added, both are read as 0.
     computed: true
     computed_refresh_value: true
     exclude_test: true

@@ -3,12 +3,12 @@
 page_title: "secureaccess_do_not_decrypt_list Data Source - terraform-provider-secureaccess"
 subcategory: "Resources"
 description: |-
-  This data source reads a Do Not Decrypt List, found by its id or by its name. The Secure Access API does not return the applications of a list, and returns its content categories in a different form than they are written, therefore both are always empty.
+  This data source reads a Do Not Decrypt List, found by its id or by its name. Its destinations and applications are read from the lists behind it. The Secure Access API returns the content categories of a list in a different form than they are written, therefore they are always empty.
 ---
 
 # secureaccess_do_not_decrypt_list (Data Source)
 
-This data source reads a Do Not Decrypt List, found by its `id` or by its `name`. The Secure Access API does not return the applications of a list, and returns its content categories in a different form than they are written, therefore both are always empty.
+This data source reads a Do Not Decrypt List, found by its `id` or by its `name`. Its destinations and applications are read from the lists behind it. The Secure Access API returns the content categories of a list in a different form than they are written, therefore they are always empty.
 
 ## Example Usage
 
@@ -28,7 +28,8 @@ data "secureaccess_do_not_decrypt_list" "example" {
 
 ### Read-Only
 
-- `applications` (Set of Number) Always empty, the Secure Access API does not return the applications of a list.
+- `application_exception_list_id` (Number) Id of the exception application list that holds the applications of the Do Not Decrypt List, the `id` of the `secureaccess_application_exception_list` data source. The API returns null until the first application is added, and 0 if only content categories were added, both are read as 0.
+- `applications` (Set of Number) IDs of the applications that are excluded from decryption. They can be added to an existing list, but not removed. They are read from the exception application list behind the Do Not Decrypt List.
 - `decrypt_exception_categories` (Set of Number) Always empty, the content categories of a list are not read back.
 - `destinations` (Attributes Set) Destinations that are excluded from decryption, domain names (in lowercase), IPv4 addresses or CIDR blocks. URLs are not supported. Large lists are split into multiple requests automatically. (see [below for nested schema](#nestedatt--destinations))
 - `is_default` (Boolean) Specifies whether this is the default Do Not Decrypt List.

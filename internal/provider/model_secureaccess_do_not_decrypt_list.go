@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
@@ -52,6 +53,7 @@ type DoNotDecryptList struct {
 	TotalDomains               types.Int64                    `tfsdk:"total_domains"`
 	TotalIps                   types.Int64                    `tfsdk:"total_ips"`
 	TotalApplications          types.Int64                    `tfsdk:"total_applications"`
+	ApplicationExceptionListId types.Int64                    `tfsdk:"application_exception_list_id"`
 }
 
 type DoNotDecryptListDestinations struct {
@@ -142,6 +144,11 @@ func (data *DoNotDecryptList) fromBody(ctx context.Context, res gjson.Result) {
 			return true
 		})
 	}
+	if value := res.Get("applications"); value.Exists() {
+		data.Applications = helpers.GetInt64Set(value.Array())
+	} else {
+		data.Applications = types.SetNull(types.Int64Type)
+	}
 	if value := res.Get("isDefault"); value.Exists() {
 		data.IsDefault = types.BoolValue(value.Bool())
 	} else {
@@ -161,6 +168,11 @@ func (data *DoNotDecryptList) fromBody(ctx context.Context, res gjson.Result) {
 		data.TotalApplications = types.Int64Value(value.Int())
 	} else {
 		data.TotalApplications = types.Int64Null()
+	}
+	if value := res.Get("exceptionapplicationlistId"); value.Exists() {
+		data.ApplicationExceptionListId = types.Int64Value(value.Int())
+	} else {
+		data.ApplicationExceptionListId = types.Int64Null()
 	}
 }
 
@@ -226,6 +238,11 @@ func (data *DoNotDecryptList) fromBodyPartial(ctx context.Context, res gjson.Res
 		}
 		(*parent).Destinations[i] = data
 	}
+	if value := res.Get("applications"); value.Exists() && !data.Applications.IsNull() {
+		data.Applications = helpers.GetInt64Set(value.Array())
+	} else {
+		data.Applications = types.SetNull(types.Int64Type)
+	}
 	if value := res.Get("isDefault"); value.Exists() && !data.IsDefault.IsNull() {
 		data.IsDefault = types.BoolValue(value.Bool())
 	} else {
@@ -245,6 +262,11 @@ func (data *DoNotDecryptList) fromBodyPartial(ctx context.Context, res gjson.Res
 		data.TotalApplications = types.Int64Value(value.Int())
 	} else {
 		data.TotalApplications = types.Int64Null()
+	}
+	if value := res.Get("exceptionapplicationlistId"); value.Exists() {
+		data.ApplicationExceptionListId = types.Int64Value(value.Int())
+	} else {
+		data.ApplicationExceptionListId = types.Int64Null()
 	}
 }
 
@@ -276,6 +298,11 @@ func (data *DoNotDecryptList) fromBodyUnknowns(ctx context.Context, res gjson.Re
 		data.TotalApplications = types.Int64Value(value.Int())
 	} else {
 		data.TotalApplications = types.Int64Null()
+	}
+	if value := res.Get("exceptionapplicationlistId"); value.Exists() {
+		data.ApplicationExceptionListId = types.Int64Value(value.Int())
+	} else {
+		data.ApplicationExceptionListId = types.Int64Null()
 	}
 }
 
@@ -335,6 +362,74 @@ func doNotDecryptListWithDestinations(ctx context.Context, client *secureaccess.
 		return object, fmt.Errorf("failed to add the destinations to the object: %w", err)
 	}
 	return gjson.Parse(body), nil
+}
+
+// doNotDecryptListApplicationListId returns the id of the exception application list behind a Do Not Decrypt List
+// (`exceptionapplicationlistId` of the object), the list that holds its applications, see the data source
+// application_exception_list. The API returns null until the first application is added and 0 after only content categories
+// were added, neither is the id of a list.
+func doNotDecryptListApplicationListId(object gjson.Result) (string, error) {
+	listId := object.Get("exceptionapplicationlistId")
+	if listId.Type != gjson.Number || listId.Int() < 1 {
+		return "", fmt.Errorf("the object has no exception application list (exceptionapplicationlistId), its totalApplications is %s", object.Get("totalApplications").Raw)
+	}
+	return listId.Raw, nil
+}
+
+// doNotDecryptListWithApplications returns the object with the applications of the exception application list behind it as
+// `applications`, a list of their ids. The API returns only their total with the object. They are put into the body for
+// fromBody() and fromBodyPartial() the same way as the destinations. An object without an exception application list is read
+// as one without applications if its `totalApplications` says so, otherwise it is an error. The read fails, it does not
+// return a part of the applications (see readExceptionApplicationListPages()).
+func doNotDecryptListWithApplications(ctx context.Context, client *secureaccess.Client, object gjson.Result, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
+	ids := "[]"
+	if listId, err := doNotDecryptListApplicationListId(object); err != nil {
+		if total := object.Get("totalApplications"); total.Type != gjson.Number || total.Int() != 0 {
+			return object, err
+		}
+	} else {
+		items, err := readExceptionApplicationListPages(ctx, client, ApplicationExceptionList{}.getPath()+"/"+url.QueryEscape(listId)+"/applications", reqMods...)
+		if err != nil {
+			return object, fmt.Errorf("failed to read the applications of the exception application list: %w", err)
+		}
+		seen := map[int64]bool{}
+		var applicationIds []string
+		var invalid error
+		gjson.Parse(items).ForEach(func(_, item gjson.Result) bool {
+			id := item.Get("applicationId")
+			if id.Type != gjson.Number {
+				invalid = fmt.Errorf("expected a number as applicationId of an application of the exception application list, got: %s", id.Type)
+				return false
+			}
+			if seen[id.Int()] {
+				invalid = fmt.Errorf("the application %d is listed more than once in the exception application list", id.Int())
+				return false
+			}
+			seen[id.Int()] = true
+			applicationIds = append(applicationIds, id.Raw)
+			return true
+		})
+		if invalid != nil {
+			return object, invalid
+		}
+		ids = "[" + strings.Join(applicationIds, ",") + "]"
+	}
+	body, err := sjson.SetRaw(object.Raw, "applications", ids)
+	if err != nil {
+		return object, fmt.Errorf("failed to add the applications to the object: %w", err)
+	}
+	return gjson.Parse(body), nil
+}
+
+// doNotDecryptListWithLists returns the object with its destinations and its applications, which the API does not return
+// with it, see doNotDecryptListWithDestinations() and doNotDecryptListWithApplications(). It is what Read() of the resource
+// and of the data source read.
+func doNotDecryptListWithLists(ctx context.Context, client *secureaccess.Client, object gjson.Result, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
+	body, err := doNotDecryptListWithDestinations(ctx, client, object, reqMods...)
+	if err != nil {
+		return object, err
+	}
+	return doNotDecryptListWithApplications(ctx, client, body, reqMods...)
 }
 
 // doNotDecryptListWithoutEmptyComments returns the destinations (a JSON array) without the `comment` of those whose

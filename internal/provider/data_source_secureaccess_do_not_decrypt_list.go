@@ -59,7 +59,7 @@ func (d *DoNotDecryptListDataSource) Metadata(_ context.Context, req datasource.
 func (d *DoNotDecryptListDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This data source reads a Do Not Decrypt List, found by its `id` or by its `name`. The Secure Access API does not return the applications of a list, and returns its content categories in a different form than they are written, therefore both are always empty.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This data source reads a Do Not Decrypt List, found by its `id` or by its `name`. Its destinations and applications are read from the lists behind it. The Secure Access API returns the content categories of a list in a different form than they are written, therefore they are always empty.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -89,7 +89,7 @@ func (d *DoNotDecryptListDataSource) Schema(ctx context.Context, req datasource.
 				},
 			},
 			"applications": schema.SetAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Always empty, the Secure Access API does not return the applications of a list.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("IDs of the applications that are excluded from decryption. They can be added to an existing list, but not removed. They are read from the exception application list behind the Do Not Decrypt List.").String,
 				ElementType:         types.Int64Type,
 				Computed:            true,
 			},
@@ -112,6 +112,10 @@ func (d *DoNotDecryptListDataSource) Schema(ctx context.Context, req datasource.
 			},
 			"total_applications": schema.Int64Attribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Number of applications in the Do Not Decrypt List.").String,
+				Computed:            true,
+			},
+			"application_exception_list_id": schema.Int64Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Id of the exception application list that holds the applications of the Do Not Decrypt List, the `id` of the `secureaccess_application_exception_list` data source. The API returns null until the first application is added, and 0 if only content categories were added, both are read as 0.").String,
 				Computed:            true,
 			},
 		},
@@ -183,8 +187,9 @@ func (d *DoNotDecryptListDataSource) Read(ctx context.Context, req datasource.Re
 		}
 	}
 
-	// An object found by its name comes from the list. It is retrieved by its id if it lacks the destination list.
-	if _, listErr := doNotDecryptListDestinationListId(res.Result); !res.Exists() || listErr != nil {
+	// An object found by its name comes from the list. It is retrieved by its id if it lacks the destination list or the field of the exception application list.
+	_, listErr := doNotDecryptListDestinationListId(res.Result)
+	if !res.Exists() || listErr != nil || !res.Get("exceptionapplicationlistId").Exists() {
 		urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
 		var err error
 		res, err = d.client.Get(ctx, urlPath, reqMods...)
@@ -194,7 +199,7 @@ func (d *DoNotDecryptListDataSource) Read(ctx context.Context, req datasource.Re
 		}
 	}
 
-	body, err := doNotDecryptListWithDestinations(ctx, d.client, res.Result, reqMods...)
+	body, err := doNotDecryptListWithLists(ctx, d.client, res.Result, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return

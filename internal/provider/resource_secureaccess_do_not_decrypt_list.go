@@ -67,7 +67,7 @@ func (r *DoNotDecryptListResource) Metadata(ctx context.Context, req resource.Me
 func (r *DoNotDecryptListResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Do Not Decrypt List. The destinations are read from the destination list behind it, only the destinations of the configuration are managed: one that is removed outside of Terraform is detected, one that is added outside of it is not. The Secure Access API does not return the applications of a list, and returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`. Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that removes them is rejected on apply, replace the list instead (`terraform apply -replace=<resource address>`), which creates a new list with a new id.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Do Not Decrypt List. The destinations are read from the destination list behind it, only the destinations of the configuration are managed: one that is removed outside of Terraform is detected, one that is added outside of it is not. The applications are read from the exception application list behind the Do Not Decrypt List (see `application_exception_list_id`): an application that is added outside of Terraform is detected, and it cannot be removed again because the API does not allow it. The Secure Access API returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`. Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that removes them is rejected on apply, replace the list instead (`terraform apply -replace=<resource address>`), which creates a new list with a new id.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -111,7 +111,7 @@ func (r *DoNotDecryptListResource) Schema(ctx context.Context, req resource.Sche
 				},
 			},
 			"applications": schema.SetAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("IDs of the applications that are excluded from decryption. They can be added to an existing list, but not removed.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("IDs of the applications that are excluded from decryption. They can be added to an existing list, but not removed. They are read from the exception application list behind the Do Not Decrypt List.").String,
 				ElementType:         types.Int64Type,
 				Optional:            true,
 			},
@@ -137,6 +137,10 @@ func (r *DoNotDecryptListResource) Schema(ctx context.Context, req resource.Sche
 			},
 			"total_applications": schema.Int64Attribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Number of applications in the Do Not Decrypt List.").String,
+				Computed:            true,
+			},
+			"application_exception_list_id": schema.Int64Attribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Id of the exception application list that holds the applications of the Do Not Decrypt List, the `id` of the `secureaccess_application_exception_list` data source. The API returns null until the first application is added, and 0 if only content categories were added, both are read as 0.").String,
 				Computed:            true,
 			},
 		},
@@ -207,9 +211,9 @@ func (r *DoNotDecryptListResource) Create(ctx context.Context, req resource.Crea
 	helpers.SetFlagImporting(ctx, false, resp.Private, &resp.Diagnostics)
 }
 
-// Read reads the object and the destinations of the destination list behind it, which the API does not return with the
-// object, the same way as the destination list does: they are put into the body as `destinations` before the generated
-// fromBody() and fromBodyPartial() read it. This function is not generated (it has no template markers).
+// Read reads the object, the destinations of the destination list behind it and the applications of the exception application
+// list behind it, which the API does not return with the object, the same way as the destination list does: they are put into
+// the body as `destinations` and `applications` before the generated fromBody() and fromBodyPartial() read it. This function is not generated (it has no template markers).
 func (r *DoNotDecryptListResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state DoNotDecryptList
 
@@ -234,7 +238,7 @@ func (r *DoNotDecryptListResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
-	body, err := doNotDecryptListWithDestinations(ctx, r.client, res.Result, reqMods...)
+	body, err := doNotDecryptListWithLists(ctx, r.client, res.Result, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
@@ -292,7 +296,7 @@ func (r *DoNotDecryptListResource) Update(ctx context.Context, req resource.Upda
 
 	// The API takes lists of items to add and to remove instead of the full lists, which can require multiple requests.
 	// If one of them fails after others were accepted, the state is set to what the API holds by then. The next refresh
-	// corrects the destinations, but the applications and categories are not read back, so the state has to track them.
+	// corrects the destinations and the applications, but the categories are not read back, so the state has to track them.
 	steps := plan.toUpdateSteps(ctx, state)
 	interim := state
 	objectPath := plan.getPath() + "/" + url.QueryEscape(plan.Id.ValueString())
