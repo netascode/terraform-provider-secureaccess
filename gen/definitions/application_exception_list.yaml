@@ -1,0 +1,80 @@
+# Manual data source, found by `id` only: the schema and fromBody() are generated, Read() is hand-written
+# -> Read(): GET /policies/v2/exceptionApplicationLists/{id}, then every page of GET /policies/v2/exceptionApplicationLists/{id}/applications (`page` and `limit=1000`).
+#    The settings of the list are taken from `data` of the first answer and the applications of all pages are put into that body as `applications` before fromBody().
+#    An error is reported when `meta.total` is missing or changes between the pages, when the items read are not `meta.total`, when a page is empty before the total is reached, repeats the page before or holds more than `limit` items, or when `meta.total` is more than 1000 pages of 1000 items.
+# The id of an exception application list is the `exceptionapplicationlistId` of a Do Not Decrypt list. The API creates the list when the first application is added to a Do Not Decrypt list (the field is null until then, 0 after only content categories were added).
+# There is no lookup by `name`: the ids come from the `secureaccess_application_exception_lists` data source and carry no name, and the name of a list is the name of the Do Not Decrypt list that uses it (equal on the 2 lists observed).
+# APIBEHAVIOUR: GET of the list answers {status, data} without `meta`, GET of the applications answers {status, meta{page, limit, total}, data}.
+# APIBEHAVIOUR: without `limit` the applications are cut at 100 (`meta.limit` is 100), `limit` accepts up to 1000 (1001 is a 400), `limit` 0, -1, abc and `page` 0 are a 400, a page past the end is a 200 with an empty `data`.
+# APIBEHAVIOUR: `page` is honoured, `offset` is read as the index of a page (offset=1&limit=10 returned the items of page=2), so it is not used.
+# APIBEHAVIOUR: on a list of 125 applications a walk page by page (7 per page, 18 pages, twice) returned the same 125 applications as the single answer of `limit=1000`, in ascending `applicationId` order (not ordered by name), and `meta.total` was 125, the same as the sum of `allowedCount`, `blockedCount` and `warnedCount` of the list.
+# APIBEHAVIOUR: an unknown id is a 404 `object_not_found`, the id 0 is a 400 `invalid_request`, a negative or non-numeric id is a 404 "no Route matched" of the gateway. The collection route in lowercase (/policies/v2/exceptionapplicationlists) is a 404 "no Route matched" as well, the lowercase spelling of the routes with an id was not tried.
+# APIBEHAVIOUR: `groupId` and `groupName` of an application are the id and the name of an application category of /policies/v2/applicationCategories (29 of 29 groups on the list of 125 applications), the application categories of /reports/v2/applications have other ids.
+# APIBEHAVIOUR: `applicationId` and `applicationName` are the id and the label of an application of the type AVC of /reports/v2/applications (125 of 125). The type NBAR of that report uses the same numbers for other entries, and the API rejected one of them ("application(2) is not valid") when it was added to a Do Not Decrypt list.
+# APIBEHAVIOUR: the answers carry rate limit headers, on the int environment 5 requests a second, 14 a minute and 350 an hour.
+# Observed on the int environment only, on 2 lists (125 and 1 applications). Not observed: a list with more than 125 applications, a list with an application whose `action` is not no_decrypt, `hasUrls` true, `blockedCount` or `warnedCount` other than 0, `applicationsCategories` that is not empty, `isDefault` or `isSwgDefault` that are not null.
+# Not exposed: `isDefault` and `isSwgDefault` (null on the 2 lists observed, so the type was never seen), `applicationsCategories` (always empty, free form), `type` (always "application"), `markedForDeletion` (always false), `bundleTypeId` (1 on every list observed), `organizationId`, `createdAt` and `modifiedAt`, `selectedAction` of an application (the same as `action`, with the display name Allow and the id 1 on all applications observed).
+# The generated fromBody() reads a JSON null as 0, an empty string or false. No null was seen in an exposed attribute.
+---
+name: Application Exception List
+rest_endpoint: /policies/v2/exceptionApplicationLists
+doc_category: Resources
+no_resource: true
+no_import: true
+ds_description: >-
+  This data source reads an exception application list, found by its `id`. A Do Not Decrypt list that has applications uses one, the API returns its `id`
+  as `exceptionapplicationlistId` of that Do Not Decrypt list. Get the ids from the `secureaccess_application_exception_lists` data source.
+  The data source reads all applications of the list.
+attributes:
+  - model_name: name
+    type: String
+    description: Name of the exception application list. On the lists observed it is the name of the Do Not Decrypt list that uses it.
+    example: my_do_not_decrypt_list
+  - model_name: allowedCount
+    tf_name: allowed_count
+    type: Int64
+    description: Number of allowed applications in the full list. On every list observed it was the number of all applications.
+    example: 3
+  - model_name: blockedCount
+    tf_name: blocked_count
+    type: Int64
+    description: Number of blocked applications in the full list. 0 on every list observed.
+    example: 0
+  - model_name: warnedCount
+    tf_name: warned_count
+    type: Int64
+    description: Number of warned applications in the full list. 0 on every list observed.
+    example: 0
+  - model_name: applications
+    type: List
+    description: Applications of the list, in the order of the API (ascending by `application_id` on the lists observed).
+    attributes:
+      - model_name: applicationId
+        tf_name: application_id
+        type: Int64
+        description: Id of the application. It is the id of an application of the type AVC of the `secureaccess_applications` data source.
+        example: 445719
+      - model_name: applicationName
+        tf_name: application_name
+        type: String
+        description: Name of the application.
+        example: 4everproxy
+      - model_name: groupId
+        tf_name: group_id
+        type: Int64
+        description: Id of the group of the application, the id of an application category of the `secureaccess_application_categories` data source.
+        example: 51
+      - model_name: groupName
+        tf_name: group_name
+        type: String
+        description: Name of the group of the application, the name of an application category.
+        example: Anonymizer
+      - model_name: hasUrls
+        tf_name: has_urls
+        type: Bool
+        description: The `hasUrls` of the application as the API returns it. The API draft lists it as a boolean without a description, it was false on every application observed.
+        example: false
+      - model_name: action
+        type: String
+        description: Action of the application, `no_decrypt` on the lists observed (displayed as Allow).
+        example: no_decrypt
