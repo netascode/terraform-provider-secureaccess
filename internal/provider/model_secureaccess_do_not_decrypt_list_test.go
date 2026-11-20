@@ -395,7 +395,7 @@ func TestDoNotDecryptListApplyStep(t *testing.T) {
 		t.Errorf("categories = %v, want [10 11]", got)
 	}
 
-	// a step that carries no applications or categories leaves null sets null (the state after an import)
+	// a step that carries no applications or categories leaves null sets null (null categories as after an import, null applications when the configuration has none)
 	imported := DoNotDecryptList{Applications: types.SetNull(types.Int64Type), DecryptExceptionCategories: types.SetNull(types.Int64Type)}
 	imported.applyStep(ctx, plan.Name, steps[1])
 	if !imported.Applications.IsNull() || !imported.DecryptExceptionCategories.IsNull() {
@@ -1685,6 +1685,10 @@ func TestDoNotDecryptListWithApplications(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "failed to read the applications of the exception application list") || !strings.Contains(err.Error(), "StatusCode 400") {
 			t.Errorf("err = %v", err)
 		}
+		// the answer of the API says what is wrong, it is part of the error
+		if err == nil || !strings.Contains(err.Error(), `{"message":"no"}`) {
+			t.Errorf("err = %v, want the body of the answer of the API", err)
+		}
 	})
 
 	t.Run("an application without a numeric id or one that is listed twice is an error", func(t *testing.T) {
@@ -1875,6 +1879,21 @@ func TestDoNotDecryptListResourceReadApplications(t *testing.T) {
 		}
 		if got := s.applications(rr.NewState); !slices.Equal(got, []int64{1000, 1003, 1006}) {
 			t.Errorf("applications = %v after an import", got)
+		}
+	})
+
+	t.Run("an import of a list without applications leaves applications null, so that a configuration without them plans no change", func(t *testing.T) {
+		set(`{"id":5,"name":"n","isDefault":false,"exceptiondomainlistId":777,"exceptionapplicationlistId":null,"totalDomains":2,"totalIps":0,"totalApplications":0}`, nil, 0)
+		defer set(original, excApps(3), 0)
+		rr := s.importThenRead("5")
+		if len(rr.Diagnostics) > 0 {
+			t.Fatal(rr.Diagnostics)
+		}
+		if attr := s.attribute(rr.NewState, "applications"); !attr.IsNull() {
+			t.Errorf("applications = %s after the import of a list without applications, want null", attr)
+		}
+		if got := s.applicationListId(rr.NewState); got != "0" {
+			t.Errorf("application_exception_list_id = %s, want 0", got)
 		}
 	})
 

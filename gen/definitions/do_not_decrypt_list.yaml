@@ -11,9 +11,9 @@
 # -> ValidateConfig(): a destination that is listed more than once is rejected, a set cannot express that (the same destination with two comments)
 # `string_patterns` of `destination` reject empty values, whitespace, uppercase letters, URLs, a trailing dot and malformed IPv4 addresses or CIDR blocks
 # APIBEHAVIOUR: GET does not return the destinations (only `totalDomains` and `totalIps`), they are read from the destination list `exceptiondomainlistId`
-# APIBEHAVIOUR: GET does not return the applications (only `totalApplications` and `exceptionapplicationlistId`), they are read from the exception application list that `exceptionapplicationlistId` points to (GET /policies/v2/exceptionApplicationLists/{id}/applications)
-# APIBEHAVIOUR: `exceptionapplicationlistId` is null after create without applications, 0 after only content categories were added, and the id of the list from the first application on (observed on the int environment). The generated fromBody() reads the null as 0.
-# APIBEHAVIOUR: GET returns `decryptExceptionCategories` as a list of `{categoryId, name}`, while a list of ids is written, they are `write_only` as well
+# APIBEHAVIOUR: the object that the API returns carries only `totalApplications` and `exceptionapplicationlistId` for the applications, not the applications (seen in the items of the list GET and in the answers to POST and PUT), they are read from the exception application list that `exceptionapplicationlistId` points to (GET /policies/v2/exceptionApplicationLists/{id}/applications)
+# APIBEHAVIOUR: `exceptionapplicationlistId` is the id of the exception application list from the first application on (read with GET on the int environment). Before that the API answered null to the create request (with content categories) and 0 to an update that added only content categories, seen in those answers, not in a GET. The generated fromBody() reads a null as 0.
+# APIBEHAVIOUR: GET returns `decryptExceptionCategories` as a list of `{categoryId, name}`, while a list of ids is written, they are `write_only`
 # APIBEHAVIOUR: response JSON is not wrapped, list endpoint returns a bare array
 # APIBEHAVIOUR: adding a destination that exists updates its comment, adding it without a comment keeps the old comment
 # APIBEHAVIOUR: PUT removal of a private IP address and of a CIDR block answered "destination not found", so all IP addresses and CIDR blocks are removed by id from the destination list `exceptiondomainlistId`
@@ -21,7 +21,7 @@
 # APIBEHAVIOUR: domain names are stored in lowercase, URLs are rejected, a failed PUT does not change anything
 # APIBEHAVIOUR: applications and categories can be added, but not removed: PUT rejects `removeApplications` and `removeDecryptExceptionCategories` with 400 "is not an allowed field",
 #               also together with other changes, PATCH is not routed, and the list behind the object (`exceptionapplicationlistId`) cannot be read through /policies/v2/applicationLists, only through /policies/v2/exceptionApplicationLists.
-#               The API documentation lists the remove fields. Observed on the int environment, assumed for production.
+#               The API documentation lists the remove fields. Observed on the int environment, assumed for production. The exception application list routes were only ever read, a removal through them was not tried.
 # -> ModifyPlan() warns about a plan that removes them, Update() refuses it with an error before it sends anything, the way out is `terraform apply -replace`
 ---
 name: Do Not Decrypt List
@@ -30,12 +30,13 @@ doc_category: Resources
 adjust_body: true
 ds_description: >-
   This data source reads a Do Not Decrypt List, found by its `id` or by its `name`. Its destinations and applications are read from the lists behind it.
-  The Secure Access API returns the content categories of a list in a different form than they are written, therefore they are always empty.
+  The Secure Access API returns the content categories of a list in a different form than they are written, therefore they are always null.
 res_description: >-
   This resource manages a Do Not Decrypt List. The destinations are read from the destination list behind it, only the destinations
   of the configuration are managed: one that is removed outside of Terraform is detected, one that is added outside of it is not.
-  The applications are read from the exception application list behind the Do Not Decrypt List (see `application_exception_list_id`): an application that
-  is added outside of Terraform is detected, and it cannot be removed again because the API does not allow it. The Secure Access API returns the content
+  The applications are read from the exception application list behind the Do Not Decrypt List (see `application_exception_list_id`): if `applications` is set
+  in the configuration, an application that is added outside of Terraform is detected, and it cannot be removed again because the API does not allow it (after
+  `terraform import` the applications of the list have to be listed in the configuration). The Secure Access API returns the content
   categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by
   `terraform import`. Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that
   removes them is rejected on apply, replace the list instead (`terraform apply -replace=<resource address>`), which creates a new list with a new id.
@@ -79,7 +80,7 @@ attributes:
     tf_name: decrypt_exception_categories
     type: Set
     write_only: true
-    ds_description: Always empty, the content categories of a list are not read back.
+    ds_description: Always null, the content categories of a list are not read back.
     element_type: Int64
     description: IDs of the content categories that are excluded from decryption. They can be added to an existing list, but not removed.
     example: 12
@@ -111,7 +112,7 @@ attributes:
   - model_name: exceptionapplicationlistId
     tf_name: application_exception_list_id
     type: Int64
-    description: Id of the exception application list that holds the applications of the Do Not Decrypt List, the `id` of the `secureaccess_application_exception_list` data source. The API returns null until the first application is added, and 0 if only content categories were added, both are read as 0.
+    description: Id of the exception application list that holds the applications of the Do Not Decrypt List, the `id` of the `secureaccess_application_exception_list` data source. It is 0 while the list has no applications (the API answered null to the create request and 0 to an update that added only content categories, a null is read as 0), and the data source cannot read a list with the id 0, so guard a reference to it with `count`.
     computed: true
     computed_refresh_value: true
     exclude_test: true

@@ -59,7 +59,7 @@ func (d *DoNotDecryptListDataSource) Metadata(_ context.Context, req datasource.
 func (d *DoNotDecryptListDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This data source reads a Do Not Decrypt List, found by its `id` or by its `name`. Its destinations and applications are read from the lists behind it. The Secure Access API returns the content categories of a list in a different form than they are written, therefore they are always empty.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This data source reads a Do Not Decrypt List, found by its `id` or by its `name`. Its destinations and applications are read from the lists behind it. The Secure Access API returns the content categories of a list in a different form than they are written, therefore they are always null.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -94,7 +94,7 @@ func (d *DoNotDecryptListDataSource) Schema(ctx context.Context, req datasource.
 				Computed:            true,
 			},
 			"decrypt_exception_categories": schema.SetAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Always empty, the content categories of a list are not read back.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Always null, the content categories of a list are not read back.").String,
 				ElementType:         types.Int64Type,
 				Computed:            true,
 			},
@@ -115,7 +115,7 @@ func (d *DoNotDecryptListDataSource) Schema(ctx context.Context, req datasource.
 				Computed:            true,
 			},
 			"application_exception_list_id": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Id of the exception application list that holds the applications of the Do Not Decrypt List, the `id` of the `secureaccess_application_exception_list` data source. The API returns null until the first application is added, and 0 if only content categories were added, both are read as 0.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Id of the exception application list that holds the applications of the Do Not Decrypt List, the `id` of the `secureaccess_application_exception_list` data source. It is 0 while the list has no applications (the API answered null to the create request and 0 to an update that added only content categories, a null is read as 0), and the data source cannot read a list with the id 0, so guard a reference to it with `count`.").String,
 				Computed:            true,
 			},
 		},

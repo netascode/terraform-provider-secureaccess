@@ -898,6 +898,9 @@ func TestReadExceptionApplicationListPagesDetails(t *testing.T) {
 		if errors.Unwrap(err) == nil || !strings.Contains(err.Error(), "page 2") {
 			t.Errorf("err = %v, want the error of the client wrapped, with the page", err)
 		}
+		if !strings.Contains(err.Error(), `{"message":"internal"}`) {
+			t.Errorf("err = %v, want the body of the answer of the API", err)
+		}
 	})
 
 	t.Run("a total that shrinks while the pages are read is an error", func(t *testing.T) {

@@ -67,7 +67,7 @@ func (r *DoNotDecryptListResource) Metadata(ctx context.Context, req resource.Me
 func (r *DoNotDecryptListResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Do Not Decrypt List. The destinations are read from the destination list behind it, only the destinations of the configuration are managed: one that is removed outside of Terraform is detected, one that is added outside of it is not. The applications are read from the exception application list behind the Do Not Decrypt List (see `application_exception_list_id`): an application that is added outside of Terraform is detected, and it cannot be removed again because the API does not allow it. The Secure Access API returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`. Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that removes them is rejected on apply, replace the list instead (`terraform apply -replace=<resource address>`), which creates a new list with a new id.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a Do Not Decrypt List. The destinations are read from the destination list behind it, only the destinations of the configuration are managed: one that is removed outside of Terraform is detected, one that is added outside of it is not. The applications are read from the exception application list behind the Do Not Decrypt List (see `application_exception_list_id`): if `applications` is set in the configuration, an application that is added outside of Terraform is detected, and it cannot be removed again because the API does not allow it (after `terraform import` the applications of the list have to be listed in the configuration). The Secure Access API returns the content categories in a different form than they are written, therefore changes made to them outside of Terraform are not detected and they are not populated by `terraform import`. Applications and content categories can be added to an existing list, but not removed: the API does not allow it. A configuration that removes them is rejected on apply, replace the list instead (`terraform apply -replace=<resource address>`), which creates a new list with a new id.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -140,7 +140,7 @@ func (r *DoNotDecryptListResource) Schema(ctx context.Context, req resource.Sche
 				Computed:            true,
 			},
 			"application_exception_list_id": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Id of the exception application list that holds the applications of the Do Not Decrypt List, the `id` of the `secureaccess_application_exception_list` data source. The API returns null until the first application is added, and 0 if only content categories were added, both are read as 0.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Id of the exception application list that holds the applications of the Do Not Decrypt List, the `id` of the `secureaccess_application_exception_list` data source. It is 0 while the list has no applications (the API answered null to the create request and 0 to an update that added only content categories, a null is read as 0), and the data source cannot read a list with the id 0, so guard a reference to it with `count`.").String,
 				Computed:            true,
 			},
 		},
@@ -252,6 +252,11 @@ func (r *DoNotDecryptListResource) Read(ctx context.Context, req resource.ReadRe
 	// After `terraform import` we switch to a full read.
 	if imp {
 		state.fromBody(ctx, body)
+		// a list without applications is imported with null applications, not an empty set: a configuration that omits `applications`
+		// has a null set, and an empty one would plan a change
+		if len(state.Applications.Elements()) == 0 {
+			state.Applications = types.SetNull(types.Int64Type)
+		}
 	} else {
 		state.fromBodyPartial(ctx, body)
 	}

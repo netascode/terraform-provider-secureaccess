@@ -52,7 +52,8 @@ func readExceptionApplicationListPages(ctx context.Context, client *secureaccess
 		}
 		res, err := client.Get(ctx, fmt.Sprintf("%s?page=%d&limit=%d", path, page, exceptionApplicationListPageSize), reqMods...)
 		if err != nil {
-			return "", fmt.Errorf("page %d: %w", page, err)
+			// the answer of the API says what is wrong, the client returns it next to the error
+			return "", fmt.Errorf("page %d: %w, %s", page, err, res.String())
 		}
 		data := res.Get("data")
 		if !data.IsArray() {

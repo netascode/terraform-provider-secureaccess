@@ -366,8 +366,8 @@ func doNotDecryptListWithDestinations(ctx context.Context, client *secureaccess.
 
 // doNotDecryptListApplicationListId returns the id of the exception application list behind a Do Not Decrypt List
 // (`exceptionapplicationlistId` of the object), the list that holds its applications, see the data source
-// application_exception_list. The API returns null until the first application is added and 0 after only content categories
-// were added, neither is the id of a list.
+// application_exception_list. Before the first application is added the API answered null to the create request and 0 to an
+// update that added only content categories (seen in those answers, not in a GET), neither is the id of a list.
 func doNotDecryptListApplicationListId(object gjson.Result) (string, error) {
 	listId := object.Get("exceptionapplicationlistId")
 	if listId.Type != gjson.Number || listId.Int() < 1 {
@@ -744,7 +744,8 @@ func doNotDecryptListAddInt64(ctx context.Context, set types.Set, add []int64) t
 
 // applyStep applies the changes of a request that the API accepted to the model. It is used to keep track of what the
 // API holds if a later request of the same update fails. The next refresh would correct the destinations (they are read
-// from the destination list), but not the applications and categories, which are not read back.
+// from the destination list) and the applications (from the exception application list), but not the categories, which are
+// not read back.
 func (data *DoNotDecryptList) applyStep(ctx context.Context, name types.String, step doNotDecryptListStep) {
 	if !step.viaList {
 		data.Name = name
