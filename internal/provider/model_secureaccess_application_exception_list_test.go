@@ -499,6 +499,9 @@ func TestApplicationExceptionListDataSourceRead(t *testing.T) {
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
+				// a read that does not stop at the first fault would otherwise run into the limit of 1000 pages, a thousand requests of 0.2 s
+				defer func(old int) { exceptionApplicationListMaxPages = old }(exceptionApplicationListMaxPages)
+				exceptionApplicationListMaxPages = 10
 				server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
 					if r.URL.EscapedPath() == "/policies/v2/exceptionApplicationLists/5001" {
 						excWrite(w, http.StatusOK, excSettings(1))
@@ -683,6 +686,8 @@ func TestApplicationExceptionListsDataSourceRead(t *testing.T) {
 	})
 
 	t.Run("a total that is not reached is an error", func(t *testing.T) {
+		defer func(old int) { exceptionApplicationListMaxPages = old }(exceptionApplicationListMaxPages)
+		exceptionApplicationListMaxPages = 10
 		server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
 			data := []any{}
 			if r.URL.Query().Get("page") == "1" {
@@ -912,4 +917,69 @@ func TestReadExceptionApplicationListPagesDetails(t *testing.T) {
 			t.Errorf("out has %d bytes, err = %v", len(out), err)
 		}
 	})
+}
+
+func TestApplicationExceptionListTotalChangesOnAnyPage(t *testing.T) {
+	// the items are always the n applications of the list, only meta.total moves, on page 2 or on page 3
+	for _, tc := range []struct {
+		name          string
+		n, newTotal   int
+		changedOnPage string
+	}{
+		{"shrinks on page 2 of 2", 1500, 1499, "2"},
+		{"grows on page 2 of 2", 1500, 1501, "2"},
+		{"shrinks on page 3 of 3", 2345, 2344, "3"},
+		{"grows on page 3 of 3", 2345, 2346, "3"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func(old int) { exceptionApplicationListMaxPages = old }(exceptionApplicationListMaxPages)
+			exceptionApplicationListMaxPages = 10
+			all := excApps(tc.n)
+			server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.EscapedPath() == "/policies/v2/exceptionApplicationLists/5001" {
+					excWrite(w, http.StatusOK, excSettings(tc.n))
+					return
+				}
+				page := r.URL.Query().Get("page")
+				total := tc.n
+				if page == tc.changedOnPage {
+					total = tc.newTotal
+				}
+				items := []any{}
+				p, _ := strconv.Atoi(page)
+				if lo := (p - 1) * 1000; lo < tc.n {
+					hi := lo + 1000
+					if hi > tc.n {
+						hi = tc.n
+					}
+					items = all[lo:hi]
+				}
+				excWrite(w, http.StatusOK, map[string]any{"meta": map[string]any{"total": total}, "data": items})
+			})
+			_, resp := readExceptionApplicationList(t, server, "5001")
+			detail := excErrorDetail(t, resp)
+			want := fmt.Sprintf("page %s: `meta.total` changed from %d to %d", tc.changedOnPage, tc.n, tc.newTotal)
+			if !strings.Contains(detail, want) {
+				t.Errorf("detail = %q, want %q", detail, want)
+			}
+		})
+	}
+}
+
+func TestApplicationExceptionListApplicationsMustBeObjects(t *testing.T) {
+	for name, bad := range map[string]any{"a string": "x", "null": nil, "a number": 5, "a list": []any{1}} {
+		t.Run(name, func(t *testing.T) {
+			server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.EscapedPath() == "/policies/v2/exceptionApplicationLists/5001" {
+					excWrite(w, http.StatusOK, excSettings(2))
+					return
+				}
+				excPaged(w, r, []any{excApp(0), bad})
+			})
+			_, resp := readExceptionApplicationList(t, server, "5001")
+			if detail := excErrorDetail(t, resp); !strings.Contains(detail, "expected an object as application 1") {
+				t.Errorf("detail = %q", detail)
+			}
+		})
+	}
 }

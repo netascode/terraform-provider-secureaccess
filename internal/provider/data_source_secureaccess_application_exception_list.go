@@ -160,6 +160,13 @@ func (d *ApplicationExceptionListDataSource) Read(ctx context.Context, req datas
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve the applications of the object, got error: %s", err))
 		return
 	}
+	// the generated fromBody() would read an item that is not an object as an application without any value
+	for i, application := range gjson.Parse(applications).Array() {
+		if !application.IsObject() {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve the applications of the object, expected an object as application %d, got: %s", i, application.Type))
+			return
+		}
+	}
 	body, err := sjson.SetRaw(settings.Raw, "applications", applications)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to build the object, got error: %s", err))
