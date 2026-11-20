@@ -313,12 +313,14 @@ func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.
 		NewSiteResource,
 		NewZTANetworkLocationResource,
 		NewZTAProfileResource,
-		NewZTATrustedNetworkResource,
 		NewZTAProfileGroupMappingsResource,
+		NewZTAProfileInternetAccessDestinationListMappingsResource,
+		NewZTAProfileInternetAccessTrustedNetworkMappingsResource,
 		NewZTAProfilePrivateAccessSteeringDestinationResource,
 		NewZTAProfilePrivateAccessSteeringPrivateResourceMappingsResource,
 		NewZTAProfilePrivateAccessTrustedNetworkMappingsResource,
 		NewZTAProfileUserMappingsResource,
+		NewZTATrustedNetworkResource,
 	}
 }
 
@@ -360,8 +362,8 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewSiteDataSource,
 		NewZTANetworkLocationDataSource,
 		NewZTAProfileDataSource,
-		NewZTATrustedNetworkDataSource,
 		NewZTAProfilePrivateAccessSteeringDestinationDataSource,
+		NewZTATrustedNetworkDataSource,
 	}
 }
 
