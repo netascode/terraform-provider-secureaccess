@@ -79,7 +79,7 @@ func (r *ZTAProfileGroupMappingsResource) Schema(ctx context.Context, req resour
 				},
 			},
 			"revision": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Revision of the ZTNA Profile, incremented on each change.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Revision of the group mappings, incremented on each change.").String,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),

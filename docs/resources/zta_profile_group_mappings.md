@@ -34,7 +34,7 @@ resource "secureaccess_zta_profile_group_mappings" "example" {
 ### Read-Only
 
 - `id` (String) Id of the object
-- `revision` (Number) Revision of the ZTNA Profile, incremented on each change.
+- `revision` (Number) Revision of the group mappings, incremented on each change.
 
 <a id="nestedatt--groups"></a>
 ### Nested Schema for `groups`

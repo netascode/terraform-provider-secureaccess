@@ -24,7 +24,7 @@ attributes:
     tf_name: revision
     type: Int64
     computed: true
-    description: Revision of the ZTNA Profile, incremented on each change.
+    description: Revision of the user mappings, incremented on each change.
   - model_name: items
     tf_name: users
     type: Set

@@ -34,7 +34,7 @@ resource "secureaccess_zta_profile_user_mappings" "example" {
 ### Read-Only
 
 - `id` (String) Id of the object
-- `revision` (Number) Revision of the ZTNA Profile, incremented on each change.
+- `revision` (Number) Revision of the user mappings, incremented on each change.
 
 <a id="nestedatt--users"></a>
 ### Nested Schema for `users`
