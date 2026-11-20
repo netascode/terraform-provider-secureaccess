@@ -1,0 +1,85 @@
+# APIBEHAVIOUR: cursor/limit pagination (not supported by GetAll, only the first page of 100 items is read)
+# -> ConfigValidators() (At least one of `dns_servers`, `dns_domains` or `trusted_servers` must be specified.)
+# -> adjustBody() (`rev` from state is sent in the PUT body, API rejects updates with a stale revision with 409)
+---
+name: ZTA Trusted Network
+rest_endpoint: /deployments/v2/ztna/trustedNetworks
+doc_category: Connect
+adjust_body: true
+resource_id_model_name: networkId
+attributes:
+  - model_name: networkName
+    tf_name: name
+    type: String
+    mandatory: true
+    description: Name of the Trusted Network. Must be unique within the organization. Must be alphanumeric or space.
+    string_patterns: ["^[a-zA-Z0-9 ]+$"]
+    string_max_length: 64
+    example: my zta trusted network
+    data_source_query: true
+  - model_name: interfaceType
+    tf_name: inspect
+    type: Int64
+    description: "The interface type for the Trusted Network: `0` means physical interfaces only, `1` means physical and virtual interfaces."
+    min_int: 0
+    max_int: 1
+    default_value: 0
+    example: 1
+  - model_name: dnsServers
+    data_path: ["criteria"]
+    tf_name: dns_servers
+    type: Set
+    description: DNS servers a network may have when the client is in the Trusted Network. If any of the listed DNS servers are found on the network, this criterion matches. At least one of `dns_servers`, `dns_domains` or `trusted_servers` must be set.
+    min_list: 1
+    max_list: 25
+    minimum_test_value: "true"
+    attributes:
+      - model_name: serverIp
+        tf_name: ip
+        type: String
+        id: true
+        mandatory: true
+        description: IPv4 or IPv6 address of the DNS server.
+        example: 1.1.1.1
+  - model_name: dnsDomains
+    data_path: ["criteria"]
+    tf_name: dns_domains
+    type: Set
+    description: DNS suffixes a network interface may have when the client is in the Trusted Network. Each domain is an implicit wildcard (e.g. `cisco.com` is treated as `*.cisco.com`). At least one of `dns_servers`, `dns_domains` or `trusted_servers` must be set.
+    min_list: 1
+    max_list: 25
+    attributes:
+      - model_name: name
+        type: String
+        id: true
+        mandatory: true
+        description: Domain or wildcard domain name.
+        string_patterns: ['^(\*\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$']
+        string_max_length: 255
+        example: "*.example.com"
+  - model_name: trustedServers
+    data_path: ["criteria"]
+    tf_name: trusted_servers
+    type: Set
+    description: Servers on the network that a configured DNS server can resolve and that present a TLS certificate matching the provided hash. If any of the listed servers is validated, this criterion matches. At least one of `dns_servers`, `dns_domains` or `trusted_servers` must be set.
+    min_list: 1
+    max_list: 10
+    attributes:
+      - model_name: url
+        type: String
+        id: true
+        mandatory: true
+        description: URL of the trusted server to probe. If port is not specified, 443 is assumed.
+        string_patterns: ['^https:\/\/([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:\d{1,5})?$']
+        string_max_length: 267
+        example: https://trusted.example.com:8443
+      - model_name: certificateHash
+        tf_name: certificate_hash
+        type: String
+        description: Hash of the trusted server certificate public key. When provided, the client verifies the server certificate using this hash. Not applicable for iOS.
+        example: x2v1b7d9p0e3f6g8a4w5z2q1k9m7r5n8l6j0t3u2s9y8v5c1b6h4d7w2x9g3p5a1
+  - model_name: rev
+    tf_name: revision
+    type: Int64
+    computed: true
+    description: Revision of the Trusted Network, incremented on each change.
