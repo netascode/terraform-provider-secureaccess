@@ -1,0 +1,41 @@
+# APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/profiles in go-secureaccess
+# APIBEHAVIOUR: lists only manually created destinations
+# -> adjustBody() (`id` is not part of the request body)
+---
+name: ZTA Profile Private Access Steering Destination
+rest_endpoint: /deployments/v2/ztna/profiles/%v/privateSteering/destinations
+doc_category: Connect
+adjust_body: true
+attributes:
+  - model_name: profileId
+    tf_name: zta_profile_id
+    type: String
+    reference: true
+    description: ID of the ZTNA Profile.
+    example: acde070d-8c4c-4f0d-9d8a-162843c10333
+    test_value: secureaccess_zta_profile.test.id
+  - model_name: endpoint
+    tf_name: destination
+    type: String
+    mandatory: true
+    description: Endpoint to steer privately. FQDN, wildcard FQDN, IP address and CIDR are allowed.
+    example: "internal.example.com"
+    data_source_query: true
+  - model_name: exclusions
+    type: Set
+    element_type: String
+    description: Exclusions when `destination` is a wildcard FQDN or CIDR. For a wildcard FQDN, `exclusions` must be sub-domains of the `destination`. For a CIDR, `exclusions` must be subnets of the `destination`.
+    max_list: 50
+    example: app.internal.example.com
+  - model_name: endpointType
+    tf_name: destination_type
+    type: String
+    computed: true
+    computed_refresh_value: true
+    description: Type of the endpoint, `fqdn` for FQDN and wildcard FQDN, `network` for IP address and CIDR.
+
+test_prerequisites: |-
+  resource "secureaccess_zta_profile" "test" {
+    name     = "my ztna profile private steering destination"
+    priority = 1
+  }
