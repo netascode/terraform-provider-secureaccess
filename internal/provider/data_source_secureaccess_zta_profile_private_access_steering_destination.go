@@ -68,7 +68,7 @@ func (d *ZTAProfilePrivateAccessSteeringDestinationDataSource) Schema(ctx contex
 				Computed:            true,
 			},
 			"zta_profile_id": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("ID of the ZTNA Profile.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("ID of the ZTA Profile.").String,
 				Required:            true,
 			},
 			"destination": schema.StringAttribute{

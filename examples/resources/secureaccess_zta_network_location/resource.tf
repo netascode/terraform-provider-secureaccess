@@ -1,5 +1,5 @@
 resource "secureaccess_zta_network_location" "example" {
-  name = "my_network_location"
+  name = "my zta network location"
   egress_criteria = [
     {
       source_type    = "manual"

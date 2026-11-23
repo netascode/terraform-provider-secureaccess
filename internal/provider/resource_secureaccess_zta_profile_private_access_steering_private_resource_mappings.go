@@ -72,27 +72,27 @@ func (r *ZTAProfilePrivateAccessSteeringPrivateResourceMappingsResource) Schema(
 				},
 			},
 			"zta_profile_id": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("ID of the ZTNA Profile. Must not be the default profile, to which all private resources are implicitly mapped.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("ID of the ZTA Profile. Must not be the default profile, to which all private resources are implicitly mapped.").String,
 				Required:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"revision": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Revision of the private resource mappings, incremented on each change.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Revision of the configuration.").String,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
 			},
 			"private_resources": schema.SetNestedAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("List of private resources mapped to the ZTNA Profile. Traffic is steered to all destinations of the mapped private resources.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("List of private resources mapped to the ZTA Profile for private access. Traffic is steered to all destinations of the mapped private resources.").String,
 				Required:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
 							MarkdownDescription: helpers.NewAttributeDescription("ID of the private resource.").String,
-							Optional:            true,
+							Required:            true,
 						},
 					},
 				},

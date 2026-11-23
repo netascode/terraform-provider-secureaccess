@@ -40,34 +40,34 @@ resource "secureaccess_zta_profile" "example" {
 
 ### Required
 
-- `name` (String) Name of the ZTNA Profile. Must be unique within the organization. Must be alphanumeric or space.
-- `priority` (Number) Priority of the ZTNA Profile. Profiles should have contiguous priority values starting from 1.
+- `name` (String) Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space.
+- `priority` (Number) Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1.
 
 ### Optional
 
-- `all_groups` (Boolean) Whether the ZTNA Profile is enabled for all groups of the organization.
-- `all_users` (Boolean) Whether the ZTNA Profile is enabled for all users of the organization.
-- `internet_access_end_user_pause` (Boolean) Whether ZTNA enforcement pause is enabled for secure internet access.
+- `all_groups` (Boolean) Whether the ZTA Profile is enabled for all groups of the organization.
+- `all_users` (Boolean) Whether the ZTA Profile is enabled for all users of the organization.
+- `internet_access_end_user_pause` (Boolean) Whether ZTA enforcement pause is enabled for secure internet access.
 - `internet_access_end_user_pause_duration` (Number) Enforcement pause duration in minutes for secure internet access. When not set while the pause is enabled, the pause is indefinite.
   - Range: `1`-`1440`
 - `internet_access_steering_mode` (Number) Internet steering mode: `0` - no internet destinations, `1` - all internet destinations, `2` - selected internet destinations.
   - Range: `0`-`2`
 - `internet_access_use_trusted_networks` (Boolean) Whether Trusted Network Detection is enabled for secure internet access.
-- `network_location_ids` (Set of String) Network Locations associated with the ZTNA Profile.
-- `operating_system_android` (Boolean) Whether the ZTNA Profile is enabled for generic Android clients.
+- `network_location_ids` (Set of String) Network Locations associated with the ZTA Profile.
+- `operating_system_android` (Boolean) Whether the ZTA Profile is enabled for generic Android clients.
   - Default value: `true`
-- `operating_system_android_knox` (Boolean) Whether the ZTNA Profile is enabled for Samsung Knox Android clients.
+- `operating_system_android_knox` (Boolean) Whether the ZTA Profile is enabled for Samsung Knox Android clients.
   - Default value: `true`
-- `operating_system_ios` (Boolean) Whether the ZTNA Profile is enabled for iOS clients.
+- `operating_system_ios` (Boolean) Whether the ZTA Profile is enabled for iOS clients.
   - Default value: `true`
-- `operating_system_linux` (Boolean) Whether the ZTNA Profile is enabled for Linux clients.
+- `operating_system_linux` (Boolean) Whether the ZTA Profile is enabled for Linux clients.
   - Default value: `true`
-- `operating_system_macos` (Boolean) Whether the ZTNA Profile is enabled for macOS clients.
+- `operating_system_macos` (Boolean) Whether the ZTA Profile is enabled for macOS clients.
   - Default value: `true`
-- `operating_system_windows` (Boolean) Whether the ZTNA Profile is enabled for Windows clients.
+- `operating_system_windows` (Boolean) Whether the ZTA Profile is enabled for Windows clients.
   - Default value: `true`
 - `private_access_dns_steering_destinations` (Attributes Set) DNS steering destinations for secure private access. (see [below for nested schema](#nestedatt--private_access_dns_steering_destinations))
-- `private_access_end_user_pause` (Boolean) Whether ZTNA enforcement pause is enabled for secure private access.
+- `private_access_end_user_pause` (Boolean) Whether ZTA enforcement pause is enabled for secure private access.
 - `private_access_end_user_pause_duration` (Number) Enforcement pause duration in minutes for secure private access. When not set while the pause is enabled, the pause is indefinite.
   - Range: `1`-`1440`
 - `private_access_use_trusted_networks` (Boolean) Whether Trusted Network Detection is enabled for secure private access.
@@ -75,7 +75,7 @@ resource "secureaccess_zta_profile" "example" {
 ### Read-Only
 
 - `id` (String) Id of the object
-- `revision` (Number) Revision of the ZTNA Profile, incremented on each change.
+- `revision` (Number) Revision of the configuration.
 
 <a id="nestedatt--private_access_dns_steering_destinations"></a>
 ### Nested Schema for `private_access_dns_steering_destinations`

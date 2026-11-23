@@ -1,1 +1,1 @@
-terraform import secureaccess_zta_profile_private_access_steering_private_resource_mappings.example "<zta_profile_id>,<id>"
+terraform import secureaccess_zta_profile_private_access_steering_private_resource_mappings.example "<zta_profile_id>"

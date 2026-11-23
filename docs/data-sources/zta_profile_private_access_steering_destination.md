@@ -24,7 +24,7 @@ data "secureaccess_zta_profile_private_access_steering_destination" "example" {
 
 ### Required
 
-- `zta_profile_id` (String) ID of the ZTNA Profile.
+- `zta_profile_id` (String) ID of the ZTA Profile.
 
 ### Optional
 

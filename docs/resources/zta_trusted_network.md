@@ -54,7 +54,7 @@ resource "secureaccess_zta_trusted_network" "example" {
 ### Read-Only
 
 - `id` (String) Id of the object
-- `revision` (Number) Revision of the Trusted Network, incremented on each change.
+- `revision` (Number) Revision of the configuration.
 
 <a id="nestedatt--dns_domains"></a>
 ### Nested Schema for `dns_domains`

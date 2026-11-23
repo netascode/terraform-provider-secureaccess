@@ -31,7 +31,7 @@ import (
 
 func TestAccSecureAccessZTANetworkLocation(t *testing.T) {
 	var checks []resource.TestCheckFunc
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_zta_network_location.test", "name", "my_network_location"))
+	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_zta_network_location.test", "name", "my zta network location"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_zta_network_location.test", "egress_criteria.0.source_type", "manual"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_zta_network_location.test", "egress_criteria.0.manual_address", "203.0.113.10"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_zta_network_location.test", "egress_exclusion_criteria.0.source_type", "manual"))
@@ -71,7 +71,7 @@ func TestAccSecureAccessZTANetworkLocation(t *testing.T) {
 
 func testAccSecureAccessZTANetworkLocationConfig_minimum() string {
 	config := `resource "secureaccess_zta_network_location" "test" {` + "\n"
-	config += `	name = "my_network_location"` + "\n"
+	config += `	name = "my zta network location"` + "\n"
 	config += `	egress_criteria = [{` + "\n"
 	config += `		source_type = "manual"` + "\n"
 	config += `	}]` + "\n"
@@ -85,7 +85,7 @@ func testAccSecureAccessZTANetworkLocationConfig_minimum() string {
 
 func testAccSecureAccessZTANetworkLocationConfig_all() string {
 	config := `resource "secureaccess_zta_network_location" "test" {` + "\n"
-	config += `	name = "my_network_location"` + "\n"
+	config += `	name = "my zta network location"` + "\n"
 	config += `	egress_criteria = [{` + "\n"
 	config += `		source_type = "manual"` + "\n"
 	config += `		manual_address = "203.0.113.10"` + "\n"

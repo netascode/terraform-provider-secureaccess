@@ -78,7 +78,7 @@ func (r *ZTAProfileResource) Schema(ctx context.Context, req resource.SchemaRequ
 				},
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Name of the ZTNA Profile. Must be unique within the organization. Must be alphanumeric or space.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space.").String,
 				Required:            true,
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(0, 64),
@@ -86,62 +86,62 @@ func (r *ZTAProfileResource) Schema(ctx context.Context, req resource.SchemaRequ
 				},
 			},
 			"revision": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Revision of the ZTNA Profile, incremented on each change.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Revision of the configuration.").String,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
 			},
 			"priority": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Priority of the ZTNA Profile. Profiles should have contiguous priority values starting from 1.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1.").String,
 				Required:            true,
 			},
 			"operating_system_macos": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTNA Profile is enabled for macOS clients.").AddDefaultValueDescription("true").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTA Profile is enabled for macOS clients.").AddDefaultValueDescription("true").String,
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(true),
 			},
 			"operating_system_windows": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTNA Profile is enabled for Windows clients.").AddDefaultValueDescription("true").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTA Profile is enabled for Windows clients.").AddDefaultValueDescription("true").String,
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(true),
 			},
 			"operating_system_linux": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTNA Profile is enabled for Linux clients.").AddDefaultValueDescription("true").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTA Profile is enabled for Linux clients.").AddDefaultValueDescription("true").String,
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(true),
 			},
 			"operating_system_ios": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTNA Profile is enabled for iOS clients.").AddDefaultValueDescription("true").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTA Profile is enabled for iOS clients.").AddDefaultValueDescription("true").String,
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(true),
 			},
 			"operating_system_android": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTNA Profile is enabled for generic Android clients.").AddDefaultValueDescription("true").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTA Profile is enabled for generic Android clients.").AddDefaultValueDescription("true").String,
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(true),
 			},
 			"operating_system_android_knox": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTNA Profile is enabled for Samsung Knox Android clients.").AddDefaultValueDescription("true").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTA Profile is enabled for Samsung Knox Android clients.").AddDefaultValueDescription("true").String,
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(true),
 			},
 			"all_users": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTNA Profile is enabled for all users of the organization.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTA Profile is enabled for all users of the organization.").String,
 				Optional:            true,
 			},
 			"all_groups": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTNA Profile is enabled for all groups of the organization.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Whether the ZTA Profile is enabled for all groups of the organization.").String,
 				Optional:            true,
 			},
 			"network_location_ids": schema.SetAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Network Locations associated with the ZTNA Profile.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Network Locations associated with the ZTA Profile.").String,
 				ElementType:         types.StringType,
 				Optional:            true,
 				Validators: []validator.Set{
@@ -168,7 +168,7 @@ func (r *ZTAProfileResource) Schema(ctx context.Context, req resource.SchemaRequ
 				Optional:            true,
 			},
 			"private_access_end_user_pause": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Whether ZTNA enforcement pause is enabled for secure private access.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Whether ZTA enforcement pause is enabled for secure private access.").String,
 				Optional:            true,
 			},
 			"private_access_end_user_pause_duration": schema.Int64Attribute{
@@ -190,7 +190,7 @@ func (r *ZTAProfileResource) Schema(ctx context.Context, req resource.SchemaRequ
 				Optional:            true,
 			},
 			"internet_access_end_user_pause": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Whether ZTNA enforcement pause is enabled for secure internet access.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Whether ZTA enforcement pause is enabled for secure internet access.").String,
 				Optional:            true,
 			},
 			"internet_access_end_user_pause_duration": schema.Int64Attribute{

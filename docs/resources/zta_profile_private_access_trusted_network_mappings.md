@@ -28,18 +28,18 @@ resource "secureaccess_zta_profile_private_access_trusted_network_mappings" "exa
 
 ### Required
 
-- `trusted_networks` (Attributes Set) List of trusted networks mapped to the ZTNA Profile for private access steering. (see [below for nested schema](#nestedatt--trusted_networks))
-- `zta_profile_id` (String) ID of the ZTNA Profile.
+- `trusted_networks` (Attributes Set) List of trusted networks mapped to the ZTA Profile for private access. (see [below for nested schema](#nestedatt--trusted_networks))
+- `zta_profile_id` (String) ID of the ZTA Profile.
 
 ### Read-Only
 
 - `id` (String) Id of the object
-- `revision` (Number) Revision of the private access trusted network mappings, incremented on each change.
+- `revision` (Number) Revision of the configuration.
 
 <a id="nestedatt--trusted_networks"></a>
 ### Nested Schema for `trusted_networks`
 
-Optional:
+Required:
 
 - `id` (String) ID of the trusted network.
 
@@ -50,5 +50,5 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-terraform import secureaccess_zta_profile_private_access_trusted_network_mappings.example "<zta_profile_id>,<id>"
+terraform import secureaccess_zta_profile_private_access_trusted_network_mappings.example "<zta_profile_id>"
 ```

@@ -68,7 +68,7 @@ func (d *ZTANetworkLocationDataSource) Schema(ctx context.Context, req datasourc
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Name of the Network Location. Must be unique within the organization. Must be alphanumeric, hyphen, underscore, or space.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Network Location. Must be unique within the organization. Must be alphanumeric or space.").String,
 				Optional:            true,
 				Computed:            true,
 			},
@@ -145,7 +145,7 @@ func (d *ZTANetworkLocationDataSource) Schema(ctx context.Context, req datasourc
 				},
 			},
 			"revision": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Revision of the Network Location, incremented on each change.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Revision of the configuration.").String,
 				Computed:            true,
 			},
 		},

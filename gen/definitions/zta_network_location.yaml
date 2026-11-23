@@ -1,4 +1,4 @@
-# APIBEHAVIOUR: cursor/limit pagination (not supported by GetAll, only the first page of 100 items is read)
+# APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/ in go-secureaccess
 # -> adjustBody() (`rev` from state is sent in the PUT body, API rejects updates with a stale revision with 409)
 ---
 name: ZTA Network Location
@@ -11,10 +11,10 @@ attributes:
     tf_name: name
     type: String
     mandatory: true
-    description: Name of the Network Location. Must be unique within the organization. Must be alphanumeric, hyphen, underscore, or space.
-    string_patterns: ["^[a-zA-Z0-9 _-]+$"]
+    description: Name of the Network Location. Must be unique within the organization. Must be alphanumeric or space.
+    string_patterns: ["^[a-zA-Z0-9 ]+$"]
     string_max_length: 64
-    example: my_network_location
+    example: my zta network location
     data_source_query: true
   - model_name: egressCriteria
     tf_name: egress_criteria
@@ -124,4 +124,4 @@ attributes:
     tf_name: revision
     type: Int64
     computed: true
-    description: Revision of the Network Location, incremented on each change.
+    description: Revision of the configuration.

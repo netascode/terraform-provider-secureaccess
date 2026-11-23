@@ -73,21 +73,21 @@ func (r *ZTAProfileInternetAccessDestinationListMappingsResource) Schema(ctx con
 				},
 			},
 			"zta_profile_id": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("ID of the ZTNA Profile. Mappings are relevant only when `internet_access_steering_mode` of the profile is `2` (by list).").String,
+				MarkdownDescription: helpers.NewAttributeDescription("ID of the ZTA Profile. Mappings are relevant only when `internet_access_steering_mode` of the profile is `2` (by list).").String,
 				Required:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"revision": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Revision of the internet access destination list mappings, incremented on each change.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Revision of the configuration.").String,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
 			},
 			"destination_lists": schema.SetNestedAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("List of destination lists mapped to the ZTNA Profile for internet access steering.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("List of destination lists mapped to the ZTA Profile for internet access.").String,
 				Required:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{

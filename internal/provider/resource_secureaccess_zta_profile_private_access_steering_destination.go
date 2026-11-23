@@ -74,7 +74,7 @@ func (r *ZTAProfilePrivateAccessSteeringDestinationResource) Schema(ctx context.
 				},
 			},
 			"zta_profile_id": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("ID of the ZTNA Profile.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("ID of the ZTA Profile.").String,
 				Required:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),

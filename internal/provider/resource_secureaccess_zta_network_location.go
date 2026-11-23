@@ -76,11 +76,11 @@ func (r *ZTANetworkLocationResource) Schema(ctx context.Context, req resource.Sc
 				},
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Name of the Network Location. Must be unique within the organization. Must be alphanumeric, hyphen, underscore, or space.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the Network Location. Must be unique within the organization. Must be alphanumeric or space.").String,
 				Required:            true,
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(0, 64),
-					stringvalidator.RegexMatches(regexp.MustCompile(`^[a-zA-Z0-9 _-]+$`), ""),
+					stringvalidator.RegexMatches(regexp.MustCompile(`^[a-zA-Z0-9 ]+$`), ""),
 				},
 			},
 			"egress_criteria": schema.SetNestedAttribute{
@@ -201,7 +201,7 @@ func (r *ZTANetworkLocationResource) Schema(ctx context.Context, req resource.Sc
 				},
 			},
 			"revision": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Revision of the Network Location, incremented on each change.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Revision of the configuration.").String,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),

@@ -24,14 +24,14 @@ data "secureaccess_zta_network_location" "example" {
 ### Optional
 
 - `id` (String) Id of the object
-- `name` (String) Name of the Network Location. Must be unique within the organization. Must be alphanumeric, hyphen, underscore, or space.
+- `name` (String) Name of the Network Location. Must be unique within the organization. Must be alphanumeric or space.
 
 ### Read-Only
 
 - `egress_criteria` (Attributes Set) Egress criteria evaluated against the source IP observed by Secure Access cloud. (see [below for nested schema](#nestedatt--egress_criteria))
 - `egress_exclusion_criteria` (Attributes Set) Egress criteria that exclude matching source IPs from the Network Location. (see [below for nested schema](#nestedatt--egress_exclusion_criteria))
 - `private_subnet_criteria` (Attributes Set) Private or internal subnet criteria. (see [below for nested schema](#nestedatt--private_subnet_criteria))
-- `revision` (Number) Revision of the Network Location, incremented on each change.
+- `revision` (Number) Revision of the configuration.
 
 <a id="nestedatt--egress_criteria"></a>
 ### Nested Schema for `egress_criteria`

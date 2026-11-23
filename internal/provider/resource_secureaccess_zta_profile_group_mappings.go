@@ -72,27 +72,27 @@ func (r *ZTAProfileGroupMappingsResource) Schema(ctx context.Context, req resour
 				},
 			},
 			"zta_profile_id": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("ID of the ZTNA Profile.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("ID of the ZTA Profile.").String,
 				Required:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"revision": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Revision of the group mappings, incremented on each change.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Revision of the configuration.").String,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
 			},
 			"groups": schema.SetNestedAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("List of groups mapped to the ZTNA Profile.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("List of groups mapped to the ZTA Profile.").String,
 				Required:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
 							MarkdownDescription: helpers.NewAttributeDescription("ID of the group.").String,
-							Optional:            true,
+							Required:            true,
 						},
 					},
 				},

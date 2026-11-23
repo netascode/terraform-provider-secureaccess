@@ -1,6 +1,7 @@
+# APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/ in go-secureaccess
 # -> adjustBody() (`rev` from state is sent in the PUT body, API rejects updates with a stale revision with 409)
-# Mutex for ZTNA profile modifications
-# Priority of the ZTNA profile does not have to be continous and will work
+# Mutex for ZTA profile modifications
+# Priority of the ZTA profile does not have to be continous and will work
 #  correctly updates position, but at creation does not guarantee order
 #  after creation the priority numbers are contiguous
 ---
@@ -14,7 +15,7 @@ attributes:
     tf_name: name
     type: String
     mandatory: true
-    description: Name of the ZTNA Profile. Must be unique within the organization. Must be alphanumeric or space.
+    description: Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space.
     string_patterns: ["^[a-zA-Z0-9 ]+$"]
     string_max_length: 64
     example: my ztna profile
@@ -23,11 +24,11 @@ attributes:
     tf_name: revision
     type: Int64
     computed: true
-    description: Revision of the ZTNA Profile, incremented on each change.
+    description: Revision of the configuration.
   - model_name: priority
     type: Int64
     mandatory: true
-    description: Priority of the ZTNA Profile. Profiles should have contiguous priority values starting from 1.
+    description: Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1.
     example: 1
 
   # Sources - Operating Systems
@@ -35,42 +36,42 @@ attributes:
     data_path: ["operatingSystems", "mac-intel"]
     tf_name: operating_system_macos
     type: Bool
-    description: Whether the ZTNA Profile is enabled for macOS clients.
+    description: Whether the ZTA Profile is enabled for macOS clients.
     default_value: true
     example: true
   - model_name: enabled
     data_path: ["operatingSystems", "win"]
     tf_name: operating_system_windows
     type: Bool
-    description: Whether the ZTNA Profile is enabled for Windows clients.
+    description: Whether the ZTA Profile is enabled for Windows clients.
     default_value: true
     example: true
   - model_name: enabled
     data_path: ["operatingSystems", "linux-64"]
     tf_name: operating_system_linux
     type: Bool
-    description: Whether the ZTNA Profile is enabled for Linux clients.
+    description: Whether the ZTA Profile is enabled for Linux clients.
     default_value: true
     example: false
   - model_name: enabled
     data_path: ["operatingSystems", "apple-ios"]
     tf_name: operating_system_ios
     type: Bool
-    description: Whether the ZTNA Profile is enabled for iOS clients.
+    description: Whether the ZTA Profile is enabled for iOS clients.
     default_value: true
     example: true
   - model_name: enabled
     data_path: ["operatingSystems", "android", "generic-android"]
     tf_name: operating_system_android
     type: Bool
-    description: Whether the ZTNA Profile is enabled for generic Android clients.
+    description: Whether the ZTA Profile is enabled for generic Android clients.
     default_value: true
     example: true
   - model_name: enabled
     data_path: ["operatingSystems", "android", "knox-android"]
     tf_name: operating_system_android_knox
     type: Bool
-    description: Whether the ZTNA Profile is enabled for Samsung Knox Android clients.
+    description: Whether the ZTA Profile is enabled for Samsung Knox Android clients.
     default_value: true
     example: false
 
@@ -79,13 +80,13 @@ attributes:
     data_path: ["usersData"]
     tf_name: all_users
     type: Bool
-    description: Whether the ZTNA Profile is enabled for all users of the organization.
+    description: Whether the ZTA Profile is enabled for all users of the organization.
     example: true
   - model_name: allGroupsEnabled
     data_path: ["groupsData"]
     tf_name: all_groups
     type: Bool
-    description: Whether the ZTNA Profile is enabled for all groups of the organization.
+    description: Whether the ZTA Profile is enabled for all groups of the organization.
     example: true
 
   # Sources - Network Locations
@@ -93,7 +94,7 @@ attributes:
     tf_name: network_location_ids
     type: Set
     element_type: String
-    description: Network Locations associated with the ZTNA Profile.
+    description: Network Locations associated with the ZTA Profile.
     max_list: 50
     example: 8f0831d9-02e2-4c2d-9f71-47874e9465f7
     #test_value: "[secureaccess_zta_network_location.test.id]"
@@ -127,7 +128,7 @@ attributes:
     data_path: ["securePrivateAccess", "enforcementPause"]
     tf_name: private_access_end_user_pause
     type: Bool
-    description: Whether ZTNA enforcement pause is enabled for secure private access.
+    description: Whether ZTA enforcement pause is enabled for secure private access.
     example: true
   - model_name: durationMinutes
     data_path: ["securePrivateAccess", "enforcementPause"]
@@ -159,7 +160,7 @@ attributes:
     data_path: ["secureInternetAccess", "enforcementPause"]
     tf_name: internet_access_end_user_pause
     type: Bool
-    description: Whether ZTNA enforcement pause is enabled for secure internet access.
+    description: Whether ZTA enforcement pause is enabled for secure internet access.
     example: true
   - model_name: durationMinutes
     data_path: ["secureInternetAccess", "enforcementPause"]
@@ -174,7 +175,7 @@ attributes:
   #   data_path: ["aiGateway"]
   #   tf_name: ai_gateway_enabled
   #   type: Bool
-  #   description: Whether AI Gateway support is enabled for the ZTNA Profile.
+  #   description: Whether AI Gateway support is enabled for the ZTA Profile.
   #   example: false
 
 # test_prerequisites: |-

@@ -26,7 +26,7 @@ resource "secureaccess_zta_profile_private_access_steering_destination" "example
 ### Required
 
 - `destination` (String) Endpoint to steer privately. FQDN, wildcard FQDN, IP address and CIDR are allowed.
-- `zta_profile_id` (String) ID of the ZTNA Profile.
+- `zta_profile_id` (String) ID of the ZTA Profile.
 
 ### Optional
 

@@ -14,7 +14,7 @@ This resource manages a ZTA Network Location.
 
 ```terraform
 resource "secureaccess_zta_network_location" "example" {
-  name = "my_network_location"
+  name = "my zta network location"
   egress_criteria = [
     {
       source_type    = "manual"
@@ -42,7 +42,7 @@ resource "secureaccess_zta_network_location" "example" {
 ### Required
 
 - `egress_criteria` (Attributes Set) Egress criteria evaluated against the source IP observed by Secure Access cloud. (see [below for nested schema](#nestedatt--egress_criteria))
-- `name` (String) Name of the Network Location. Must be unique within the organization. Must be alphanumeric, hyphen, underscore, or space.
+- `name` (String) Name of the Network Location. Must be unique within the organization. Must be alphanumeric or space.
 
 ### Optional
 
@@ -52,7 +52,7 @@ resource "secureaccess_zta_network_location" "example" {
 ### Read-Only
 
 - `id` (String) Id of the object
-- `revision` (Number) Revision of the Network Location, incremented on each change.
+- `revision` (Number) Revision of the configuration.
 
 <a id="nestedatt--egress_criteria"></a>
 ### Nested Schema for `egress_criteria`

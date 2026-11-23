@@ -117,7 +117,7 @@ func (d *ZTATrustedNetworkDataSource) Schema(ctx context.Context, req datasource
 				},
 			},
 			"revision": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Revision of the Trusted Network, incremented on each change.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Revision of the configuration.").String,
 				Computed:            true,
 			},
 		},

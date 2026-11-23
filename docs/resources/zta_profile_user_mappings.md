@@ -28,18 +28,18 @@ resource "secureaccess_zta_profile_user_mappings" "example" {
 
 ### Required
 
-- `users` (Attributes Set) List of users mapped to the ZTNA Profile. (see [below for nested schema](#nestedatt--users))
-- `zta_profile_id` (String) ID of the ZTNA Profile.
+- `users` (Attributes Set) List of users mapped to the ZTA Profile. (see [below for nested schema](#nestedatt--users))
+- `zta_profile_id` (String) ID of the ZTA Profile.
 
 ### Read-Only
 
 - `id` (String) Id of the object
-- `revision` (Number) Revision of the user mappings, incremented on each change.
+- `revision` (Number) Revision of the configuration.
 
 <a id="nestedatt--users"></a>
 ### Nested Schema for `users`
 
-Optional:
+Required:
 
 - `id` (String) ID of the user.
 
@@ -50,5 +50,5 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-terraform import secureaccess_zta_profile_user_mappings.example "<zta_profile_id>,<id>"
+terraform import secureaccess_zta_profile_user_mappings.example "<zta_profile_id>"
 ```

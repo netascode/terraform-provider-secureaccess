@@ -1,4 +1,4 @@
-# APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/profiles in go-secureaccess
+# APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/ in go-secureaccess
 # APIBEHAVIOUR: lists only manually created destinations
 # -> adjustBody() (`id` is not part of the request body)
 ---
@@ -11,7 +11,7 @@ attributes:
     tf_name: zta_profile_id
     type: String
     reference: true
-    description: ID of the ZTNA Profile.
+    description: ID of the ZTA Profile.
     example: acde070d-8c4c-4f0d-9d8a-162843c10333
     test_value: secureaccess_zta_profile.test.id
   - model_name: endpoint

@@ -1,4 +1,5 @@
 # Manual resource
+# APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/ in go-secureaccess
 # APIBEHAVIOUR: mappings are changed with PATCH add/remove/replace operations, there is no POST/PUT/DELETE
 # APIBEHAVIOUR: mappings are relevant only when the profile internet steering mode is 2 (by list)
 # -> Create() / Update() (GET all current mappings and revision, PATCH add/remove operations to match the plan, and replace
@@ -18,18 +19,19 @@ attributes:
     tf_name: zta_profile_id
     type: String
     reference: true
-    description: ID of the ZTNA Profile. Mappings are relevant only when `internet_access_steering_mode` of the profile is `2` (by list).
+    id: true
+    description: ID of the ZTA Profile. Mappings are relevant only when `internet_access_steering_mode` of the profile is `2` (by list).
     example: acde070d-8c4c-4f0d-9d8a-162843c10333
     test_value: secureaccess_zta_profile.test.id
   - model_name: rev
     tf_name: revision
     type: Int64
     computed: true
-    description: Revision of the internet access destination list mappings, incremented on each change.
+    description: Revision of the configuration.
   - model_name: items
     tf_name: destination_lists
     type: Set
-    description: List of destination lists mapped to the ZTNA Profile for internet access steering.
+    description: List of destination lists mapped to the ZTA Profile for internet access.
     mandatory: true
     attributes:
       - model_name: id

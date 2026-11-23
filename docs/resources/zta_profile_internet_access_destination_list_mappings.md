@@ -29,13 +29,13 @@ resource "secureaccess_zta_profile_internet_access_destination_list_mappings" "e
 
 ### Required
 
-- `destination_lists` (Attributes Set) List of destination lists mapped to the ZTNA Profile for internet access steering. (see [below for nested schema](#nestedatt--destination_lists))
-- `zta_profile_id` (String) ID of the ZTNA Profile. Mappings are relevant only when `internet_access_steering_mode` of the profile is `2` (by list).
+- `destination_lists` (Attributes Set) List of destination lists mapped to the ZTA Profile for internet access. (see [below for nested schema](#nestedatt--destination_lists))
+- `zta_profile_id` (String) ID of the ZTA Profile. Mappings are relevant only when `internet_access_steering_mode` of the profile is `2` (by list).
 
 ### Read-Only
 
 - `id` (String) Id of the object
-- `revision` (Number) Revision of the internet access destination list mappings, incremented on each change.
+- `revision` (Number) Revision of the configuration.
 
 <a id="nestedatt--destination_lists"></a>
 ### Nested Schema for `destination_lists`
@@ -55,5 +55,5 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-terraform import secureaccess_zta_profile_internet_access_destination_list_mappings.example "<zta_profile_id>,<id>"
+terraform import secureaccess_zta_profile_internet_access_destination_list_mappings.example "<zta_profile_id>"
 ```

@@ -1,4 +1,5 @@
 # Manual resource
+# APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/ in go-secureaccess
 # APIBEHAVIOUR: mappings are changed with PATCH add/remove operations, there is no POST/PUT/DELETE
 # -> Create() / Update() (GET all current mappings and revision, PATCH add/remove operations to match the plan, see setMappings())
 #    API rejects adding an already mapped or removing a not mapped trusted network (400), the whole PATCH is then rejected
@@ -16,23 +17,26 @@ attributes:
     tf_name: zta_profile_id
     type: String
     reference: true
-    description: ID of the ZTNA Profile.
+    id: true
+    description: ID of the ZTA Profile.
     example: acde070d-8c4c-4f0d-9d8a-162843c10333
     test_value: secureaccess_zta_profile.test.id
   - model_name: rev
     tf_name: revision
     type: Int64
     computed: true
-    description: Revision of the internet access trusted network mappings, incremented on each change.
+    description: Revision of the configuration.
   - model_name: items
     tf_name: trusted_networks
     type: Set
-    description: List of trusted networks mapped to the ZTNA Profile for internet access steering.
+    description: List of trusted networks mapped to the ZTA Profile for internet access.
     mandatory: true
     attributes:
       - model_name: id
         type: String
         description: ID of the trusted network.
+        id: true
+        mandatory: true
         example: acde070d-8c4c-4f0d-9d8a-162843c10333
         test_value: secureaccess_zta_trusted_network.test.id
 

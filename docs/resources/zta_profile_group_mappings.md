@@ -28,18 +28,18 @@ resource "secureaccess_zta_profile_group_mappings" "example" {
 
 ### Required
 
-- `groups` (Attributes Set) List of groups mapped to the ZTNA Profile. (see [below for nested schema](#nestedatt--groups))
-- `zta_profile_id` (String) ID of the ZTNA Profile.
+- `groups` (Attributes Set) List of groups mapped to the ZTA Profile. (see [below for nested schema](#nestedatt--groups))
+- `zta_profile_id` (String) ID of the ZTA Profile.
 
 ### Read-Only
 
 - `id` (String) Id of the object
-- `revision` (Number) Revision of the group mappings, incremented on each change.
+- `revision` (Number) Revision of the configuration.
 
 <a id="nestedatt--groups"></a>
 ### Nested Schema for `groups`
 
-Optional:
+Required:
 
 - `id` (String) ID of the group.
 
@@ -50,5 +50,5 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-terraform import secureaccess_zta_profile_group_mappings.example "<zta_profile_id>,<id>"
+terraform import secureaccess_zta_profile_group_mappings.example "<zta_profile_id>"
 ```

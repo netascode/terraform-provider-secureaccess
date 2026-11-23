@@ -31,7 +31,7 @@ data "secureaccess_zta_trusted_network" "example" {
 - `dns_domains` (Attributes Set) DNS suffixes a network interface may have when the client is in the Trusted Network. Each domain is an implicit wildcard (e.g. `cisco.com` is treated as `*.cisco.com`). At least one of `dns_servers`, `dns_domains` or `trusted_servers` must be set. (see [below for nested schema](#nestedatt--dns_domains))
 - `dns_servers` (Attributes Set) DNS servers a network may have when the client is in the Trusted Network. If any of the listed DNS servers are found on the network, this criterion matches. At least one of `dns_servers`, `dns_domains` or `trusted_servers` must be set. (see [below for nested schema](#nestedatt--dns_servers))
 - `inspect` (Number) The interface type for the Trusted Network: `0` means physical interfaces only, `1` means physical and virtual interfaces.
-- `revision` (Number) Revision of the Trusted Network, incremented on each change.
+- `revision` (Number) Revision of the configuration.
 - `trusted_servers` (Attributes Set) Servers on the network that a configured DNS server can resolve and that present a TLS certificate matching the provided hash. If any of the listed servers is validated, this criterion matches. At least one of `dns_servers`, `dns_domains` or `trusted_servers` must be set. (see [below for nested schema](#nestedatt--trusted_servers))
 
 <a id="nestedatt--dns_domains"></a>

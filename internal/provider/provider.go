@@ -315,6 +315,7 @@ func (p *SecureAccessProvider) Resources(ctx context.Context) []func() resource.
 		NewZTAProfileResource,
 		NewZTAProfileGroupMappingsResource,
 		NewZTAProfileInternetAccessDestinationListMappingsResource,
+		NewZTAProfileInternetAccessExceptionsResource,
 		NewZTAProfileInternetAccessTrustedNetworkMappingsResource,
 		NewZTAProfilePrivateAccessSteeringDestinationResource,
 		NewZTAProfilePrivateAccessSteeringPrivateResourceMappingsResource,

@@ -72,27 +72,27 @@ func (r *ZTAProfileInternetAccessTrustedNetworkMappingsResource) Schema(ctx cont
 				},
 			},
 			"zta_profile_id": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("ID of the ZTNA Profile.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("ID of the ZTA Profile.").String,
 				Required:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"revision": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Revision of the internet access trusted network mappings, incremented on each change.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Revision of the configuration.").String,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
 			},
 			"trusted_networks": schema.SetNestedAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("List of trusted networks mapped to the ZTNA Profile for internet access steering.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("List of trusted networks mapped to the ZTA Profile for internet access.").String,
 				Required:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
 							MarkdownDescription: helpers.NewAttributeDescription("ID of the trusted network.").String,
-							Optional:            true,
+							Required:            true,
 						},
 					},
 				},

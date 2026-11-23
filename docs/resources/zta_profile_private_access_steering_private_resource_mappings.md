@@ -28,18 +28,18 @@ resource "secureaccess_zta_profile_private_access_steering_private_resource_mapp
 
 ### Required
 
-- `private_resources` (Attributes Set) List of private resources mapped to the ZTNA Profile. Traffic is steered to all destinations of the mapped private resources. (see [below for nested schema](#nestedatt--private_resources))
-- `zta_profile_id` (String) ID of the ZTNA Profile. Must not be the default profile, to which all private resources are implicitly mapped.
+- `private_resources` (Attributes Set) List of private resources mapped to the ZTA Profile for private access. Traffic is steered to all destinations of the mapped private resources. (see [below for nested schema](#nestedatt--private_resources))
+- `zta_profile_id` (String) ID of the ZTA Profile. Must not be the default profile, to which all private resources are implicitly mapped.
 
 ### Read-Only
 
 - `id` (String) Id of the object
-- `revision` (Number) Revision of the private resource mappings, incremented on each change.
+- `revision` (Number) Revision of the configuration.
 
 <a id="nestedatt--private_resources"></a>
 ### Nested Schema for `private_resources`
 
-Optional:
+Required:
 
 - `id` (String) ID of the private resource.
 
@@ -50,5 +50,5 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-terraform import secureaccess_zta_profile_private_access_steering_private_resource_mappings.example "<zta_profile_id>,<id>"
+terraform import secureaccess_zta_profile_private_access_steering_private_resource_mappings.example "<zta_profile_id>"
 ```

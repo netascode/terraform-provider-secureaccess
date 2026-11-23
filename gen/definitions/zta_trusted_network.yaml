@@ -1,4 +1,4 @@
-# APIBEHAVIOUR: cursor/limit pagination (not supported by GetAll, only the first page of 100 items is read)
+# APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/ in go-secureaccess
 # -> ConfigValidators() (At least one of `dns_servers`, `dns_domains` or `trusted_servers` must be specified.)
 # -> adjustBody() (`rev` from state is sent in the PUT body, API rejects updates with a stale revision with 409)
 ---
@@ -82,4 +82,4 @@ attributes:
     tf_name: revision
     type: Int64
     computed: true
-    description: Revision of the Trusted Network, incremented on each change.
+    description: Revision of the configuration.
