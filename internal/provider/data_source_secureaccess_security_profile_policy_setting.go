@@ -67,15 +67,15 @@ func (d *SecurityProfilePolicySettingDataSource) Schema(ctx context.Context, req
 				Computed:            true,
 			},
 			"decryption_enabled": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether Decryption is enabled (Web UI Decryption, Enabled). According to the Security Profiles API guide, enabling Decryption sets it to true.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether Decryption is enabled (Web UI Decryption, Enabled).").String,
 				Computed:            true,
 			},
 			"intelligent_proxy": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the intelligent proxy is enabled. According to the Security Profiles API guide, the API also sets it to true when Decryption or Block page mode is enabled, but it can be true without either of them.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the intelligent proxy is enabled.").String,
 				Computed:            true,
 			},
 			"end_user_notification": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the Block page mode of the End-User Notifications is enabled (Web UI End-User Notifications, Block page mode). The API returns 0 or 1, which is read as `false` or `true`.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the Block page mode of the End-User Notifications is enabled (Web UI End-User Notifications, Block page mode).").String,
 				Computed:            true,
 			},
 			"single_sign_on": schema.BoolAttribute{

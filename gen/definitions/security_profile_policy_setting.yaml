@@ -26,16 +26,16 @@ attributes:
   - model_name: intelligentProxyHttps
     tf_name: decryption_enabled
     type: Bool
-    description: Specifies whether Decryption is enabled (Web UI Decryption, Enabled). According to the Security Profiles API guide, enabling Decryption sets it to true.
+    description: Specifies whether Decryption is enabled (Web UI Decryption, Enabled).
     example: false
   - model_name: intelligentProxy
     type: Bool
-    description: Specifies whether the intelligent proxy is enabled. According to the Security Profiles API guide, the API also sets it to true when Decryption or Block page mode is enabled, but it can be true without either of them.
+    description: Specifies whether the intelligent proxy is enabled.
     example: false
   - model_name: swgDisplayBlockPage
     tf_name: end_user_notification
     type: Bool
-    description: Specifies whether the Block page mode of the End-User Notifications is enabled (Web UI End-User Notifications, Block page mode). The API returns 0 or 1, which is read as `false` or `true`.
+    description: Specifies whether the Block page mode of the End-User Notifications is enabled (Web UI End-User Notifications, Block page mode).
     example: false
   - model_name: saml
     tf_name: single_sign_on
