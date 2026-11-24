@@ -1,0 +1,66 @@
+# Manual resource
+# APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/ in go-secureaccess
+# APIBEHAVIOUR: mappings are changed with PATCH add/remove/replace operations, there is no POST/PUT/DELETE
+# APIBEHAVIOUR: mappings are relevant only when the profile internet steering mode is 2 (by list)
+# -> Create() / Update() (GET all current mappings and revision, PATCH add/remove operations to match the plan, and replace
+#    operations for the exclusions of mapped destination lists, see setMappings())
+#    API rejects adding an already mapped or removing a not mapped destination list (400), the whole PATCH is then rejected
+# -> Delete() (PATCH remove operations for the destination lists in state, with the revision from state)
+# -> Read() (GetAll for the items, `rev` is read separately from a single page, as GetAll does not return it)
+# -> ImportState() (import ID is the profile ID)
+---
+name: ZTA Profile Internet Access Destination List Mappings
+rest_endpoint: /deployments/v2/ztna/profiles/%v/internetSteering/destinationListMappings
+doc_category: Connect
+no_data_source: true
+skip_minimum_test: true
+attributes:
+  - model_name: profileId
+    tf_name: zta_profile_id
+    type: String
+    reference: true
+    id: true
+    description: ID of the ZTA Profile. Mappings are relevant only when `internet_access_steering_mode` of the profile is `2` (by list).
+    example: acde070d-8c4c-4f0d-9d8a-162843c10333
+    test_value: secureaccess_zta_profile.test.id
+  - model_name: rev
+    tf_name: revision
+    type: Int64
+    computed: true
+    description: Revision of the configuration.
+  - model_name: items
+    tf_name: destination_lists
+    type: Set
+    description: List of destination lists mapped to the ZTA Profile for internet access.
+    mandatory: true
+    attributes:
+      - model_name: id
+        type: String
+        id: true
+        mandatory: true
+        description: ID of the destination list.
+        example: "54321"
+        test_value: secureaccess_destination_list.test.id
+      - model_name: exclusions
+        type: Set
+        element_type: String
+        description: Exclusions from all destinations of the destination list. FQDN, wildcard FQDN, IPv4 address and CIDR are allowed. An FQDN must be a sub-domain, and a CIDR a subnet, of one of the destinations of the destination list.
+        max_list: 20
+        example: www.example.com
+
+test_prerequisites: |-
+  resource "secureaccess_zta_profile" "test" {
+    name                          = "my ztna profile internet destination list mappings"
+    priority                      = 1
+    internet_access_steering_mode = 2
+  }
+
+  resource "secureaccess_destination_list" "test" {
+    name = "my ztna profile internet destination list mappings"
+    destinations = [
+      {
+        destination = "example.com"
+        type        = "domain"
+      }
+    ]
+  }

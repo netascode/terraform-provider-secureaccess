@@ -1,0 +1,69 @@
+# Manual resource
+# APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/ in go-secureaccess
+# APIBEHAVIOUR: mappings are changed with PATCH add/remove operations, there is no POST/PUT/DELETE
+# APIBEHAVIOUR: not to be used with the default profile, all private resources are implicitly mapped to it
+# -> Create() / Update() (GET all current mappings and revision, PATCH add/remove operations to match the plan, see setMappings())
+#    API rejects adding an already mapped or removing a not mapped private resource (400), the whole PATCH is then rejected
+# -> Delete() (PATCH remove operations for the private resources in state, with the revision from state)
+# -> Read() (GetAll for the items, `rev` is read separately from a single page, as GetAll does not return it)
+# -> ImportState() (import ID is the profile ID)
+---
+name: ZTA Profile Private Access Steering Private Resource Mappings
+rest_endpoint: /deployments/v2/ztna/profiles/%v/privateSteering/resourceMappings
+doc_category: Connect
+no_data_source: true
+skip_minimum_test: true
+attributes:
+  - model_name: profileId
+    tf_name: zta_profile_id
+    type: String
+    reference: true
+    id: true
+    description: ID of the ZTA Profile. Must not be the default profile, to which all private resources are implicitly mapped.
+    example: acde070d-8c4c-4f0d-9d8a-162843c10333
+    test_value: secureaccess_zta_profile.test.id
+  - model_name: rev
+    tf_name: revision
+    type: Int64
+    computed: true
+    description: Revision of the configuration.
+  - model_name: items
+    tf_name: private_resources
+    type: Set
+    description: List of private resources mapped to the ZTA Profile for private access. Traffic is steered to all destinations of the mapped private resources.
+    mandatory: true
+    attributes:
+      - model_name: id
+        type: String
+        description: ID of the private resource.
+        id: true
+        mandatory: true
+        example: "123456"
+        test_value: secureaccess_private_resource.test.id
+
+test_prerequisites: |-
+  resource "secureaccess_zta_profile" "test" {
+    name     = "my ztna profile private resource mappings"
+    priority = 1
+  }
+
+  resource "secureaccess_private_resource" "test" {
+    name = "my ztna profile private resource mappings"
+    endpoint_connection_methods = [
+      {
+        type                       = "client"
+        client_reachable_addresses = ["192.168.1.0/24"]
+      }
+    ]
+    addresses = [
+      {
+        addresses = ["192.168.1.0/24"]
+        protocols_and_ports = [
+          {
+            protocol = "http/https"
+            ports    = "443"
+          }
+        ]
+      }
+    ]
+  }

@@ -1,0 +1,55 @@
+# Manual resource
+# APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/ in go-secureaccess
+# APIBEHAVIOUR: exclusions are changed with PATCH add/remove/replace operations, there is no POST/PUT/DELETE
+# APIBEHAVIOUR: exclusions are relevant only when the profile internet steering mode is 1 (all destinations)
+# APIBEHAVIOUR: exclusion IDs are assigned by the API, exclusions are matched by their destination
+# APIBEHAVIOUR: system defined (global) exclusions are returned only with `includeGlobal=true`, they are never read
+# -> Create() / Update() (GET all current exclusions and revision, PATCH add/remove operations to match the plan, and replace
+#    operations for the descriptions of existing exclusions, see setMappings())
+# -> Delete() (GET all current exclusions and revision, PATCH remove operations for the exclusions in state, as removal needs the exclusion ID)
+# -> Read() (GetAll for the items, `rev` is read separately from a single page, as GetAll does not return it)
+# -> ImportState() (import ID is the profile ID)
+---
+name: ZTA Profile Internet Access Exceptions
+rest_endpoint: /deployments/v2/ztna/profiles/%v/internetSteering/exclusions
+doc_category: Connect
+no_data_source: true
+skip_minimum_test: true
+attributes:
+  - model_name: profileId
+    tf_name: zta_profile_id
+    type: String
+    reference: true
+    id: true
+    description: ID of the ZTA Profile. Exceptions are relevant only when `internet_access_steering_mode` of the profile is `1` (all destinations).
+    example: acde070d-8c4c-4f0d-9d8a-162843c10333
+    test_value: secureaccess_zta_profile.test.id
+  - model_name: rev
+    tf_name: revision
+    type: Int64
+    computed: true
+    description: Revision of the configuration.
+  - model_name: items
+    tf_name: exceptions
+    type: Set
+    description: List of destinations excluded from internet access for the ZTA Profile. System defined exceptions are not managed.
+    mandatory: true
+    attributes:
+      - model_name: exclusion
+        tf_name: destination
+        type: String
+        id: true
+        mandatory: true
+        description: Destination to exclude. FQDN, wildcard FQDN, IPv4 address and CIDR are allowed.
+        example: "*.example.com"
+      - model_name: description
+        type: String
+        description: Description of the exception and why it exists.
+        example: My exception
+
+test_prerequisites: |-
+  resource "secureaccess_zta_profile" "test" {
+    name                          = "my ztna profile internet exceptions"
+    priority                      = 1
+    internet_access_steering_mode = 1
+  }

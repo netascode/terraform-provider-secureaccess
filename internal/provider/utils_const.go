@@ -17,7 +17,8 @@
 
 package provider
 
-import "sync"
-
-// accessRuleMu ensures that only one goroutine can modify access rules at a time.
-var accessRuleMu sync.Mutex
+// The default ZTA profile always exists, with a fixed ID and name, and cannot be created or deleted.
+const (
+	ztaDefaultProfileId   = "default-profile"
+	ztaDefaultProfileName = "Default ZTA Profile"
+)

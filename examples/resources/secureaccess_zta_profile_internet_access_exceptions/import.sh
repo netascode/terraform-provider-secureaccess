@@ -1,0 +1,1 @@
+terraform import secureaccess_zta_profile_internet_access_exceptions.example "<zta_profile_id>"

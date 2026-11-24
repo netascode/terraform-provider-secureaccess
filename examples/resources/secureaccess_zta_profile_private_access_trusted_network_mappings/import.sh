@@ -1,0 +1,1 @@
+terraform import secureaccess_zta_profile_private_access_trusted_network_mappings.example "<zta_profile_id>"

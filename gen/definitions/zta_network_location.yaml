@@ -1,0 +1,127 @@
+# APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/ in go-secureaccess
+# -> adjustBody() (`rev` from state is sent in the PUT body, API rejects updates with a stale revision with 409)
+---
+name: ZTA Network Location
+rest_endpoint: /deployments/v2/ztna/networkLocations
+doc_category: Connect
+adjust_body: true
+resource_id_model_name: networkLocationId
+attributes:
+  - model_name: networkLocationName
+    tf_name: name
+    type: String
+    mandatory: true
+    description: Name of the Network Location. Must be unique within the organization. Must be alphanumeric or space.
+    string_patterns: ["^[a-zA-Z0-9 ]+$"]
+    string_max_length: 64
+    example: my zta network location
+    data_source_query: true
+  - model_name: egressCriteria
+    tf_name: egress_criteria
+    type: Set
+    mandatory: true
+    description: Egress criteria evaluated against the source IP observed by Secure Access cloud.
+    min_list: 1
+    attributes:
+      - model_name: sourceType
+        tf_name: source_type
+        type: String
+        mandatory: true
+        description: Type of the criterion.
+        enum_values: ["manual", "networkObject", "networkObjectGroup"]
+        example: manual
+      - model_name: address
+        tf_name: manual_address
+        type: String
+        description: Single IPv4 or IPv6 address, or IPv4 or IPv6 CIDR. Address ranges are not accepted. Required when `source_type` is `manual`.
+        string_patterns: ["^[^-]+$"]
+        example: 203.0.113.10
+      - model_name: networkObjectId
+        tf_name: network_object_id
+        type: String
+        description: Network Object ID. Required when `source_type` is `networkObject`.
+        string_patterns: ["^[0-9]+$"]
+        exclude_example: true
+        exclude_test: true
+      - model_name: networkObjectGroupId
+        tf_name: network_object_group_id
+        type: String
+        description: Network Object Group ID. Required when `source_type` is `networkObjectGroup`.
+        string_patterns: ["^[0-9]+$"]
+        exclude_example: true
+        exclude_test: true
+  - model_name: egressExclusionCriteria
+    tf_name: egress_exclusion_criteria
+    type: Set
+    description: Egress criteria that exclude matching source IPs from the Network Location.
+    min_list: 1
+    attributes:
+      - model_name: sourceType
+        tf_name: source_type
+        type: String
+        mandatory: true
+        description: Type of the criterion.
+        enum_values: ["manual", "networkObject", "networkObjectGroup"]
+        example: manual
+      - model_name: address
+        tf_name: manual_address
+        type: String
+        description: Single IPv4 or IPv6 address, or IPv4 or IPv6 CIDR. Address ranges are not accepted. Required when `source_type` is `manual`.
+        string_patterns: ["^[^-]+$"]
+        example: 203.0.113.200
+      - model_name: networkObjectId
+        tf_name: network_object_id
+        type: String
+        description: Network Object ID. Required when `source_type` is `networkObject`.
+        string_patterns: ["^[0-9]+$"]
+        example: "474097"
+        exclude_example: true
+        exclude_test: true
+      - model_name: networkObjectGroupId
+        tf_name: network_object_group_id
+        type: String
+        description: Network Object Group ID. Required when `source_type` is `networkObjectGroup`.
+        string_patterns: ["^[0-9]+$"]
+        example: "58144"
+        exclude_example: true
+        exclude_test: true
+  - model_name: privateSubnetCriteria
+    tf_name: private_subnet_criteria
+    type: Set
+    description: Private or internal subnet criteria.
+    min_list: 1
+    attributes:
+      - model_name: sourceType
+        tf_name: source_type
+        type: String
+        mandatory: true
+        description: Type of the criterion.
+        enum_values: ["manual", "networkObject", "networkObjectGroup"]
+        example: manual
+      - model_name: address
+        tf_name: manual_address
+        type: String
+        description: Single IPv4 or IPv6 address, or IPv4 or IPv6 CIDR. Address ranges are not accepted. Required when `source_type` is `manual`.
+        string_patterns: ["^[^-]+$"]
+        example: 10.10.0.0/16
+      - model_name: networkObjectId
+        tf_name: network_object_id
+        type: String
+        description: Network Object ID. Required when `source_type` is `networkObject`.
+        string_patterns: ["^[0-9]+$"]
+        example: "474097"
+        exclude_example: true
+        exclude_test: true
+      - model_name: networkObjectGroupId
+        tf_name: network_object_group_id
+        type: String
+        description: Network Object Group ID. Required when `source_type` is `networkObjectGroup`.
+        string_patterns: ["^[0-9]+$"]
+        example: "58144"
+        exclude_example: true
+        exclude_test: true
+  - model_name: rev
+    tf_name: revision
+    type: Int64
+    computed: true
+    description: Revision of the configuration.
