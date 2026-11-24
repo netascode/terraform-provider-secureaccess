@@ -30,8 +30,8 @@ data "secureaccess_dlp_custom_classification" "example" {
 
 - `description` (String) Description of the DLP Custom Classification.
 - `evaluation_strategy` (String) Evaluation strategy of the Data Identifiers.
-- `excluded_data_identifiers` (Attributes List) List of data identifiers excluded from the DLP Custom Classification. (see [below for nested schema](#nestedatt--excluded_data_identifiers))
-- `included_data_identifiers` (Attributes List) List of data identifiers included in the DLP Custom Classification. (see [below for nested schema](#nestedatt--included_data_identifiers))
+- `excluded_data_identifiers` (Attributes Set) Data identifiers excluded from the DLP Custom Classification. (see [below for nested schema](#nestedatt--excluded_data_identifiers))
+- `included_data_identifiers` (Attributes Set) Data identifiers included in the DLP Custom Classification. (see [below for nested schema](#nestedatt--included_data_identifiers))
 
 <a id="nestedatt--excluded_data_identifiers"></a>
 ### Nested Schema for `excluded_data_identifiers`

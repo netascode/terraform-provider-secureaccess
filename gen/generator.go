@@ -28,6 +28,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"text/template"
 	"unicode"
@@ -103,6 +104,8 @@ type YamlConfig struct {
 	PutCreate           bool                  `yaml:"put_create"`
 	PutDelete           bool                  `yaml:"put_delete"`
 	NoUpdate            bool                  `yaml:"no_update"`
+	PatchUpdateMerge    bool                  `yaml:"patch_update_merge"`
+	PatchUpdateJson     bool                  `yaml:"patch_update_json"`
 	NoDelete            bool                  `yaml:"no_delete"`
 	DsDescription       string                `yaml:"ds_description"`
 	ResDescription      string                `yaml:"res_description"`
@@ -140,6 +143,8 @@ type YamlConfigAttribute struct {
 	Mandatory                   bool                  `yaml:"mandatory"`
 	WriteOnly                   bool                  `yaml:"write_only"`
 	WriteChangesOnly            bool                  `yaml:"write_changes_only"`
+	EmptyAsNull                 bool                  `yaml:"empty_as_null"`
+	PatchMergeNoClear           bool                  `yaml:"patch_merge_no_clear"`
 	ExcludeTest                 bool                  `yaml:"exclude_test"`
 	ExcludeExample              bool                  `yaml:"exclude_example"`
 	Description                 string                `yaml:"description"`
@@ -516,6 +521,51 @@ func ListEntryValueKey(attr YamlConfigAttribute) string {
 	return "settingValue"
 }
 
+// PatchMergePath is a top level body path compared by `toBodyPatchMerge`
+type PatchMergePath struct {
+	Path  string
+	Empty string
+}
+
+// patchMergeEmpty returns the raw JSON value which clears the attribute with a merge PATCH
+func patchMergeEmpty(attr YamlConfigAttribute) string {
+	if IsListEntry(attr) {
+		return "[]"
+	}
+	switch attr.Type {
+	case "String":
+		return `""`
+	case "Bool":
+		return "false"
+	case "Int64", "Float64":
+		return "0"
+	}
+	return "[]"
+}
+
+// Templating helper function to return the unique body paths of the attributes written by `toBody`.
+// List entry attributes (`setting_name`, `condition_name`) share the path of their list, which is compared as a whole.
+// Attributes with `computed_body_param` are never cleared, as an unknown plan value is not written to the body.
+// Attributes with `patch_merge_no_clear` are never cleared, as the API rejects an empty value.
+func PatchMergePaths(attributes []YamlConfigAttribute) []PatchMergePath {
+	var paths []PatchMergePath
+	for _, attr := range attributes {
+		if (attr.Computed && !attr.ComputedBodyParam) || attr.TfOnly || attr.Value != "" || attr.ResourceId || attr.Reference {
+			continue
+		}
+		path := strings.Join(append(slices.Clone(attr.DataPath), attr.ModelName), ".")
+		if slices.ContainsFunc(paths, func(p PatchMergePath) bool { return p.Path == path }) {
+			continue
+		}
+		p := PatchMergePath{Path: path}
+		if !attr.ComputedBodyParam && !attr.PatchMergeNoClear {
+			p.Empty = patchMergeEmpty(attr)
+		}
+		paths = append(paths, p)
+	}
+	return paths
+}
+
 // Map of templating functions
 var functions = template.FuncMap{
 	"toGoName":                       ToGoName,
@@ -556,6 +606,7 @@ var functions = template.FuncMap{
 	"listEntryMap":                   ListEntryMap,
 	"listEntryJson":                  ListEntryJson,
 	"listEntryValueKey":              ListEntryValueKey,
+	"patchMergePaths":                PatchMergePaths,
 }
 
 func (attr *YamlConfigAttribute) init(parentGoTypeName string) error {
@@ -692,6 +743,23 @@ func validateConditionAttribute(attr YamlConfigAttribute) error {
 	return nil
 }
 
+// validatePatchUpdate checks that the `patch_update_*` flags are only used with supported features
+func validatePatchUpdate(config YamlConfig) error {
+	if config.PatchUpdateJson {
+		return fmt.Errorf("`patch_update_json: true` is not yet supported by templates")
+	}
+	if !config.PatchUpdateMerge {
+		return nil
+	}
+	if config.NoUpdate || config.SettingsList {
+		return fmt.Errorf("`patch_update_merge: true` cannot be combined with `no_update: true` or `settings_list: true`")
+	}
+	if HasComputedRefreshValue(config.Attributes) || HasComputedDependsOn(config.Attributes) {
+		return fmt.Errorf("`patch_update_merge: true` cannot be combined with `computed_refresh_value` or `computed_depends_on` attributes")
+	}
+	return nil
+}
+
 // validateSettingsList checks that a `settings_list` definition only uses features supported by the settings templates
 func validateSettingsList(config YamlConfig) error {
 	if config.NoId {
@@ -774,6 +842,10 @@ func NewYamlConfig(bytes []byte) (YamlConfig, error) {
 
 	if err := yaml.Unmarshal(bytes, &config); err != nil {
 		return config, err
+	}
+
+	if err := validatePatchUpdate(config); err != nil {
+		return YamlConfig{}, err
 	}
 
 	if config.SettingsList {

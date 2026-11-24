@@ -111,23 +111,23 @@ func (d *DLPAIGuardrailsRuleDataSource) Schema(ctx context.Context, req datasour
 				Computed:            true,
 			},
 			"file_size_configuration_type": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Configuration type for file size control.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Configuration type for file size control. With `RANGE`, all `file_size_*` attributes are required. With `ALL`, none of them can be set.").String,
 				Computed:            true,
 			},
 			"file_size_from": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Minimum file size for file control.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Minimum file size for file control. Required with `file_size_configuration_type` `RANGE`.").String,
 				Computed:            true,
 			},
 			"file_size_from_unit": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Unit of the minimum file size for file control.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Unit of the minimum file size for file control. Required with `file_size_configuration_type` `RANGE`.").String,
 				Computed:            true,
 			},
 			"file_size_to": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Maximum file size for file control.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Maximum file size for file control. Required with `file_size_configuration_type` `RANGE`.").String,
 				Computed:            true,
 			},
 			"file_size_to_unit": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Unit of the maximum file size for file control.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Unit of the maximum file size for file control. Required with `file_size_configuration_type` `RANGE`.").String,
 				Computed:            true,
 			},
 			"file_types_included": schema.SetNestedAttribute{

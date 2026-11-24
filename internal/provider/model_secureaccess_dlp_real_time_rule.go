@@ -527,6 +527,276 @@ func (data DLPRealTimeRule) toBody(ctx context.Context, state DLPRealTimeRule) s
 
 // End of section. //template:end toBody
 
+// Section below is generated&owned by "gen/generator.go". //template:begin toBodyPatchMerge
+
+// toBodyPatchMerge returns a PATCH body containing only the attributes which differ between data and state.
+// Attributes removed from data are set to an empty value of their type, as null is ignored by the API.
+// Returns an empty string if there is nothing to update.
+func (data DLPRealTimeRule) toBodyPatchMerge(ctx context.Context, state DLPRealTimeRule) string {
+	planBody := data.toBody(ctx, DLPRealTimeRule{})
+	stateBody := state.toBody(ctx, DLPRealTimeRule{})
+	planBody = data.adjustBody(ctx, planBody)
+	stateBody = state.adjustBody(ctx, stateBody)
+	body := ""
+	if planValue, stateValue := gjson.Get(planBody, "name"), gjson.Get(stateBody, "name"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "name", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "name", `""`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "description"), gjson.Get(stateBody, "description"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "description", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "description", `""`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "severity"), gjson.Get(stateBody, "severity"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "severity", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "severity", `""`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "enabled"), gjson.Get(stateBody, "enabled"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "enabled", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "enabled", `false`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "scannableContexts"), gjson.Get(stateBody, "scannableContexts"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "scannableContexts", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "scannableContexts", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "classifications"), gjson.Get(stateBody, "classifications"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "classifications", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "classifications", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "mipTags"), gjson.Get(stateBody, "mipTags"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "mipTags", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "mipTags", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "fileSizeConfigType"), gjson.Get(stateBody, "fileSizeConfigType"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "fileSizeConfigType", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "fileSizeConfigType", `""`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "fileSizeFrom"), gjson.Get(stateBody, "fileSizeFrom"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "fileSizeFrom", planValue.Raw)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "fileSizeFromUnit"), gjson.Get(stateBody, "fileSizeFromUnit"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "fileSizeFromUnit", planValue.Raw)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "fileSizeTo"), gjson.Get(stateBody, "fileSizeTo"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "fileSizeTo", planValue.Raw)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "fileSizeToUnit"), gjson.Get(stateBody, "fileSizeToUnit"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "fileSizeToUnit", planValue.Raw)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "fileTypesIncluded"), gjson.Get(stateBody, "fileTypesIncluded"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "fileTypesIncluded", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "fileTypesIncluded", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "fileTypeGroupsIncluded"), gjson.Get(stateBody, "fileTypeGroupsIncluded"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "fileTypeGroupsIncluded", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "fileTypeGroupsIncluded", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "fileTypesExcluded"), gjson.Get(stateBody, "fileTypesExcluded"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "fileTypesExcluded", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "fileTypesExcluded", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "fileTypeGroupsExcluded"), gjson.Get(stateBody, "fileTypeGroupsExcluded"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "fileTypeGroupsExcluded", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "fileTypeGroupsExcluded", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "detectUnclassifiedFiles"), gjson.Get(stateBody, "detectUnclassifiedFiles"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "detectUnclassifiedFiles", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "detectUnclassifiedFiles", `false`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "identities"), gjson.Get(stateBody, "identities"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "identities", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "identities", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "excludedIdentities"), gjson.Get(stateBody, "excludedIdentities"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "excludedIdentities", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "excludedIdentities", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "allDestinationsScope"), gjson.Get(stateBody, "allDestinationsScope"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "allDestinationsScope", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "allDestinationsScope", `""`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "destinationListIds"), gjson.Get(stateBody, "destinationListIds"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "destinationListIds", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "destinationListIds", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "excludedDestinationListIds"), gjson.Get(stateBody, "excludedDestinationListIds"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "excludedDestinationListIds", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "excludedDestinationListIds", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "applications"), gjson.Get(stateBody, "applications"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "applications", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "applications", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "excludedApplicationIds"), gjson.Get(stateBody, "excludedApplicationIds"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "excludedApplicationIds", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "excludedApplicationIds", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "applicationCategories"), gjson.Get(stateBody, "applicationCategories"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "applicationCategories", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "applicationCategories", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "excludedApplicationCategoryIds"), gjson.Get(stateBody, "excludedApplicationCategoryIds"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "excludedApplicationCategoryIds", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "excludedApplicationCategoryIds", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "privateResources"), gjson.Get(stateBody, "privateResources"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "privateResources", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "privateResources", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "excludedPrivateResources"), gjson.Get(stateBody, "excludedPrivateResources"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "excludedPrivateResources", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "excludedPrivateResources", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "privateResourceGroups"), gjson.Get(stateBody, "privateResourceGroups"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "privateResourceGroups", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "privateResourceGroups", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "excludedPrivateResourceGroups"), gjson.Get(stateBody, "excludedPrivateResourceGroups"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "excludedPrivateResourceGroups", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "excludedPrivateResourceGroups", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "action"), gjson.Get(stateBody, "action"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "action", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "action", `""`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "overrideBlock"), gjson.Get(stateBody, "overrideBlock"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "overrideBlock", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "overrideBlock", `false`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "popupNotification"), gjson.Get(stateBody, "popupNotification"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "popupNotification", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "popupNotification", `false`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "edlpNotificationTemplateId"), gjson.Get(stateBody, "edlpNotificationTemplateId"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "edlpNotificationTemplateId", planValue.Raw)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "notifyActor"), gjson.Get(stateBody, "notifyActor"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "notifyActor", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "notifyActor", `false`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "notifyManager"), gjson.Get(stateBody, "notifyManager"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "notifyManager", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "notifyManager", `false`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "customEmailsNotification"), gjson.Get(stateBody, "customEmailsNotification"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "customEmailsNotification", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "customEmailsNotification", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "notificationTemplateUuid"), gjson.Get(stateBody, "notificationTemplateUuid"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "notificationTemplateUuid", planValue.Raw)
+		}
+	}
+	return body
+}
+
+// End of section. //template:end toBodyPatchMerge
+
 // Section below is generated&owned by "gen/generator.go". //template:begin fromBody
 
 func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
@@ -535,7 +805,7 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 	} else {
 		data.Name = types.StringNull()
 	}
-	if value := res.Get("description"); value.Exists() {
+	if value := res.Get("description"); value.Exists() && value.Type != gjson.Null && value.String() != "" {
 		data.Description = types.StringValue(value.String())
 	} else {
 		data.Description = types.StringNull()
@@ -574,7 +844,7 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 			return true
 		})
 	}
-	if value := res.Get("mipTags"); value.Exists() {
+	if value := res.Get("mipTags"); value.Exists() && len(value.Array()) > 0 {
 		data.FileLabels = helpers.GetStringSet(value.Array())
 	} else {
 		data.FileLabels = types.SetNull(types.StringType)
@@ -582,7 +852,7 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 	if value := res.Get("fileSizeConfigType"); value.Exists() {
 		data.FileSizeConfigurationType = types.StringValue(value.String())
 	} else {
-		data.FileSizeConfigurationType = types.StringNull()
+		data.FileSizeConfigurationType = types.StringValue("ALL")
 	}
 	if value := res.Get("fileSizeFrom"); value.Exists() {
 		data.FileSizeFrom = types.Int64Value(value.Int())
@@ -604,7 +874,7 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 	} else {
 		data.FileSizeToUnit = types.StringNull()
 	}
-	if value := res.Get("fileTypesIncluded"); value.Exists() {
+	if value := res.Get("fileTypesIncluded"); value.Exists() && len(value.Array()) > 0 {
 		data.FileTypesIncluded = make([]DLPRealTimeRuleFileTypesIncluded, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -623,7 +893,7 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 			return true
 		})
 	}
-	if value := res.Get("fileTypeGroupsIncluded"); value.Exists() {
+	if value := res.Get("fileTypeGroupsIncluded"); value.Exists() && len(value.Array()) > 0 {
 		data.FileTypeGroupsIncluded = make([]DLPRealTimeRuleFileTypeGroupsIncluded, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -642,7 +912,7 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 			return true
 		})
 	}
-	if value := res.Get("fileTypesExcluded"); value.Exists() {
+	if value := res.Get("fileTypesExcluded"); value.Exists() && len(value.Array()) > 0 {
 		data.FileTypesExcluded = make([]DLPRealTimeRuleFileTypesExcluded, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -661,7 +931,7 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 			return true
 		})
 	}
-	if value := res.Get("fileTypeGroupsExcluded"); value.Exists() {
+	if value := res.Get("fileTypeGroupsExcluded"); value.Exists() && len(value.Array()) > 0 {
 		data.FileTypeGroupsExcluded = make([]DLPRealTimeRuleFileTypeGroupsExcluded, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -683,14 +953,14 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 	if value := res.Get("detectUnclassifiedFiles"); value.Exists() {
 		data.UnclassifiedFilesScan = types.BoolValue(value.Bool())
 	} else {
-		data.UnclassifiedFilesScan = types.BoolNull()
+		data.UnclassifiedFilesScan = types.BoolValue(false)
 	}
 	if value := res.Get("identities"); value.Exists() {
 		data.IdentitiesIncluded = make([]DLPRealTimeRuleIdentitiesIncluded, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
 			data := DLPRealTimeRuleIdentitiesIncluded{}
-			if value := res.Get("originId"); value.Exists() {
+			if value := res.Get("originId"); value.Exists() && value.Type != gjson.Null && value.Int() != 0 {
 				data.Id = types.Int64Value(value.Int())
 			} else {
 				data.Id = types.Int64Null()
@@ -704,12 +974,12 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 			return true
 		})
 	}
-	if value := res.Get("excludedIdentities"); value.Exists() {
+	if value := res.Get("excludedIdentities"); value.Exists() && len(value.Array()) > 0 {
 		data.IdentitiesExcluded = make([]DLPRealTimeRuleIdentitiesExcluded, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
 			data := DLPRealTimeRuleIdentitiesExcluded{}
-			if value := res.Get("originId"); value.Exists() {
+			if value := res.Get("originId"); value.Exists() && value.Type != gjson.Null && value.Int() != 0 {
 				data.Id = types.Int64Value(value.Int())
 			} else {
 				data.Id = types.Int64Null()
@@ -728,17 +998,17 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 	} else {
 		data.AllDestinationsScope = types.StringNull()
 	}
-	if value := res.Get("destinationListIds"); value.Exists() {
+	if value := res.Get("destinationListIds"); value.Exists() && len(value.Array()) > 0 {
 		data.DestinationListIncludedIds = helpers.GetStringSet(value.Array())
 	} else {
 		data.DestinationListIncludedIds = types.SetNull(types.StringType)
 	}
-	if value := res.Get("excludedDestinationListIds"); value.Exists() {
+	if value := res.Get("excludedDestinationListIds"); value.Exists() && len(value.Array()) > 0 {
 		data.DestinationListExcludedIds = helpers.GetStringSet(value.Array())
 	} else {
 		data.DestinationListExcludedIds = types.SetNull(types.StringType)
 	}
-	if value := res.Get("applications"); value.Exists() {
+	if value := res.Get("applications"); value.Exists() && len(value.Array()) > 0 {
 		data.ApplicationsIncluded = make([]DLPRealTimeRuleApplicationsIncluded, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -757,12 +1027,12 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 			return true
 		})
 	}
-	if value := res.Get("excludedApplicationIds"); value.Exists() {
+	if value := res.Get("excludedApplicationIds"); value.Exists() && len(value.Array()) > 0 {
 		data.ApplicationsExcluded = helpers.GetStringSet(value.Array())
 	} else {
 		data.ApplicationsExcluded = types.SetNull(types.StringType)
 	}
-	if value := res.Get("applicationCategories"); value.Exists() {
+	if value := res.Get("applicationCategories"); value.Exists() && len(value.Array()) > 0 {
 		data.ApplicationCategoriesIncluded = make([]DLPRealTimeRuleApplicationCategoriesIncluded, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -781,12 +1051,12 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 			return true
 		})
 	}
-	if value := res.Get("excludedApplicationCategoryIds"); value.Exists() {
+	if value := res.Get("excludedApplicationCategoryIds"); value.Exists() && len(value.Array()) > 0 {
 		data.ApplicationCategoriesExcluded = helpers.GetStringSet(value.Array())
 	} else {
 		data.ApplicationCategoriesExcluded = types.SetNull(types.StringType)
 	}
-	if value := res.Get("privateResources"); value.Exists() {
+	if value := res.Get("privateResources"); value.Exists() && len(value.Array()) > 0 {
 		data.PrivateResourcesIncluded = make([]DLPRealTimeRulePrivateResourcesIncluded, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -805,7 +1075,7 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 			return true
 		})
 	}
-	if value := res.Get("excludedPrivateResources"); value.Exists() {
+	if value := res.Get("excludedPrivateResources"); value.Exists() && len(value.Array()) > 0 {
 		data.PrivateResourcesExcluded = make([]DLPRealTimeRulePrivateResourcesExcluded, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -824,7 +1094,7 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 			return true
 		})
 	}
-	if value := res.Get("privateResourceGroups"); value.Exists() {
+	if value := res.Get("privateResourceGroups"); value.Exists() && len(value.Array()) > 0 {
 		data.PrivateResourceGroupsIncluded = make([]DLPRealTimeRulePrivateResourceGroupsIncluded, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -843,7 +1113,7 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 			return true
 		})
 	}
-	if value := res.Get("excludedPrivateResourceGroups"); value.Exists() {
+	if value := res.Get("excludedPrivateResourceGroups"); value.Exists() && len(value.Array()) > 0 {
 		data.PrivateResourceGroupsExcluded = make([]DLPRealTimeRulePrivateResourceGroupsExcluded, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -870,38 +1140,39 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 	if value := res.Get("overrideBlock"); value.Exists() {
 		data.OverrideBlock = types.BoolValue(value.Bool())
 	} else {
-		data.OverrideBlock = types.BoolNull()
+		data.OverrideBlock = types.BoolValue(false)
 	}
-	if value := res.Get("popupNotification"); value.Exists() {
+	if value := res.Get("popupNotification"); value.Exists() && value.Type != gjson.Null && value.Bool() {
 		data.NotificationPopup = types.BoolValue(value.Bool())
 	} else {
 		data.NotificationPopup = types.BoolNull()
 	}
-	if value := res.Get("edlpNotificationTemplateId"); value.Exists() {
+	if value := res.Get("edlpNotificationTemplateId"); value.Exists() && value.Type != gjson.Null && value.String() != "" {
 		data.NotificationTemplateId = types.StringValue(value.String())
 	} else {
 		data.NotificationTemplateId = types.StringNull()
 	}
-	if value := res.Get("notifyActor"); value.Exists() {
+	if value := res.Get("notifyActor"); value.Exists() && value.Type != gjson.Null && value.Bool() {
 		data.EmailNotifyActor = types.BoolValue(value.Bool())
 	} else {
 		data.EmailNotifyActor = types.BoolNull()
 	}
-	if value := res.Get("notifyManager"); value.Exists() {
+	if value := res.Get("notifyManager"); value.Exists() && value.Type != gjson.Null && value.Bool() {
 		data.EmailNotifyActorsManager = types.BoolValue(value.Bool())
 	} else {
 		data.EmailNotifyActorsManager = types.BoolNull()
 	}
-	if value := res.Get("customEmailsNotification"); value.Exists() {
+	if value := res.Get("customEmailsNotification"); value.Exists() && len(value.Array()) > 0 {
 		data.EmailNotifyCustomRecipients = helpers.GetStringSet(value.Array())
 	} else {
 		data.EmailNotifyCustomRecipients = types.SetNull(types.StringType)
 	}
-	if value := res.Get("notificationTemplateUuid"); value.Exists() {
+	if value := res.Get("notificationTemplateUuid"); value.Exists() && value.Type != gjson.Null && value.String() != "" {
 		data.EmailNotificationTemplateId = types.StringValue(value.String())
 	} else {
 		data.EmailNotificationTemplateId = types.StringNull()
 	}
+	data.adjustRead(ctx, res, nil)
 }
 
 // End of section. //template:end fromBody
@@ -913,6 +1184,7 @@ func (data *DLPRealTimeRule) fromBody(ctx context.Context, res gjson.Result) {
 // easily change across versions of the backend API.) For List/Set/Map attributes, the func only updates the
 // "managed" elements, instead of all elements.
 func (data *DLPRealTimeRule) fromBodyPartial(ctx context.Context, res gjson.Result) {
+	prior := *data
 	if value := res.Get("name"); value.Exists() && !data.Name.IsNull() {
 		data.Name = types.StringValue(value.String())
 	} else {
@@ -993,7 +1265,7 @@ func (data *DLPRealTimeRule) fromBodyPartial(ctx context.Context, res gjson.Resu
 	}
 	if value := res.Get("fileSizeConfigType"); value.Exists() && !data.FileSizeConfigurationType.IsNull() {
 		data.FileSizeConfigurationType = types.StringValue(value.String())
-	} else {
+	} else if data.FileSizeConfigurationType.ValueString() != "ALL" {
 		data.FileSizeConfigurationType = types.StringNull()
 	}
 	if value := res.Get("fileSizeFrom"); value.Exists() && !data.FileSizeFrom.IsNull() {
@@ -1210,7 +1482,7 @@ func (data *DLPRealTimeRule) fromBodyPartial(ctx context.Context, res gjson.Resu
 	}
 	if value := res.Get("detectUnclassifiedFiles"); value.Exists() && !data.UnclassifiedFilesScan.IsNull() {
 		data.UnclassifiedFilesScan = types.BoolValue(value.Bool())
-	} else {
+	} else if data.UnclassifiedFilesScan.ValueBool() != false {
 		data.UnclassifiedFilesScan = types.BoolNull()
 	}
 	identitiesIncludedArray := res.Get("identities")
@@ -1629,7 +1901,7 @@ func (data *DLPRealTimeRule) fromBodyPartial(ctx context.Context, res gjson.Resu
 	}
 	if value := res.Get("overrideBlock"); value.Exists() && !data.OverrideBlock.IsNull() {
 		data.OverrideBlock = types.BoolValue(value.Bool())
-	} else {
+	} else if data.OverrideBlock.ValueBool() != false {
 		data.OverrideBlock = types.BoolNull()
 	}
 	if value := res.Get("popupNotification"); value.Exists() && !data.NotificationPopup.IsNull() {
@@ -1662,6 +1934,7 @@ func (data *DLPRealTimeRule) fromBodyPartial(ctx context.Context, res gjson.Resu
 	} else {
 		data.EmailNotificationTemplateId = types.StringNull()
 	}
+	data.adjustRead(ctx, res, &prior)
 }
 
 // End of section. //template:end fromBodyPartial
@@ -1681,45 +1954,40 @@ func (data *DLPRealTimeRule) fromBodyUnknowns(ctx context.Context, res gjson.Res
 
 func (data DLPRealTimeRule) adjustBody(ctx context.Context, req string) string {
 
-	// API Needs this to be cleared for unclassified files to work
-	if len(data.FileLabels.Elements()) == 0 {
-		req, _ = sjson.SetRaw(req, "mipTags", "[]")
-	}
-
 	if data.EmailNotifyActor.ValueBool() && data.EmailNotificationTemplateId.IsNull() {
 		req, _ = sjson.Set(req, "notificationTemplateUuid", "00000000-0000-0000-0000-000000000000")
 	}
 
 	req, _ = sjson.Delete(req, "classifications")
-	var classificationIds []string
+	classificationIds := []string{}
 	for _, classification := range data.DataClassifications {
 		classificationIds = append(classificationIds, classification.Id.ValueString())
 	}
 	req, _ = sjson.Set(req, "classifications", classificationIds)
 
 	req, _ = sjson.Delete(req, "fileTypesIncluded")
-	var fileTypeIncludedIds []int64
+	fileTypeIncludedIds := []int64{}
 	for _, fileType := range data.FileTypesIncluded {
 		fileTypeIncludedIds = append(fileTypeIncludedIds, fileType.Id.ValueInt64())
 	}
 	req, _ = sjson.Set(req, "fileTypesIncluded", fileTypeIncludedIds)
 
 	req, _ = sjson.Delete(req, "fileTypeGroupsIncluded")
-	var fileTypeGroupIncludedIds []int64
+	fileTypeGroupIncludedIds := []int64{}
 	for _, fileTypeGroup := range data.FileTypeGroupsIncluded {
 		fileTypeGroupIncludedIds = append(fileTypeGroupIncludedIds, fileTypeGroup.Id.ValueInt64())
 	}
 	req, _ = sjson.Set(req, "fileTypeGroupsIncluded", fileTypeGroupIncludedIds)
 
 	req, _ = sjson.Delete(req, "fileTypesExcluded")
-	var fileTypeExcludedIds []int64
+	fileTypeExcludedIds := []int64{}
 	for _, fileType := range data.FileTypesExcluded {
 		fileTypeExcludedIds = append(fileTypeExcludedIds, fileType.Id.ValueInt64())
 	}
 	req, _ = sjson.Set(req, "fileTypesExcluded", fileTypeExcludedIds)
 
 	req, _ = sjson.Delete(req, "fileTypeGroupsExcluded")
-	var fileTypeGroupExcludedIds []int64
+	fileTypeGroupExcludedIds := []int64{}
 	for _, fileTypeGroup := range data.FileTypeGroupsExcluded {
 		fileTypeGroupExcludedIds = append(fileTypeGroupExcludedIds, fileTypeGroup.Id.ValueInt64())
 	}
@@ -1728,6 +1996,12 @@ func (data DLPRealTimeRule) adjustBody(ctx context.Context, req string) string {
 	return req
 }
 
-// Section below is generated&owned by "gen/generator.go". //template:begin adjustRead
-
-// End of section. //template:end adjustRead
+// adjustRead reads the file size range as null with `ALL`, as the API returns its defaults then.
+func (data *DLPRealTimeRule) adjustRead(ctx context.Context, res gjson.Result, prior *DLPRealTimeRule) {
+	if res.Get("fileSizeConfigType").String() == "ALL" {
+		data.FileSizeFrom = types.Int64Null()
+		data.FileSizeFromUnit = types.StringNull()
+		data.FileSizeTo = types.Int64Null()
+		data.FileSizeToUnit = types.StringNull()
+	}
+}

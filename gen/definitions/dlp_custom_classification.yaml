@@ -1,11 +1,12 @@
 # Manual resource
-# PATCH with PUT body
+# adjustBody sends data identifier sets as [] instead of null, as null is ignored by PATCH
 # GET for all elements does not contain the full details of the DLP Custom Classification. Need to make separate GET with specific ID
 ---
 name: DLP Custom Classification
 rest_endpoint: /policies/v2/dlp/custom/classifications
 doc_category: Secure
 adjust_body: true
+patch_update_merge: true
 attributes:
   - model_name: name
     type: String
@@ -15,6 +16,7 @@ attributes:
     data_source_query: true
   - model_name: description
     type: String
+    empty_as_null: true
     description: Description of the DLP Custom Classification.
     example: My custom classification for sensitive data.
   - model_name: classifierEvaluationStrategy
@@ -26,8 +28,9 @@ attributes:
     enum_values: ["any", "all"]
   - model_name: dataIdentifiers
     tf_name: included_data_identifiers
-    type: List
-    description: List of data identifiers included in the DLP Custom Classification.
+    mandatory: true
+    type: Set
+    description: Data identifiers included in the DLP Custom Classification.
     minimum_test_value: "true"   # marks the block for the minimal test
     attributes:
       - model_name: id
@@ -44,8 +47,9 @@ attributes:
       #   description: Name of the data identifier.
   - model_name: excludedDataIdentifiers
     tf_name: excluded_data_identifiers
-    type: List
-    description: List of data identifiers excluded from the DLP Custom Classification.
+    type: Set
+    empty_as_null: true
+    description: Data identifiers excluded from the DLP Custom Classification.
     attributes:
       - model_name: id
         type: String

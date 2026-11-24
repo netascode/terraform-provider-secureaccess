@@ -48,9 +48,14 @@ func TestAccSecureAccessDLPCustomDataIdentifier(t *testing.T) {
 		Config: testAccSecureAccessDLPCustomDataIdentifierConfig_all(),
 		Check:  resource.ComposeTestCheckFunc(checks...),
 	})
+	// Update to minimum config and verify with a full import read that removed attributes were cleared
 	steps = append(steps, resource.TestStep{
-		ResourceName: "secureaccess_dlp_custom_data_identifier.test",
-		ImportState:  true,
+		Config: testAccSecureAccessDLPCustomDataIdentifierConfig_minimum(),
+	})
+	steps = append(steps, resource.TestStep{
+		ResourceName:      "secureaccess_dlp_custom_data_identifier.test",
+		ImportState:       true,
+		ImportStateVerify: true,
 	})
 
 	resource.Test(t, resource.TestCase{

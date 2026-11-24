@@ -45,11 +45,11 @@ data "secureaccess_dlp_real_time_rule" "example" {
 - `email_notify_custom_recipients` (Set of String) Sends email notifications to custom email addresses.
 - `enabled` (Boolean) Whether the rule is enabled.
 - `file_labels` (Set of String) Up to 10 labels that this rule will search for when inspecting document properties. Applicable only when `unclassified_files_scan` is not set to `true`.
-- `file_size_configuration_type` (String) Configuration type for file size control.
-- `file_size_from` (Number) Minimum file size for file control.
-- `file_size_from_unit` (String) Unit of the minimum file size for file control.
-- `file_size_to` (Number) Maximum file size for file control.
-- `file_size_to_unit` (String) Unit of the maximum file size for file control.
+- `file_size_configuration_type` (String) Configuration type for file size control. With `RANGE`, all `file_size_*` attributes are required. With `ALL`, none of them can be set.
+- `file_size_from` (Number) Minimum file size for file control. Required with `file_size_configuration_type` `RANGE`.
+- `file_size_from_unit` (String) Unit of the minimum file size for file control. Required with `file_size_configuration_type` `RANGE`.
+- `file_size_to` (Number) Maximum file size for file control. Required with `file_size_configuration_type` `RANGE`.
+- `file_size_to_unit` (String) Unit of the maximum file size for file control. Required with `file_size_configuration_type` `RANGE`.
 - `file_type_groups_excluded` (Attributes Set) File type groups excluded from file control. (see [below for nested schema](#nestedatt--file_type_groups_excluded))
 - `file_type_groups_included` (Attributes Set) File type groups included for file control. (see [below for nested schema](#nestedatt--file_type_groups_included))
 - `file_types_excluded` (Attributes Set) File types excluded from file control. (see [below for nested schema](#nestedatt--file_types_excluded))

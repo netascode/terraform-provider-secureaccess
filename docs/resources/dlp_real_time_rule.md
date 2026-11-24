@@ -29,7 +29,7 @@ resource "secureaccess_dlp_real_time_rule" "example" {
   file_size_configuration_type = "RANGE"
   file_size_from               = 1024
   file_size_from_unit          = "KB"
-  file_size_to                 = 51200
+  file_size_to                 = 10240
   file_size_to_unit            = "KB"
   file_types_included = [
     {
@@ -109,13 +109,14 @@ resource "secureaccess_dlp_real_time_rule" "example" {
 - `email_notify_actors_manager` (Boolean) Sends email notifications to the actors' manager.
 - `email_notify_custom_recipients` (Set of String) Sends email notifications to custom email addresses.
 - `file_labels` (Set of String) Up to 10 labels that this rule will search for when inspecting document properties. Applicable only when `unclassified_files_scan` is not set to `true`.
-- `file_size_configuration_type` (String) Configuration type for file size control.
-  - Choices: `RANGE`
-- `file_size_from` (Number) Minimum file size for file control.
-- `file_size_from_unit` (String) Unit of the minimum file size for file control.
+- `file_size_configuration_type` (String) Configuration type for file size control. With `RANGE`, all `file_size_*` attributes are required. With `ALL`, none of them can be set.
+  - Choices: `ALL`, `RANGE`
+  - Default value: `ALL`
+- `file_size_from` (Number) Minimum file size for file control. Required with `file_size_configuration_type` `RANGE`.
+- `file_size_from_unit` (String) Unit of the minimum file size for file control. Required with `file_size_configuration_type` `RANGE`.
   - Choices: `KB`, `MB`
-- `file_size_to` (Number) Maximum file size for file control.
-- `file_size_to_unit` (String) Unit of the maximum file size for file control.
+- `file_size_to` (Number) Maximum file size for file control. Required with `file_size_configuration_type` `RANGE`.
+- `file_size_to_unit` (String) Unit of the maximum file size for file control. Required with `file_size_configuration_type` `RANGE`.
   - Choices: `KB`, `MB`
 - `file_type_groups_excluded` (Attributes Set) File type groups excluded from file control. (see [below for nested schema](#nestedatt--file_type_groups_excluded))
 - `file_type_groups_included` (Attributes Set) File type groups included for file control. (see [below for nested schema](#nestedatt--file_type_groups_included))
@@ -125,11 +126,13 @@ resource "secureaccess_dlp_real_time_rule" "example" {
 - `notification_popup` (Boolean) Sends endpoint notifications to the user's machine.
 - `notification_template_id` (String) ID of the notification template for custom notifications.
 - `override_block` (Boolean) Allow override with business justification. Requires `notification_popup` to be set to `true`.
+  - Default value: `false`
 - `private_resource_groups_excluded` (Attributes Set) Private resource groups excluded from scanning. (see [below for nested schema](#nestedatt--private_resource_groups_excluded))
 - `private_resource_groups_included` (Attributes Set) Private resource groups included for scanning. (see [below for nested schema](#nestedatt--private_resource_groups_included))
 - `private_resources_excluded` (Attributes Set) Private resources excluded from scanning. (see [below for nested schema](#nestedatt--private_resources_excluded))
 - `private_resources_included` (Attributes Set) Private resources included for scanning. (see [below for nested schema](#nestedatt--private_resources_included))
 - `unclassified_files_scan` (Boolean) Scan and log files with no labels. Applicable only when `file_labels` is unset.
+  - Default value: `false`
 
 ### Read-Only
 

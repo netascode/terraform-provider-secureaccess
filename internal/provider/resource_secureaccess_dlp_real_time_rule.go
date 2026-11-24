@@ -30,7 +30,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -128,29 +130,31 @@ func (r *DLPRealTimeRuleResource) Schema(ctx context.Context, req resource.Schem
 				},
 			},
 			"file_size_configuration_type": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Configuration type for file size control.").AddStringEnumDescription("RANGE").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Configuration type for file size control. With `RANGE`, all `file_size_*` attributes are required. With `ALL`, none of them can be set.").AddStringEnumDescription("ALL", "RANGE").AddDefaultValueDescription("ALL").String,
 				Optional:            true,
+				Computed:            true,
 				Validators: []validator.String{
-					stringvalidator.OneOf("RANGE"),
+					stringvalidator.OneOf("ALL", "RANGE"),
 				},
+				Default: stringdefault.StaticString("ALL"),
 			},
 			"file_size_from": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Minimum file size for file control.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Minimum file size for file control. Required with `file_size_configuration_type` `RANGE`.").String,
 				Optional:            true,
 			},
 			"file_size_from_unit": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Unit of the minimum file size for file control.").AddStringEnumDescription("KB", "MB").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Unit of the minimum file size for file control. Required with `file_size_configuration_type` `RANGE`.").AddStringEnumDescription("KB", "MB").String,
 				Optional:            true,
 				Validators: []validator.String{
 					stringvalidator.OneOf("KB", "MB"),
 				},
 			},
 			"file_size_to": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Maximum file size for file control.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Maximum file size for file control. Required with `file_size_configuration_type` `RANGE`.").String,
 				Optional:            true,
 			},
 			"file_size_to_unit": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Unit of the maximum file size for file control.").AddStringEnumDescription("KB", "MB").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Unit of the maximum file size for file control. Required with `file_size_configuration_type` `RANGE`.").AddStringEnumDescription("KB", "MB").String,
 				Optional:            true,
 				Validators: []validator.String{
 					stringvalidator.OneOf("KB", "MB"),
@@ -221,8 +225,10 @@ func (r *DLPRealTimeRuleResource) Schema(ctx context.Context, req resource.Schem
 				},
 			},
 			"unclassified_files_scan": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Scan and log files with no labels. Applicable only when `file_labels` is unset.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Scan and log files with no labels. Applicable only when `file_labels` is unset.").AddDefaultValueDescription("false").String,
 				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
 			},
 			"identities_included": schema.SetNestedAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Identities included for scanning. Use `type_id` to specify whole types of identities (i.a. Network Tunnel Groups). Add `id` to specify individual identities within `type_id`.").String,
@@ -405,8 +411,10 @@ func (r *DLPRealTimeRuleResource) Schema(ctx context.Context, req resource.Schem
 				},
 			},
 			"override_block": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Allow override with business justification. Requires `notification_popup` to be set to `true`.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Allow override with business justification. Requires `notification_popup` to be set to `true`.").AddDefaultValueDescription("false").String,
 				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
 			},
 			"notification_popup": schema.BoolAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Sends endpoint notifications to the user's machine.").String,
@@ -446,6 +454,35 @@ func (r *DLPRealTimeRuleResource) Configure(_ context.Context, req resource.Conf
 }
 
 // End of section. //template:end model
+
+var _ resource.ResourceWithValidateConfig = &DLPRealTimeRuleResource{}
+
+// ValidateConfig requires all file size attributes with `RANGE` and none of them with `ALL` (the default).
+func (r *DLPRealTimeRuleResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var config DLPRealTimeRule
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() || config.FileSizeConfigurationType.IsUnknown() {
+		return
+	}
+	fileSizes := []struct {
+		name   string
+		isNull bool
+	}{
+		{"file_size_from", config.FileSizeFrom.IsNull()},
+		{"file_size_from_unit", config.FileSizeFromUnit.IsNull()},
+		{"file_size_to", config.FileSizeTo.IsNull()},
+		{"file_size_to_unit", config.FileSizeToUnit.IsNull()},
+	}
+	isRange := config.FileSizeConfigurationType.ValueString() == "RANGE"
+	for _, fileSize := range fileSizes {
+		name := fileSize.name
+		if isRange && fileSize.isNull {
+			resp.Diagnostics.AddAttributeError(path.Root(name), "Missing Attribute", fmt.Sprintf("`%s` is required when `file_size_configuration_type` is `RANGE`.", name))
+		} else if !isRange && !fileSize.isNull {
+			resp.Diagnostics.AddAttributeError(path.Root(name), "Invalid Attribute Combination", fmt.Sprintf("`%s` cannot be set unless `file_size_configuration_type` is `RANGE`.", name))
+		}
+	}
+}
 
 // Section below is generated&owned by "gen/generator.go". //template:begin create
 
@@ -532,6 +569,8 @@ func (r *DLPRealTimeRuleResource) Read(ctx context.Context, req resource.ReadReq
 
 // End of section. //template:end read
 
+// Section below is generated&owned by "gen/generator.go". //template:begin update
+
 func (r *DLPRealTimeRuleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state DLPRealTimeRule
 
@@ -552,12 +591,15 @@ func (r *DLPRealTimeRuleResource) Update(ctx context.Context, req resource.Updat
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Update", plan.Id.ValueString()))
 
-	body := plan.toBody(ctx, state)
-	body = plan.adjustBody(ctx, body)
-	res, err := r.client.Patch(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PATCH), got error: %s, %s", err, res.String()))
-		return
+	body := plan.toBodyPatchMerge(ctx, state)
+	if body != "" {
+		res, err := r.client.Patch(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PATCH), got error: %s, %s", err, res.String()))
+			return
+		}
+	} else {
+		tflog.Debug(ctx, fmt.Sprintf("%s: No changes to PATCH", plan.Id.ValueString()))
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
@@ -565,6 +607,8 @@ func (r *DLPRealTimeRuleResource) Update(ctx context.Context, req resource.Updat
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 }
+
+// End of section. //template:end update
 
 // Section below is generated&owned by "gen/generator.go". //template:begin delete
 

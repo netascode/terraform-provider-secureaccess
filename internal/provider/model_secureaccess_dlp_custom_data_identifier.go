@@ -123,6 +123,69 @@ func (data DLPCustomDataIdentifier) toBody(ctx context.Context, state DLPCustomD
 
 // End of section. //template:end toBody
 
+// Section below is generated&owned by "gen/generator.go". //template:begin toBodyPatchMerge
+
+// toBodyPatchMerge returns a PATCH body containing only the attributes which differ between data and state.
+// Attributes removed from data are set to an empty value of their type, as null is ignored by the API.
+// Returns an empty string if there is nothing to update.
+func (data DLPCustomDataIdentifier) toBodyPatchMerge(ctx context.Context, state DLPCustomDataIdentifier) string {
+	planBody := data.toBody(ctx, DLPCustomDataIdentifier{})
+	stateBody := state.toBody(ctx, DLPCustomDataIdentifier{})
+	body := ""
+	if planValue, stateValue := gjson.Get(planBody, "name"), gjson.Get(stateBody, "name"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "name", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "name", `""`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "description"), gjson.Get(stateBody, "description"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "description", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "description", `""`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "countUniqueMatchesOnly"), gjson.Get(stateBody, "countUniqueMatchesOnly"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "countUniqueMatchesOnly", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "countUniqueMatchesOnly", `false`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "thresholdRanges"), gjson.Get(stateBody, "thresholdRanges"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "thresholdRanges", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "thresholdRanges", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "terms"), gjson.Get(stateBody, "terms"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "terms", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "terms", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "patterns"), gjson.Get(stateBody, "patterns"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "patterns", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "patterns", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "proximity"), gjson.Get(stateBody, "proximity"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "proximity", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "proximity", `[]`)
+		}
+	}
+	return body
+}
+
+// End of section. //template:end toBodyPatchMerge
+
 // Section below is generated&owned by "gen/generator.go". //template:begin fromBody
 
 func (data *DLPCustomDataIdentifier) fromBody(ctx context.Context, res gjson.Result) {
@@ -131,12 +194,12 @@ func (data *DLPCustomDataIdentifier) fromBody(ctx context.Context, res gjson.Res
 	} else {
 		data.Name = types.StringNull()
 	}
-	if value := res.Get("description"); value.Exists() {
+	if value := res.Get("description"); value.Exists() && value.Type != gjson.Null && value.String() != "" {
 		data.Description = types.StringValue(value.String())
 	} else {
 		data.Description = types.StringNull()
 	}
-	if value := res.Get("countUniqueMatchesOnly"); value.Exists() {
+	if value := res.Get("countUniqueMatchesOnly"); value.Exists() && value.Type != gjson.Null && value.Bool() {
 		data.UniqueThreshold = types.BoolValue(value.Bool())
 	} else {
 		data.UniqueThreshold = types.BoolNull()
@@ -156,7 +219,7 @@ func (data *DLPCustomDataIdentifier) fromBody(ctx context.Context, res gjson.Res
 			} else {
 				data.Maximum = types.Int64Null()
 			}
-			if value := res.Get("severity"); value.Exists() {
+			if value := res.Get("severity"); value.Exists() && value.Type != gjson.Null && value.String() != "" {
 				data.Severity = types.StringValue(value.String())
 			} else {
 				data.Severity = types.StringNull()
@@ -165,17 +228,17 @@ func (data *DLPCustomDataIdentifier) fromBody(ctx context.Context, res gjson.Res
 			return true
 		})
 	}
-	if value := res.Get("terms"); value.Exists() {
+	if value := res.Get("terms"); value.Exists() && len(value.Array()) > 0 {
 		data.Terms = helpers.GetStringSet(value.Array())
 	} else {
 		data.Terms = types.SetNull(types.StringType)
 	}
-	if value := res.Get("patterns"); value.Exists() {
+	if value := res.Get("patterns"); value.Exists() && len(value.Array()) > 0 {
 		data.Patterns = helpers.GetStringSet(value.Array())
 	} else {
 		data.Patterns = types.SetNull(types.StringType)
 	}
-	if value := res.Get("proximity"); value.Exists() {
+	if value := res.Get("proximity"); value.Exists() && len(value.Array()) > 0 {
 		data.Proximity = helpers.GetStringSet(value.Array())
 	} else {
 		data.Proximity = types.SetNull(types.StringType)

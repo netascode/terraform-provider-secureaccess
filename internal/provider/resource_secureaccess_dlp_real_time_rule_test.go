@@ -38,7 +38,7 @@ func TestAccSecureAccessDLPRealTimeRule(t *testing.T) {
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_real_time_rule.test", "file_size_configuration_type", "RANGE"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_real_time_rule.test", "file_size_from", "1024"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_real_time_rule.test", "file_size_from_unit", "KB"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_real_time_rule.test", "file_size_to", "51200"))
+	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_real_time_rule.test", "file_size_to", "10240"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_real_time_rule.test", "file_size_to_unit", "KB"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_real_time_rule.test", "file_types_included.0.id", "250"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_real_time_rule.test", "file_types_included.0.name", "cdr"))
@@ -67,9 +67,14 @@ func TestAccSecureAccessDLPRealTimeRule(t *testing.T) {
 		Config: testAccSecureAccessDLPRealTimeRulePrerequisitesConfig + testAccSecureAccessDLPRealTimeRuleConfig_all(),
 		Check:  resource.ComposeTestCheckFunc(checks...),
 	})
+	// Update to minimum config and verify with a full import read that removed attributes were cleared
 	steps = append(steps, resource.TestStep{
-		ResourceName: "secureaccess_dlp_real_time_rule.test",
-		ImportState:  true,
+		Config: testAccSecureAccessDLPRealTimeRulePrerequisitesConfig + testAccSecureAccessDLPRealTimeRuleConfig_minimum(),
+	})
+	steps = append(steps, resource.TestStep{
+		ResourceName:      "secureaccess_dlp_real_time_rule.test",
+		ImportState:       true,
+		ImportStateVerify: true,
 	})
 
 	resource.Test(t, resource.TestCase{
@@ -101,6 +106,7 @@ func testAccSecureAccessDLPRealTimeRuleConfig_minimum() string {
 	config += `	data_classification_scannable_contexts = ["CONTENT"]` + "\n"
 	config += `	data_classifications = [{` + "\n"
 	config += `		id = data.secureaccess_dlp_builtin_classification.test.id` + "\n"
+	config += `		name = data.secureaccess_dlp_builtin_classification.test.name` + "\n"
 	config += `	}]` + "\n"
 	config += `	identities_included = [{` + "\n"
 	config += `		type_id = 7` + "\n"
@@ -130,7 +136,7 @@ func testAccSecureAccessDLPRealTimeRuleConfig_all() string {
 	config += `	file_size_configuration_type = "RANGE"` + "\n"
 	config += `	file_size_from = 1024` + "\n"
 	config += `	file_size_from_unit = "KB"` + "\n"
-	config += `	file_size_to = 51200` + "\n"
+	config += `	file_size_to = 10240` + "\n"
 	config += `	file_size_to_unit = "KB"` + "\n"
 	config += `	file_types_included = [{` + "\n"
 	config += `		id = 250` + "\n"
