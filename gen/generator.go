@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"text/template"
 	"unicode"
@@ -547,21 +548,33 @@ func patchMergeEmpty(attr YamlConfigAttribute) string {
 // List entry attributes (`setting_name`, `condition_name`) share the path of their list, which is compared as a whole.
 // Attributes with `computed_body_param` are never cleared, as an unknown plan value is not written to the body.
 // Attributes with `patch_merge_no_clear` are never cleared, as the API rejects an empty value.
+// A path with an array index (e.g. `platforms.0.name`) is cut before the index, as the API replaces arrays as a whole.
+// The array is cleared with `[]`, unless one of its attributes is never cleared.
 func PatchMergePaths(attributes []YamlConfigAttribute) []PatchMergePath {
 	var paths []PatchMergePath
 	for _, attr := range attributes {
 		if (attr.Computed && !attr.ComputedBodyParam) || attr.TfOnly || attr.Value != "" || attr.ResourceId || attr.Reference {
 			continue
 		}
-		path := strings.Join(append(slices.Clone(attr.DataPath), attr.ModelName), ".")
-		if slices.ContainsFunc(paths, func(p PatchMergePath) bool { return p.Path == path }) {
+		segments := strings.Split(strings.Join(append(slices.Clone(attr.DataPath), attr.ModelName), "."), ".")
+		empty := ""
+		if !attr.ComputedBodyParam && !attr.PatchMergeNoClear {
+			empty = patchMergeEmpty(attr)
+		}
+		if i := slices.IndexFunc(segments, func(s string) bool { _, err := strconv.Atoi(s); return err == nil }); i > 0 {
+			segments = segments[:i]
+			if empty != "" {
+				empty = "[]"
+			}
+		}
+		path := strings.Join(segments, ".")
+		if i := slices.IndexFunc(paths, func(p PatchMergePath) bool { return p.Path == path }); i >= 0 {
+			if empty == "" {
+				paths[i].Empty = ""
+			}
 			continue
 		}
-		p := PatchMergePath{Path: path}
-		if !attr.ComputedBodyParam && !attr.PatchMergeNoClear {
-			p.Empty = patchMergeEmpty(attr)
-		}
-		paths = append(paths, p)
+		paths = append(paths, PatchMergePath{Path: path, Empty: empty})
 	}
 	return paths
 }
