@@ -1,6 +1,9 @@
 # APIBEHAVIOUR: cursor/limit pagination, needs CursorLimitKeyedPagination for /deployments/v2/ztna/ in go-secureaccess
 # -> adjustBody() (`rev` from state is sent in the PUT body, API rejects updates with a stale revision with 409)
 # Mutex for ZTA profile modifications
+# -> Create() (name `Default ZTA Profile` uses the fixed ID `default-profile`, reads the current revision, and updates it with PUT instead of POST)
+# -> ValidateConfig() (operating systems and network locations of the default profile cannot be changed)
+# -> Delete() (the default profile cannot be deleted, it is reset with PUT of the required fields only, see toBodyPutDelete())
 # Priority of the ZTA profile does not have to be continous and will work
 #  correctly updates position, but at creation does not guarantee order
 #  after creation the priority numbers are contiguous
@@ -10,12 +13,13 @@ rest_endpoint: /deployments/v2/ztna/profiles
 doc_category: Connect
 adjust_body: true
 resource_id_model_name: profileId
+res_description: This resource manages ZTA Profile. The order of created profiles is determined by order they are created by Terraform and `priority`, hence they may not be created in the order `priority` suggests. Subsequent update will fix ordering.
 attributes:
   - model_name: profileName
     tf_name: name
     type: String
     mandatory: true
-    description: Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space.
+    description: Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space. The name `Default ZTA Profile` manages the existing default profile, which is updated instead of created, and reset instead of deleted.
     string_patterns: ["^[a-zA-Z0-9 ]+$"]
     string_max_length: 64
     example: my ztna profile
@@ -28,7 +32,7 @@ attributes:
   - model_name: priority
     type: Int64
     mandatory: true
-    description: Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1.
+    description: Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1. The default profile, named `Default ZTA Profile`, always has priority `0`.
     example: 1
 
   # Sources - Operating Systems

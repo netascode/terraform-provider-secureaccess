@@ -122,6 +122,10 @@ func (r *ZTAProfileInternetAccessTrustedNetworkMappingsResource) Create(ctx cont
 
 	plan.Id = plan.ZtaProfileId
 
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(plan.ZtaProfileId.ValueString())()
+
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Create", plan.Id.ValueString()))
 
 	res, err := r.setMappings(ctx, plan)
@@ -187,6 +191,9 @@ func (r *ZTAProfileInternetAccessTrustedNetworkMappingsResource) Update(ctx cont
 	if resp.Diagnostics.Append(diags...); resp.Diagnostics.HasError() {
 		return
 	}
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(plan.ZtaProfileId.ValueString())()
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Update", plan.Id.ValueString()))
 
@@ -210,6 +217,9 @@ func (r *ZTAProfileInternetAccessTrustedNetworkMappingsResource) Delete(ctx cont
 		return
 	}
 
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(state.ZtaProfileId.ValueString())()
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Delete", state.Id.ValueString()))
 
 	// Remove only the mappings managed by this resource

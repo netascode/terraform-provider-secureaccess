@@ -21,8 +21,10 @@ package provider
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
@@ -40,6 +42,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/netascode/go-secureaccess"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
+	"github.com/tidwall/sjson"
 )
 
 // End of section. //template:end imports
@@ -67,7 +70,7 @@ func (r *ZTAProfileResource) Metadata(ctx context.Context, req resource.Metadata
 func (r *ZTAProfileResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource manages a ZTA Profile.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This resource manages ZTA Profile. The order of created profiles is determined by order they are created by Terraform, hence they may not be created as the `priority` suggests. Subsequent update will fix ordering.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -78,7 +81,7 @@ func (r *ZTAProfileResource) Schema(ctx context.Context, req resource.SchemaRequ
 				},
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space. The name `Default ZTA Profile` manages the existing default profile, which is updated instead of created, and reset instead of deleted.").String,
 				Required:            true,
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(0, 64),
@@ -93,7 +96,7 @@ func (r *ZTAProfileResource) Schema(ctx context.Context, req resource.SchemaRequ
 				},
 			},
 			"priority": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1. The default profile, named `Default ZTA Profile`, always has priority `0`.").String,
 				Required:            true,
 			},
 			"operating_system_macos": schema.BoolAttribute{
@@ -214,6 +217,42 @@ func (r *ZTAProfileResource) Configure(_ context.Context, req resource.Configure
 
 // End of section. //template:end model
 
+var _ resource.ResourceWithValidateConfig = &ZTAProfileResource{}
+
+// ValidateConfig rejects changes of the operating systems and network locations of the default profile, which cannot be changed.
+func (r *ZTAProfileResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var config ZTAProfile
+
+	diags := req.Config.Get(ctx, &config)
+	if resp.Diagnostics.Append(diags...); resp.Diagnostics.HasError() {
+		return
+	}
+
+	if config.Name.ValueString() != ztaDefaultProfileName {
+		return
+	}
+
+	operatingSystems := map[string]types.Bool{
+		"operating_system_macos":        config.OperatingSystemMacos,
+		"operating_system_windows":      config.OperatingSystemWindows,
+		"operating_system_linux":        config.OperatingSystemLinux,
+		"operating_system_ios":          config.OperatingSystemIos,
+		"operating_system_android":      config.OperatingSystemAndroid,
+		"operating_system_android_knox": config.OperatingSystemAndroidKnox,
+	}
+	for _, name := range slices.Sorted(maps.Keys(operatingSystems)) {
+		if !operatingSystems[name].IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root(name), "Invalid Attribute Value",
+				fmt.Sprintf("Operating systems of the %s cannot be changed, `%s` must not be set.", ztaDefaultProfileName, name))
+		}
+	}
+
+	if !config.NetworkLocationIds.IsNull() && (config.NetworkLocationIds.IsUnknown() || len(config.NetworkLocationIds.Elements()) > 0) {
+		resp.Diagnostics.AddAttributeError(path.Root("network_location_ids"), "Invalid Attribute Value",
+			fmt.Sprintf("Network locations of the %s cannot be changed, `network_location_ids` must be empty or not set.", ztaDefaultProfileName))
+	}
+}
+
 func (r *ZTAProfileResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	ztaProfileMu.Lock()
 	defer ztaProfileMu.Unlock()
@@ -231,15 +270,33 @@ func (r *ZTAProfileResource) Create(ctx context.Context, req resource.CreateRequ
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Create", plan.Id.ValueString()))
 
-	// Create object
 	body := plan.toBody(ctx, ZTAProfile{})
 	body = plan.adjustBody(ctx, body)
-	res, err := r.client.Post(ctx, plan.getPath(), body, reqMods...)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST/PUT), got error: %s, %s", err, res.String()))
-		return
+	var res secureaccess.Res
+	var err error
+	if plan.Name.ValueString() == ztaDefaultProfileName {
+		// The default profile always exists with a fixed ID and cannot be created, it is read to get its revision, and updated
+		plan.Id = types.StringValue(ztaDefaultProfileId)
+		res, err = r.client.Get(ctx, plan.getPath()+"/"+ztaDefaultProfileId, reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve default profile (GET), got error: %s, %s", err, res.String()))
+			return
+		}
+		body, _ = sjson.Set(body, "rev", res.Get("rev").Int())
+		res, err = r.client.Put(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PUT), got error: %s, %s", err, res.String()))
+			return
+		}
+	} else {
+		// Create object
+		res, err = r.client.Post(ctx, plan.getPath(), body, reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST/PUT), got error: %s, %s", err, res.String()))
+			return
+		}
+		plan.Id = types.StringValue(res.Get("profileId").String())
 	}
-	plan.Id = types.StringValue(res.Get("profileId").String())
 	plan.fromBodyUnknowns(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
@@ -350,10 +407,20 @@ func (r *ZTAProfileResource) Delete(ctx context.Context, req resource.DeleteRequ
 	reqMods := [](func(*secureaccess.Req)){}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Delete", state.Id.ValueString()))
-	res, err := r.client.Delete(ctx, state.getPath()+"/"+url.QueryEscape(state.Id.ValueString()), reqMods...)
-	if err != nil && !strings.Contains(err.Error(), "StatusCode 404") {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to delete object (DELETE), got error: %s, %s", err, res.String()))
-		return
+	if state.Id.ValueString() == ztaDefaultProfileId {
+		// The default profile cannot be deleted, it is reset instead
+		body := state.toBodyPutDelete(ctx)
+		res, err := r.client.Put(ctx, state.getPath()+"/"+url.QueryEscape(state.Id.ValueString()), body, reqMods...)
+		if err != nil && !strings.Contains(err.Error(), "StatusCode 404") {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to delete object (PUT), got error: %s, %s", err, res.String()))
+			return
+		}
+	} else {
+		res, err := r.client.Delete(ctx, state.getPath()+"/"+url.QueryEscape(state.Id.ValueString()), reqMods...)
+		if err != nil && !strings.Contains(err.Error(), "StatusCode 404") {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to delete object (DELETE), got error: %s, %s", err, res.String()))
+			return
+		}
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Delete finished successfully", state.Id.ValueString()))

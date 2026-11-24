@@ -120,6 +120,10 @@ func (r *ZTAProfilePrivateAccessSteeringPrivateResourceMappingsResource) Create(
 		return
 	}
 
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(plan.ZtaProfileId.ValueString())()
+
 	plan.Id = plan.ZtaProfileId
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Create", plan.Id.ValueString()))
@@ -187,6 +191,9 @@ func (r *ZTAProfilePrivateAccessSteeringPrivateResourceMappingsResource) Update(
 	if resp.Diagnostics.Append(diags...); resp.Diagnostics.HasError() {
 		return
 	}
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(plan.ZtaProfileId.ValueString())()
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Update", plan.Id.ValueString()))
 
@@ -210,6 +217,9 @@ func (r *ZTAProfilePrivateAccessSteeringPrivateResourceMappingsResource) Delete(
 		return
 	}
 
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(state.ZtaProfileId.ValueString())()
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Delete", state.Id.ValueString()))
 
 	// Remove only the mappings managed by this resource

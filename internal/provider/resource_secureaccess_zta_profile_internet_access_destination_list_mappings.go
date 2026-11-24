@@ -126,6 +126,10 @@ func (r *ZTAProfileInternetAccessDestinationListMappingsResource) Create(ctx con
 		return
 	}
 
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(plan.ZtaProfileId.ValueString())()
+
 	plan.Id = plan.ZtaProfileId
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Create", plan.Id.ValueString()))
@@ -194,6 +198,9 @@ func (r *ZTAProfileInternetAccessDestinationListMappingsResource) Update(ctx con
 		return
 	}
 
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(plan.ZtaProfileId.ValueString())()
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Update", plan.Id.ValueString()))
 
 	if _, err := r.setMappings(ctx, plan); err != nil {
@@ -216,6 +223,9 @@ func (r *ZTAProfileInternetAccessDestinationListMappingsResource) Delete(ctx con
 		return
 	}
 
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(state.ZtaProfileId.ValueString())()
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Delete", state.Id.ValueString()))
 
 	// Remove only the mappings managed by this resource

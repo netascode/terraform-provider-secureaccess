@@ -3,12 +3,12 @@
 page_title: "secureaccess_zta_profile Resource - terraform-provider-secureaccess"
 subcategory: "Connect"
 description: |-
-  This resource manages a ZTA Profile.
+  This resource manages ZTA Profile. The order of created profiles is determined by order they are created by Terraform, hence they may not be created as the priority suggests. Subsequent update will fix ordering.
 ---
 
 # secureaccess_zta_profile (Resource)
 
-This resource manages a ZTA Profile.
+This resource manages ZTA Profile. The order of created profiles is determined by order they are created by Terraform, hence they may not be created as the `priority` suggests. Subsequent update will fix ordering.
 
 ## Example Usage
 
@@ -40,8 +40,8 @@ resource "secureaccess_zta_profile" "example" {
 
 ### Required
 
-- `name` (String) Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space.
-- `priority` (Number) Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1.
+- `name` (String) Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space. The name `Default ZTA Profile` manages the existing default profile, which is updated instead of created, and reset instead of deleted.
+- `priority` (Number) Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1. The default profile, named `Default ZTA Profile`, always has priority `0`.
 
 ### Optional
 

@@ -68,7 +68,7 @@ func (d *ZTAProfileDataSource) Schema(ctx context.Context, req datasource.Schema
 				Computed:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space. The name `Default ZTA Profile` manages the existing default profile, which is updated instead of created, and reset instead of deleted.").String,
 				Optional:            true,
 				Computed:            true,
 			},
@@ -77,7 +77,7 @@ func (d *ZTAProfileDataSource) Schema(ctx context.Context, req datasource.Schema
 				Computed:            true,
 			},
 			"priority": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1. The default profile, named `Default ZTA Profile`, always has priority `0`.").String,
 				Computed:            true,
 			},
 			"operating_system_macos": schema.BoolAttribute{

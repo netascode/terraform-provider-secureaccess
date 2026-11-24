@@ -24,7 +24,7 @@ data "secureaccess_zta_profile" "example" {
 ### Optional
 
 - `id` (String) Id of the object
-- `name` (String) Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space.
+- `name` (String) Name of the ZTA Profile. Must be unique within the organization. Must be alphanumeric or space. The name `Default ZTA Profile` manages the existing default profile, which is updated instead of created, and reset instead of deleted.
 
 ### Read-Only
 
@@ -41,7 +41,7 @@ data "secureaccess_zta_profile" "example" {
 - `operating_system_linux` (Boolean) Whether the ZTA Profile is enabled for Linux clients.
 - `operating_system_macos` (Boolean) Whether the ZTA Profile is enabled for macOS clients.
 - `operating_system_windows` (Boolean) Whether the ZTA Profile is enabled for Windows clients.
-- `priority` (Number) Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1.
+- `priority` (Number) Priority of the ZTA Profile. Profiles should have contiguous priority values starting from 1. The default profile, named `Default ZTA Profile`, always has priority `0`.
 - `private_access_dns_steering_destinations` (Attributes Set) DNS steering destinations for secure private access. (see [below for nested schema](#nestedatt--private_access_dns_steering_destinations))
 - `private_access_end_user_pause` (Boolean) Whether ZTA enforcement pause is enabled for secure private access.
 - `private_access_end_user_pause_duration` (Number) Enforcement pause duration in minutes for secure private access. When not set while the pause is enabled, the pause is indefinite.

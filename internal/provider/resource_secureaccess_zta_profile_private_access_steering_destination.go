@@ -110,8 +110,6 @@ func (r *ZTAProfilePrivateAccessSteeringDestinationResource) Configure(_ context
 
 // End of section. //template:end model
 
-// Section below is generated&owned by "gen/generator.go". //template:begin create
-
 func (r *ZTAProfilePrivateAccessSteeringDestinationResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan ZTAProfilePrivateAccessSteeringDestination
 
@@ -120,6 +118,10 @@ func (r *ZTAProfilePrivateAccessSteeringDestinationResource) Create(ctx context.
 	if resp.Diagnostics.Append(diags...); resp.Diagnostics.HasError() {
 		return
 	}
+
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(plan.ZtaProfileId.ValueString())()
 
 	// Set request modifiers
 	reqMods := [](func(*secureaccess.Req)){}
@@ -144,8 +146,6 @@ func (r *ZTAProfilePrivateAccessSteeringDestinationResource) Create(ctx context.
 
 	helpers.SetFlagImporting(ctx, false, resp.Private, &resp.Diagnostics)
 }
-
-// End of section. //template:end create
 
 // Section below is generated&owned by "gen/generator.go". //template:begin read
 
@@ -195,8 +195,6 @@ func (r *ZTAProfilePrivateAccessSteeringDestinationResource) Read(ctx context.Co
 
 // End of section. //template:end read
 
-// Section below is generated&owned by "gen/generator.go". //template:begin update
-
 func (r *ZTAProfilePrivateAccessSteeringDestinationResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state ZTAProfilePrivateAccessSteeringDestination
 
@@ -211,6 +209,10 @@ func (r *ZTAProfilePrivateAccessSteeringDestinationResource) Update(ctx context.
 	if resp.Diagnostics.Append(diags...); resp.Diagnostics.HasError() {
 		return
 	}
+
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(plan.ZtaProfileId.ValueString())()
 
 	// Set request modifiers
 	reqMods := [](func(*secureaccess.Req)){}
@@ -232,10 +234,6 @@ func (r *ZTAProfilePrivateAccessSteeringDestinationResource) Update(ctx context.
 	resp.Diagnostics.Append(diags...)
 }
 
-// End of section. //template:end update
-
-// Section below is generated&owned by "gen/generator.go". //template:begin delete
-
 func (r *ZTAProfilePrivateAccessSteeringDestinationResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state ZTAProfilePrivateAccessSteeringDestination
 
@@ -244,6 +242,10 @@ func (r *ZTAProfilePrivateAccessSteeringDestinationResource) Delete(ctx context.
 	if resp.Diagnostics.Append(diags...); resp.Diagnostics.HasError() {
 		return
 	}
+
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(state.ZtaProfileId.ValueString())()
 
 	// Set request modifiers
 	reqMods := [](func(*secureaccess.Req)){}
@@ -259,8 +261,6 @@ func (r *ZTAProfilePrivateAccessSteeringDestinationResource) Delete(ctx context.
 
 	resp.State.RemoveResource(ctx)
 }
-
-// End of section. //template:end delete
 
 // Section below is generated&owned by "gen/generator.go". //template:begin import
 func (r *ZTAProfilePrivateAccessSteeringDestinationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

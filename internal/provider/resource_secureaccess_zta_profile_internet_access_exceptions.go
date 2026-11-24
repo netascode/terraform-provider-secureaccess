@@ -126,6 +126,10 @@ func (r *ZTAProfileInternetAccessExceptionsResource) Create(ctx context.Context,
 
 	plan.Id = plan.ZtaProfileId
 
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(plan.ZtaProfileId.ValueString())()
+
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Create", plan.Id.ValueString()))
 
 	res, err := r.setMappings(ctx, plan)
@@ -192,6 +196,9 @@ func (r *ZTAProfileInternetAccessExceptionsResource) Update(ctx context.Context,
 		return
 	}
 
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(plan.ZtaProfileId.ValueString())()
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Update", plan.Id.ValueString()))
 
 	if _, err := r.setMappings(ctx, plan); err != nil {
@@ -214,6 +221,9 @@ func (r *ZTAProfileInternetAccessExceptionsResource) Delete(ctx context.Context,
 		return
 	}
 
+	ztaProfileMu.RLock()
+	defer ztaProfileMu.RUnlock()
+	defer ztaProfileLocks.Lock(state.ZtaProfileId.ValueString())()
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Delete", state.Id.ValueString()))
 
 	// Removal needs the API assigned IDs, which are read with the current revision

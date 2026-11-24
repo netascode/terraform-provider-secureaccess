@@ -440,9 +440,15 @@ func (data *ZTAProfile) fromBodyUnknowns(ctx context.Context, res gjson.Result) 
 
 // End of section. //template:end fromBodyUnknowns
 
-// Section below is generated&owned by "gen/generator.go". //template:begin toBodyPutDelete
-
-// End of section. //template:end toBodyPutDelete
+// toBodyPutDelete is used to create the body for PUT requests to reset the default profile, which cannot be deleted.
+// Only the fields required by the API are set, with the revision from state.
+func (data ZTAProfile) toBodyPutDelete(ctx context.Context) string {
+	body := ""
+	body, _ = sjson.Set(body, "profileName", ztaDefaultProfileName)
+	body, _ = sjson.Set(body, "priority", 0)
+	body, _ = sjson.Set(body, "rev", data.Revision.ValueInt64())
+	return body
+}
 
 func (data ZTAProfile) adjustBody(ctx context.Context, req string) string {
 
