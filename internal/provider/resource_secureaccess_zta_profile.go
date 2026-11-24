@@ -70,7 +70,7 @@ func (r *ZTAProfileResource) Metadata(ctx context.Context, req resource.Metadata
 func (r *ZTAProfileResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource manages ZTA Profile. The order of created profiles is determined by order they are created by Terraform, hence they may not be created as the `priority` suggests. Subsequent update will fix ordering.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This resource manages ZTA Profile. The order of created profiles is determined by order they are created by Terraform and `priority`, hence they may not be created in the order `priority` suggests. Subsequent update will fix ordering.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{

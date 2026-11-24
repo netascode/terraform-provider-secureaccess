@@ -3,12 +3,12 @@
 page_title: "secureaccess_zta_profile Resource - terraform-provider-secureaccess"
 subcategory: "Connect"
 description: |-
-  This resource manages ZTA Profile. The order of created profiles is determined by order they are created by Terraform, hence they may not be created as the priority suggests. Subsequent update will fix ordering.
+  This resource manages ZTA Profile. The order of created profiles is determined by order they are created by Terraform and priority, hence they may not be created in the order priority suggests. Subsequent update will fix ordering.
 ---
 
 # secureaccess_zta_profile (Resource)
 
-This resource manages ZTA Profile. The order of created profiles is determined by order they are created by Terraform, hence they may not be created as the `priority` suggests. Subsequent update will fix ordering.
+This resource manages ZTA Profile. The order of created profiles is determined by order they are created by Terraform and `priority`, hence they may not be created in the order `priority` suggests. Subsequent update will fix ordering.
 
 ## Example Usage
 
