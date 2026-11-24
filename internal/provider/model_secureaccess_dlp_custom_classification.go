@@ -119,6 +119,57 @@ func (data DLPCustomClassification) toBody(ctx context.Context, state DLPCustomC
 
 // End of section. //template:end toBody
 
+// Section below is generated&owned by "gen/generator.go". //template:begin toBodyPatchMerge
+
+// toBodyPatchMerge returns a PATCH body containing only the attributes which differ between data and state.
+// Attributes removed from data are set to an empty value of their type, as null is ignored by the API.
+// Returns an empty string if there is nothing to update.
+func (data DLPCustomClassification) toBodyPatchMerge(ctx context.Context, state DLPCustomClassification) string {
+	planBody := data.toBody(ctx, DLPCustomClassification{})
+	stateBody := state.toBody(ctx, DLPCustomClassification{})
+	planBody = data.adjustBody(ctx, planBody)
+	stateBody = state.adjustBody(ctx, stateBody)
+	body := ""
+	if planValue, stateValue := gjson.Get(planBody, "name"), gjson.Get(stateBody, "name"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "name", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "name", `""`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "description"), gjson.Get(stateBody, "description"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "description", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "description", `""`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "classifierEvaluationStrategy"), gjson.Get(stateBody, "classifierEvaluationStrategy"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "classifierEvaluationStrategy", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "classifierEvaluationStrategy", `""`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "dataIdentifiers"), gjson.Get(stateBody, "dataIdentifiers"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "dataIdentifiers", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "dataIdentifiers", `[]`)
+		}
+	}
+	if planValue, stateValue := gjson.Get(planBody, "excludedDataIdentifiers"), gjson.Get(stateBody, "excludedDataIdentifiers"); planValue.Raw != stateValue.Raw {
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "excludedDataIdentifiers", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "excludedDataIdentifiers", `[]`)
+		}
+	}
+	return body
+}
+
+// End of section. //template:end toBodyPatchMerge
+
 // Section below is generated&owned by "gen/generator.go". //template:begin fromBody
 
 func (data *DLPCustomClassification) fromBody(ctx context.Context, res gjson.Result) {
@@ -127,7 +178,7 @@ func (data *DLPCustomClassification) fromBody(ctx context.Context, res gjson.Res
 	} else {
 		data.Name = types.StringNull()
 	}
-	if value := res.Get("description"); value.Exists() {
+	if value := res.Get("description"); value.Exists() && value.Type != gjson.Null && value.String() != "" {
 		data.Description = types.StringValue(value.String())
 	} else {
 		data.Description = types.StringNull()
@@ -151,7 +202,7 @@ func (data *DLPCustomClassification) fromBody(ctx context.Context, res gjson.Res
 			return true
 		})
 	}
-	if value := res.Get("excludedDataIdentifiers"); value.Exists() {
+	if value := res.Get("excludedDataIdentifiers"); value.Exists() && len(value.Array()) > 0 {
 		data.ExcludedDataIdentifiers = make([]DLPCustomClassificationExcludedDataIdentifiers, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -297,14 +348,14 @@ func (data *DLPCustomClassification) fromBodyUnknowns(ctx context.Context, res g
 func (data DLPCustomClassification) adjustBody(ctx context.Context, req string) string {
 
 	req, _ = sjson.Delete(req, "dataIdentifiers")
-	var includedDataIdentifierIds []string
+	includedDataIdentifierIds := []string{}
 	for _, includedDataIdentifier := range data.IncludedDataIdentifiers {
 		includedDataIdentifierIds = append(includedDataIdentifierIds, includedDataIdentifier.Id.ValueString())
 	}
 	req, _ = sjson.Set(req, "dataIdentifiers", includedDataIdentifierIds)
 
 	req, _ = sjson.Delete(req, "excludedDataIdentifiers")
-	var excludedDataIdentifierIds []string
+	excludedDataIdentifierIds := []string{}
 	for _, excludedDataIdentifier := range data.ExcludedDataIdentifiers {
 		excludedDataIdentifierIds = append(excludedDataIdentifierIds, excludedDataIdentifier.Id.ValueString())
 	}

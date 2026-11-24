@@ -37,7 +37,7 @@ func TestAccDataSourceSecureAccessDLPRealTimeRule(t *testing.T) {
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_dlp_real_time_rule.test", "file_size_configuration_type", "RANGE"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_dlp_real_time_rule.test", "file_size_from", "1024"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_dlp_real_time_rule.test", "file_size_from_unit", "KB"))
-	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_dlp_real_time_rule.test", "file_size_to", "51200"))
+	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_dlp_real_time_rule.test", "file_size_to", "10240"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_dlp_real_time_rule.test", "file_size_to_unit", "KB"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_dlp_real_time_rule.test", "file_types_included.0.id", "250"))
 	checks = append(checks, resource.TestCheckResourceAttr("data.secureaccess_dlp_real_time_rule.test", "file_types_included.0.name", "cdr"))
@@ -100,7 +100,7 @@ func testAccDataSourceSecureAccessDLPRealTimeRuleConfig() string {
 	config += `	file_size_configuration_type = "RANGE"` + "\n"
 	config += `	file_size_from = 1024` + "\n"
 	config += `	file_size_from_unit = "KB"` + "\n"
-	config += `	file_size_to = 51200` + "\n"
+	config += `	file_size_to = 10240` + "\n"
 	config += `	file_size_to_unit = "KB"` + "\n"
 	config += `	file_types_included = [{` + "\n"
 	config += `		id = 250` + "\n"
@@ -155,7 +155,7 @@ func testAccNamedDataSourceSecureAccessDLPRealTimeRuleConfig() string {
 	config += `	file_size_configuration_type = "RANGE"` + "\n"
 	config += `	file_size_from = 1024` + "\n"
 	config += `	file_size_from_unit = "KB"` + "\n"
-	config += `	file_size_to = 51200` + "\n"
+	config += `	file_size_to = 10240` + "\n"
 	config += `	file_size_to_unit = "KB"` + "\n"
 	config += `	file_types_included = [{` + "\n"
 	config += `		id = 250` + "\n"

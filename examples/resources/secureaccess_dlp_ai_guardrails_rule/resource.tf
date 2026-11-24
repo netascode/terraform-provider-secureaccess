@@ -14,7 +14,7 @@ resource "secureaccess_dlp_ai_guardrails_rule" "example" {
   file_size_configuration_type = "RANGE"
   file_size_from               = 1024
   file_size_from_unit          = "KB"
-  file_size_to                 = 51200
+  file_size_to                 = 10240
   file_size_to_unit            = "KB"
   file_types_included = [
     {

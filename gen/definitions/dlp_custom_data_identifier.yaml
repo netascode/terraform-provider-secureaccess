@@ -1,8 +1,8 @@
 # Manual resource
-# PATCH with PUT body
 ---
 name: DLP Custom Data Identifier
 rest_endpoint: /policies/v2/dlp/custom/dataIdentifiers
+patch_update_merge: true
 doc_category: Secure
 attributes:
   - model_name: name
@@ -13,6 +13,7 @@ attributes:
     data_source_query: true
   - model_name: description
     type: String
+    empty_as_null: true
     description: Description of the DLP Custom Identifier.
     example: This is my DLP data classification.
   # - model_name: type
@@ -22,6 +23,7 @@ attributes:
   - model_name: countUniqueMatchesOnly
     tf_name: unique_threshold
     type: Bool
+    empty_as_null: true
     description: Whether to count only unique matches.
     example: true
   - model_name: thresholdRanges
@@ -41,17 +43,20 @@ attributes:
         example: 10
       - model_name: severity
         type: String
+        empty_as_null: true
         description: Severity level of the threshold range. One of [\"very-low\", \"low\", \"medium\", \"high\", \"critical\"] or any custom value.'
         example: "low"
   - model_name: terms
     type: Set
     element_type: String
+    empty_as_null: true
     description: Terms for the custom data identifier. `terms` and/or `patterns` must be provided.
     example: "hello_term"
     max_list: 100
   - model_name: patterns
     type: Set
     element_type: String
+    empty_as_null: true
     description: The set of regex patterns for the custom data identifier. Each pattern must be at least three characters long and cannot start with ^ or end with $.  `terms` and/or `patterns` must be provided.
     example: "pattern"
     max_list: 10
@@ -59,6 +64,7 @@ attributes:
   - model_name: proximity
     type: Set
     element_type: String
+    empty_as_null: true
     description: Proximity values.
     example: "hello_proximity"
     max_list: 10

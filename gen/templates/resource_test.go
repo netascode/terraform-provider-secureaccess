@@ -157,7 +157,17 @@ func TestAccSecureAccess{{camelCase .Name}}(t *testing.T) {
 		Config: {{if .TestPrerequisites}}testAccSecureAccess{{camelCase .Name}}PrerequisitesConfig+{{end}}testAccSecureAccess{{camelCase .Name}}Config_all(),
 		Check: resource.ComposeTestCheckFunc(checks...),
 	})
-	{{- if not (or .NoImport (hasReference .Attributes))}}
+	{{- if and .PatchUpdateMerge (not .SkipMinimumTest) (not (or .NoImport (hasReference .Attributes)))}}
+	// Update to minimum config and verify with a full import read that removed attributes were cleared
+	steps = append(steps, resource.TestStep{
+		Config: {{if .TestPrerequisites}}testAccSecureAccess{{camelCase .Name}}PrerequisitesConfig+{{end}}testAccSecureAccess{{camelCase .Name}}Config_minimum(),
+	})
+	steps = append(steps, resource.TestStep{
+		ResourceName:      "secureaccess_{{snakeCase .Name}}.test",
+		ImportState:       true,
+		ImportStateVerify: true,
+	})
+	{{- else if not (or .NoImport (hasReference .Attributes))}}
 	steps = append(steps, resource.TestStep{
 		ResourceName:  "secureaccess_{{snakeCase $name}}.test",
 		ImportState:   true,

@@ -334,6 +334,39 @@ func (data {{camelCase .Name}}) toBody(ctx context.Context, state {{camelCase .N
 {{end}}
 // End of section. //template:end toBody
 
+// Section below is generated&owned by "gen/generator.go". //template:begin toBodyPatchMerge
+{{if and (not .NoResource) .PatchUpdateMerge}}
+// toBodyPatchMerge returns a PATCH body containing only the attributes which differ between data and state.
+// Attributes removed from data are set to an empty value of their type, as null is ignored by the API.
+// Returns an empty string if there is nothing to update.
+func (data {{camelCase .Name}}) toBodyPatchMerge(ctx context.Context, state {{camelCase .Name}}) string {
+	planBody := data.toBody(ctx, {{camelCase .Name}}{})
+	stateBody := state.toBody(ctx, {{camelCase .Name}}{})
+	{{- if .AdjustBody}}
+	planBody = data.adjustBody(ctx, planBody)
+	stateBody = state.adjustBody(ctx, stateBody)
+	{{- end}}
+	body := ""
+	{{- range patchMergePaths .Attributes}}
+	if planValue, stateValue := gjson.Get(planBody, "{{.Path}}"), gjson.Get(stateBody, "{{.Path}}"); planValue.Raw != stateValue.Raw {
+		{{- if .Empty}}
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "{{.Path}}", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "{{.Path}}", `{{.Empty}}`)
+		}
+		{{- else}}
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "{{.Path}}", planValue.Raw)
+		}
+		{{- end}}
+	}
+	{{- end}}
+	return body
+}
+{{end}}
+// End of section. //template:end toBodyPatchMerge
+
 // Section below is generated&owned by "gen/generator.go". //template:begin fromBody
 
 func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result) {
@@ -347,7 +380,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	{{- end}}
 	{{- if and (not .Value) (not .WriteOnly) (not .Reference)}}
 	{{- if or (eq .Type "String") (eq .Type "Int64") (eq .Type "Float64") (eq .Type "Bool")}}
-	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}} {
+	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"{{end}}); value.Exists(){{if or (isListEntry .) .EmptyAsNull}} && value.Type != gjson.Null{{end}}{{if .EmptyAsNull}}{{if eq .Type "String"}} && value.String() != ""{{else if eq .Type "Bool"}} && value.Bool(){{else if eq .Type "Int64"}} && value.Int() != 0{{else}} && value.Float() != 0{{end}}{{end}} {
 		data.{{toGoName .TfName}} = types.{{.Type}}Value(value.{{if eq .Type "Int64"}}Int{{else if eq .Type "Float64"}}Float{{else}}{{.Type}}{{end}}())
 	} else {
 		{{- if .DefaultValue}}
@@ -357,7 +390,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 		{{- end}}
 	}
 	{{- else if isListSet .}}
-	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}} {
+	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}}{{if .EmptyAsNull}} && len(value.Array()) > 0{{end}} {
 		data.{{toGoName .TfName}} = helpers.Get{{.ElementType}}{{.Type}}(value.Array())
 	} else {
 		data.{{toGoName .TfName}} = types.{{.Type}}Null(types.{{.ElementType}}Type)
@@ -365,7 +398,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	{{- else if isComputedNestedList .}}
 	data.fromBody{{toGoName .TfName}}(ctx, res)
 	{{- else if isNestedListSet .}}
-	if value := res{{if isListEntry .}}.Get(`{{listEntryPath .}}`){{else if .ModelName}}.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"){{end}}; value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}} {
+	if value := res{{if isListEntry .}}.Get(`{{listEntryPath .}}`){{else if .ModelName}}.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"){{end}}; value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}}{{if .EmptyAsNull}} && len(value.Array()) > 0{{end}} {
 		data.{{toGoName .TfName}} = make([]{{.GoTypeName}}, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data

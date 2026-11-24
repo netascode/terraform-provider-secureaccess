@@ -7,6 +7,8 @@ rest_endpoint: str(required=False) # REST endpoint path
 put_create: bool(required=False) # Set to true if the PUT request is used for create. Objects are searched by `name` attiribute, unless overriden by `put_create_data_query`.
 put_delete: bool(required=False) # Set to true if the PUT request is used to delete
 no_update: bool(required=False) # Set to true if the PUT request is not supported
+patch_update_merge: bool(required=False) # Set to true if Update uses PATCH with the POST body schema, containing only attributes changed between state and plan (removed attributes are sent as an empty value of their type, as null is ignored by the API)
+patch_update_json: bool(required=False) # Reserved: Update uses PATCH with JSON Patch operations ([{op, path, value}]). Not yet supported by templates
 no_delete: bool(required=False) # Set to true if the DELETE request is not supported
 ds_description: str(required=False) # Define a data source description
 res_description: str(required=False) # Define a resource description
@@ -43,6 +45,8 @@ attribute:
   mandatory: bool(required=False) # Set to true if the attribute is mandatory
   write_only: bool(required=False) # Set to true if the attribute is write-only, meaning we cannot read the value
   write_changes_only: bool(required=False) # Set to true if the attribute should only be written (included in PUT payload) if it has changed
+  empty_as_null: bool(required=False) # Set to true if an empty value returned by the API ("", false, 0, [] or null) is read as null by a full read (import, data source). Partial reads (refresh) are not affected
+  patch_merge_no_clear: bool(required=False) # Set to true if `patch_update_merge` must not send an empty value when the attribute is removed from configuration, as the API rejects it. The value is left as is on the backend
   exclude_test: bool(required=False) # Exclude attribute from acceptance test only (example/documentation is still generated)
   exclude_example: bool(required=False) # Exclude attribute from example (documentation)
   description: str(required=False) # Attribute description
