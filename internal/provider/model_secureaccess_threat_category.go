@@ -30,22 +30,16 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
 type ThreatCategory struct {
-	Id                          types.String `tfsdk:"id"`
-	Name                        types.String `tfsdk:"name"`
-	BundleTypeId                types.Int64  `tfsdk:"bundle_type_id"`
-	IsDefault                   types.Bool   `tfsdk:"is_default"`
-	IsSwgDefault                types.Bool   `tfsdk:"is_swg_default"`
-	AmpScan                     types.Bool   `tfsdk:"amp_scan"`
-	BotnetProtection            types.Bool   `tfsdk:"botnet_protection"`
-	FileInspection              types.Bool   `tfsdk:"file_inspection"`
-	IpFiltering                 types.Bool   `tfsdk:"ip_filtering"`
-	MalwareProtection           types.Bool   `tfsdk:"malware_protection"`
-	MalwareUrlProxy             types.Bool   `tfsdk:"malware_url_proxy"`
-	PhishingProtection          types.Bool   `tfsdk:"phishing_protection"`
-	SuperBotnet                 types.Bool   `tfsdk:"super_botnet"`
-	SuperMalware                types.Bool   `tfsdk:"super_malware"`
-	SuspiciousResponseFiltering types.Bool   `tfsdk:"suspicious_response_filtering"`
-	UrlProxyHttps               types.Bool   `tfsdk:"url_proxy_https"`
+	Id                         types.String `tfsdk:"id"`
+	Name                       types.String `tfsdk:"name"`
+	Malware                    types.Bool   `tfsdk:"malware"`
+	CommandAndControlCallbacks types.Bool   `tfsdk:"command_and_control_callbacks"`
+	PhishingAttacks            types.Bool   `tfsdk:"phishing_attacks"`
+	PotentiallyHarmfulDomains  types.Bool   `tfsdk:"potentially_harmful_domains"`
+	NewlySeenDomains           types.Bool   `tfsdk:"newly_seen_domains"`
+	DynamicDns                 types.Bool   `tfsdk:"dynamic_dns"`
+	DnsTunnelingVpn            types.Bool   `tfsdk:"dns_tunneling_vpn"`
+	Cryptomining               types.Bool   `tfsdk:"cryptomining"`
 }
 
 // End of section. //template:end types
@@ -70,76 +64,22 @@ func (data *ThreatCategory) fromBody(ctx context.Context, res gjson.Result) {
 	} else {
 		data.Name = types.StringNull()
 	}
-	if value := res.Get("bundleTypeId"); value.Exists() {
-		data.BundleTypeId = types.Int64Value(value.Int())
+	if value := res.Get("malwareProtection"); value.Exists() {
+		data.Malware = types.BoolValue(value.Bool())
 	} else {
-		data.BundleTypeId = types.Int64Null()
-	}
-	if value := res.Get("isDefault"); value.Exists() {
-		data.IsDefault = types.BoolValue(value.Bool())
-	} else {
-		data.IsDefault = types.BoolNull()
-	}
-	if value := res.Get("isSwgDefault"); value.Exists() {
-		data.IsSwgDefault = types.BoolValue(value.Bool())
-	} else {
-		data.IsSwgDefault = types.BoolNull()
-	}
-	if value := res.Get("ampScan"); value.Exists() {
-		data.AmpScan = types.BoolValue(value.Bool())
-	} else {
-		data.AmpScan = types.BoolNull()
+		data.Malware = types.BoolNull()
 	}
 	if value := res.Get("botnetProtection"); value.Exists() {
-		data.BotnetProtection = types.BoolValue(value.Bool())
+		data.CommandAndControlCallbacks = types.BoolValue(value.Bool())
 	} else {
-		data.BotnetProtection = types.BoolNull()
-	}
-	if value := res.Get("fileInspection"); value.Exists() {
-		data.FileInspection = types.BoolValue(value.Bool())
-	} else {
-		data.FileInspection = types.BoolNull()
-	}
-	if value := res.Get("ipFiltering"); value.Exists() {
-		data.IpFiltering = types.BoolValue(value.Bool())
-	} else {
-		data.IpFiltering = types.BoolNull()
-	}
-	if value := res.Get("malwareProtection"); value.Exists() {
-		data.MalwareProtection = types.BoolValue(value.Bool())
-	} else {
-		data.MalwareProtection = types.BoolNull()
-	}
-	if value := res.Get("malwareUrlProxy"); value.Exists() {
-		data.MalwareUrlProxy = types.BoolValue(value.Bool())
-	} else {
-		data.MalwareUrlProxy = types.BoolNull()
+		data.CommandAndControlCallbacks = types.BoolNull()
 	}
 	if value := res.Get("phishingProtection"); value.Exists() {
-		data.PhishingProtection = types.BoolValue(value.Bool())
+		data.PhishingAttacks = types.BoolValue(value.Bool())
 	} else {
-		data.PhishingProtection = types.BoolNull()
+		data.PhishingAttacks = types.BoolNull()
 	}
-	if value := res.Get("superBotnet"); value.Exists() {
-		data.SuperBotnet = types.BoolValue(value.Bool())
-	} else {
-		data.SuperBotnet = types.BoolNull()
-	}
-	if value := res.Get("superMalware"); value.Exists() {
-		data.SuperMalware = types.BoolValue(value.Bool())
-	} else {
-		data.SuperMalware = types.BoolNull()
-	}
-	if value := res.Get("suspiciousResponseFiltering"); value.Exists() {
-		data.SuspiciousResponseFiltering = types.BoolValue(value.Bool())
-	} else {
-		data.SuspiciousResponseFiltering = types.BoolNull()
-	}
-	if value := res.Get("urlProxyHttps"); value.Exists() {
-		data.UrlProxyHttps = types.BoolValue(value.Bool())
-	} else {
-		data.UrlProxyHttps = types.BoolNull()
-	}
+	data.adjustRead(ctx, res, nil)
 }
 
 // End of section. //template:end fromBody
@@ -160,6 +100,14 @@ func (data *ThreatCategory) fromBody(ctx context.Context, res gjson.Result) {
 
 // End of section. //template:end adjustBody
 
-// Section below is generated&owned by "gen/generator.go". //template:begin adjustRead
-
-// End of section. //template:end adjustRead
+// adjustRead reads the options that the API does not return as fields from `categoryBits`, a hexadecimal number of which
+// bit N is `1 << N`. They are null if `categoryBits` is missing or is not a hexadecimal string. An empty string counts as 0, like "0":
+// no option is set.
+func (data *ThreatCategory) adjustRead(ctx context.Context, res gjson.Result, prior *ThreatCategory) {
+	categoryBits := res.Get("categoryBits")
+	data.PotentiallyHarmfulDomains = threatCategoryOption(categoryBits, threatCategoryBitPotentiallyHarmfulDomains)
+	data.NewlySeenDomains = threatCategoryOption(categoryBits, threatCategoryBitNewlySeenDomains)
+	data.DynamicDns = threatCategoryOption(categoryBits, threatCategoryBitDynamicDns)
+	data.DnsTunnelingVpn = threatCategoryOption(categoryBits, threatCategoryBitDnsTunnelingVpn)
+	data.Cryptomining = threatCategoryOption(categoryBits, threatCategoryBitCryptomining)
+}

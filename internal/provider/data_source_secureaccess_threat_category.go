@@ -72,60 +72,36 @@ func (d *ThreatCategoryDataSource) Schema(ctx context.Context, req datasource.Sc
 				Optional:            true,
 				Computed:            true,
 			},
-			"bundle_type_id": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("ID of the bundle type of the Threat Category.").String,
+			"malware": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether Malware is enabled (Web UI Threat Categories, Malware).").String,
 				Computed:            true,
 			},
-			"is_default": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether this is the default Threat Category.").String,
+			"command_and_control_callbacks": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether Command and Control Callbacks are enabled (Web UI Threat Categories, Command and Control Callbacks).").String,
 				Computed:            true,
 			},
-			"is_swg_default": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether this is the default Threat Category for the secure web gateway (SWG). The API returns null if it is not set, which is read as `false`.").String,
+			"phishing_attacks": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether Phishing Attacks are enabled (Web UI Threat Categories, Phishing Attacks).").String,
 				Computed:            true,
 			},
-			"amp_scan": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether AMP scan is enabled.").String,
+			"potentially_harmful_domains": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether Potentially Harmful Domains are enabled (Web UI Threat Categories, Potentially Harmful Domains).").String,
 				Computed:            true,
 			},
-			"botnet_protection": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether botnet protection is enabled.").String,
+			"newly_seen_domains": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether Newly Seen Domains are enabled (Web UI Threat Categories, Newly Seen Domains).").String,
 				Computed:            true,
 			},
-			"file_inspection": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether file inspection is enabled.").String,
+			"dynamic_dns": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether Dynamic DNS is enabled (Web UI Threat Categories, Dynamic DNS).").String,
 				Computed:            true,
 			},
-			"ip_filtering": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether IP filtering is enabled.").String,
+			"dns_tunneling_vpn": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether DNS Tunneling VPN is enabled (Web UI Threat Categories, DNS Tunneling VPN).").String,
 				Computed:            true,
 			},
-			"malware_protection": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether malware protection is enabled.").String,
-				Computed:            true,
-			},
-			"malware_url_proxy": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the malware URL proxy is enabled.").String,
-				Computed:            true,
-			},
-			"phishing_protection": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether phishing protection is enabled.").String,
-				Computed:            true,
-			},
-			"super_botnet": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether super botnet is enabled.").String,
-				Computed:            true,
-			},
-			"super_malware": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether super malware is enabled.").String,
-				Computed:            true,
-			},
-			"suspicious_response_filtering": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether suspicious response filtering is enabled.").String,
-				Computed:            true,
-			},
-			"url_proxy_https": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether URL proxy HTTPS is enabled.").String,
+			"cryptomining": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether Cryptomining is enabled (Web UI Threat Categories, Cryptomining).").String,
 				Computed:            true,
 			},
 		},
