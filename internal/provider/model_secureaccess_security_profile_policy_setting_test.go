@@ -40,7 +40,8 @@ import (
 // This file is not generated. It tests the data source security_profile_policy_setting with the payload that the Secure
 // Access API returns for the Default Policy (only the ids and the dates are made up), and with the other states of the
 // settings that the Security Profiles API guide describes. The cases for ai_semantic_inspection are synthetic: the guide does
-// not describe that setting and it was never seen enabled.
+// not describe that setting and it was never seen enabled. The cases for the three AI Supply Chain Blocking options are synthetic
+// too: the guide describes the mask of aiSupplyChainCategories, a value other than "0" was never seen on a live organization.
 
 // A Policy Setting as returned by GET /policies/v2/policysettings/{id}, every setting is off.
 const policySettingDefaultPayload = `{
@@ -76,6 +77,21 @@ const policySettingDefaultPayload = `{
 // The mask of the AI supply chain categories that the guide gives for all three categories (54 characters).
 const policySettingAllAiCategories = "E00000000000000000000000000000000000000000000000000000"
 
+// policySettingMask is a mask of 54 digits, with the given first digit and 53 zeros.
+func policySettingMask(first string) string { return first + strings.Repeat("0", 53) }
+
+// policySettingAiOption is the value that an AI Supply Chain Blocking option must have: the pattern has one letter for Prohibited
+// Suppliers, Code Execution and Copyleft License, T for true, F for false and N for null.
+func policySettingAiOption(pattern string, i int) types.Bool {
+	switch pattern[i] {
+	case 'T':
+		return types.BoolValue(true)
+	case 'F':
+		return types.BoolValue(false)
+	}
+	return types.BoolNull()
+}
+
 // policySettingBody returns a body with the keys that the data source reads, everything off, and the given keys replaced.
 func policySettingBody(t *testing.T, over map[string]any) string {
 	t.Helper()
@@ -107,44 +123,51 @@ func TestSecurityProfilePolicySettingFromBody(t *testing.T) {
 		{
 			name: "default policy, everything off",
 			body: policySettingDefaultPayload,
-			want: want{name: "Default Policy", ai: "0", reporting: "enabled"},
+			want: want{name: "Default Policy", ai: "FFF", reporting: "enabled"},
 		},
 		// Every boolean is turned on alone, so a value read from the wrong key shows up in at least one case.
-		{"only decryption", policySettingBody(t, map[string]any{"intelligentProxyHttps": true}), want{name: "p", ai: "0", reporting: "enabled", decryption: true}},
-		{"only intelligent proxy", policySettingBody(t, map[string]any{"intelligentProxy": true}), want{name: "p", ai: "0", reporting: "enabled", proxy: true}},
-		{"only block page mode", policySettingBody(t, map[string]any{"swgDisplayBlockPage": 1}), want{name: "p", ai: "0", reporting: "enabled", blockPage: true}},
-		{"only single sign-on", policySettingBody(t, map[string]any{"saml": 1}), want{name: "p", ai: "0", reporting: "enabled", sso: true}},
-		{"only safe search", policySettingBody(t, map[string]any{"safeSearch": true}), want{name: "p", ai: "0", reporting: "enabled", search: true}},
-		{"only ai semantic inspection", policySettingBody(t, map[string]any{"mcpSemanticInspection": true}), want{name: "p", ai: "0", reporting: "enabled", semantic: true}},
-		{
-			// the AI supply chain mask is a different setting from AI Semantic Inspection, one must not turn on the other
-			name: "only an AI supply chain category",
-			body: policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingAllAiCategories}),
-			want: want{name: "p", ai: policySettingAllAiCategories, reporting: "enabled"},
-		},
+		{"only decryption", policySettingBody(t, map[string]any{"intelligentProxyHttps": true}), want{name: "p", ai: "FFF", reporting: "enabled", decryption: true}},
+		{"only intelligent proxy", policySettingBody(t, map[string]any{"intelligentProxy": true}), want{name: "p", ai: "FFF", reporting: "enabled", proxy: true}},
+		{"only block page mode", policySettingBody(t, map[string]any{"swgDisplayBlockPage": 1}), want{name: "p", ai: "FFF", reporting: "enabled", blockPage: true}},
+		{"only single sign-on", policySettingBody(t, map[string]any{"saml": 1}), want{name: "p", ai: "FFF", reporting: "enabled", sso: true}},
+		{"only safe search", policySettingBody(t, map[string]any{"safeSearch": true}), want{name: "p", ai: "FFF", reporting: "enabled", search: true}},
+		{"only ai semantic inspection", policySettingBody(t, map[string]any{"mcpSemanticInspection": true}), want{name: "p", ai: "FFF", reporting: "enabled", semantic: true}},
+		// The three AI Supply Chain Blocking options are read from the first digit of the mask, each alone and together. They are different
+		// settings from AI Semantic Inspection, none of them may turn it on.
+		{"only Prohibited Suppliers", policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingMask("2")}), want{name: "p", ai: "TFF", reporting: "enabled"}},
+		{"only Code Execution", policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingMask("4")}), want{name: "p", ai: "FTF", reporting: "enabled"}},
+		{"only Copyleft License", policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingMask("8")}), want{name: "p", ai: "FFT", reporting: "enabled"}},
+		{"Prohibited Suppliers and Code Execution", policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingMask("6")}), want{name: "p", ai: "TTF", reporting: "enabled"}},
+		{"Prohibited Suppliers and Copyleft License", policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingMask("A")}), want{name: "p", ai: "TFT", reporting: "enabled"}},
+		{"Code Execution and Copyleft License", policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingMask("C")}), want{name: "p", ai: "FTT", reporting: "enabled"}},
+		{"all three categories", policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingAllAiCategories}), want{name: "p", ai: "TTT", reporting: "enabled"}},
+		{"the mask in lower case", policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingMask("e")}), want{name: "p", ai: "TTT", reporting: "enabled"}},
+		{"the mask of 54 zeros is everything off", policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingMask("0")}), want{name: "p", ai: "FFF", reporting: "enabled"}},
+		{"the value 1 of the first digit is not a category that is exposed", policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingMask("1")}), want{name: "p", ai: "FFF", reporting: "enabled"}},
+		{"the digits after the first one are not read", policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingMask("2")[:53] + "F"}), want{name: "p", ai: "TFF", reporting: "enabled"}},
 		{
 			// the guide: Decryption sets intelligentProxy and intelligentProxyHttps to true and swgDisplayBlockPage to 0
 			name: "the state of Decryption in the guide",
 			body: policySettingBody(t, map[string]any{"intelligentProxy": true, "intelligentProxyHttps": true}),
-			want: want{name: "p", ai: "0", reporting: "enabled", decryption: true, proxy: true},
+			want: want{name: "p", ai: "FFF", reporting: "enabled", decryption: true, proxy: true},
 		},
 		{
 			// the guide: Block page mode sets intelligentProxy to true, intelligentProxyHttps to false and swgDisplayBlockPage to 1
 			name: "the state of Block page mode in the guide",
 			body: policySettingBody(t, map[string]any{"intelligentProxy": true, "swgDisplayBlockPage": 1}),
-			want: want{name: "p", ai: "0", reporting: "enabled", proxy: true, blockPage: true},
+			want: want{name: "p", ai: "FFF", reporting: "enabled", proxy: true, blockPage: true},
 		},
 		{
 			name: "everything on, other strings",
 			body: policySettingBody(t, map[string]any{"name": "all", "intelligentProxyHttps": true, "intelligentProxy": true, "swgDisplayBlockPage": 1, "saml": 1, "safeSearch": true, "aiSupplyChainCategories": policySettingAllAiCategories, "mcpSemanticInspection": true, "reporting": "disabled"}),
-			want: want{name: "all", ai: policySettingAllAiCategories, reporting: "disabled", decryption: true, proxy: true, blockPage: true, sso: true, search: true, semantic: true},
+			want: want{name: "all", ai: "TTT", reporting: "disabled", decryption: true, proxy: true, blockPage: true, sso: true, search: true, semantic: true},
 		},
-		{"a number other than 1 is true, as the data source documents", policySettingBody(t, map[string]any{"saml": 2, "swgDisplayBlockPage": 2}), want{name: "p", ai: "0", reporting: "enabled", sso: true, blockPage: true}},
+		{"a number other than 1 is true, as the data source documents", policySettingBody(t, map[string]any{"saml": 2, "swgDisplayBlockPage": 2}), want{name: "p", ai: "FFF", reporting: "enabled", sso: true, blockPage: true}},
 		{
 			// documented in the definition: the generated fromBody() reads a JSON null as an empty string and as false
 			name: "a JSON null is read as an empty string and as false",
 			body: policySettingBody(t, map[string]any{"name": nil, "reporting": nil, "aiSupplyChainCategories": nil, "intelligentProxy": nil, "saml": nil, "mcpSemanticInspection": nil}),
-			want: want{},
+			want: want{ai: "NNN"},
 		},
 	}
 	for _, tt := range tests {
@@ -159,7 +182,9 @@ func TestSecurityProfilePolicySettingFromBody(t *testing.T) {
 				got, want attr.Value
 			}{
 				{"name", got.Name, types.StringValue(tt.want.name)},
-				{"ai_supply_chain_categories", got.AiSupplyChainCategories, types.StringValue(tt.want.ai)},
+				{"ai_supply_chain_prohibited_suppliers", got.AiSupplyChainProhibitedSuppliers, policySettingAiOption(tt.want.ai, 0)},
+				{"ai_supply_chain_code_execution", got.AiSupplyChainCodeExecution, policySettingAiOption(tt.want.ai, 1)},
+				{"ai_supply_chain_copyleft_license", got.AiSupplyChainCopyleftLicense, policySettingAiOption(tt.want.ai, 2)},
 				{"reporting", got.Reporting, types.StringValue(tt.want.reporting)},
 				{"decryption_enabled", got.DecryptionEnabled, types.BoolValue(tt.want.decryption)},
 				{"intelligent_proxy", got.IntelligentProxy, types.BoolValue(tt.want.proxy)},
@@ -179,7 +204,8 @@ func TestSecurityProfilePolicySettingFromBody(t *testing.T) {
 		var got SecurityProfilePolicySetting
 		got.fromBody(context.Background(), gjson.Parse(`{}`))
 		for attr, null := range map[string]bool{
-			"id": got.Id.IsNull(), "name": got.Name.IsNull(), "ai_supply_chain_categories": got.AiSupplyChainCategories.IsNull(),
+			"id": got.Id.IsNull(), "name": got.Name.IsNull(), "ai_supply_chain_prohibited_suppliers": got.AiSupplyChainProhibitedSuppliers.IsNull(),
+			"ai_supply_chain_code_execution": got.AiSupplyChainCodeExecution.IsNull(), "ai_supply_chain_copyleft_license": got.AiSupplyChainCopyleftLicense.IsNull(),
 			"reporting": got.Reporting.IsNull(), "decryption_enabled": got.DecryptionEnabled.IsNull(),
 			"intelligent_proxy": got.IntelligentProxy.IsNull(), "end_user_notification": got.EndUserNotification.IsNull(),
 			"single_sign_on": got.SingleSignOn.IsNull(), "safe_search": got.SafeSearch.IsNull(), "ai_semantic_inspection": got.AiSemanticInspection.IsNull(),
@@ -219,7 +245,7 @@ func TestSecurityProfilePolicySettingSchema(t *testing.T) {
 		}
 	}
 	sort.Strings(names)
-	want := "ai_semantic_inspection,ai_supply_chain_categories,decryption_enabled,end_user_notification,id,intelligent_proxy,name,reporting,safe_search,single_sign_on"
+	want := "ai_semantic_inspection,ai_supply_chain_code_execution,ai_supply_chain_copyleft_license,ai_supply_chain_prohibited_suppliers,decryption_enabled,end_user_notification,id,intelligent_proxy,name,reporting,safe_search,single_sign_on"
 	if got := strings.Join(names, ","); got != want {
 		t.Errorf("attributes = %s\nwant       %s", got, want)
 	}
@@ -326,10 +352,10 @@ func TestSecurityProfilePolicySettingDataSourceRead(t *testing.T) {
 		if state.Id.ValueString() != "33333333" {
 			t.Errorf("id = %q, want the id of the config", state.Id.ValueString())
 		}
-		if state.Name.ValueString() != "Default Policy" || state.Reporting.ValueString() != "enabled" || state.AiSupplyChainCategories.ValueString() != "0" {
+		if state.Name.ValueString() != "Default Policy" || state.Reporting.ValueString() != "enabled" {
 			t.Errorf("state = %+v", state)
 		}
-		for attr, v := range map[string]types.Bool{"decryption_enabled": state.DecryptionEnabled, "intelligent_proxy": state.IntelligentProxy, "end_user_notification": state.EndUserNotification, "single_sign_on": state.SingleSignOn, "safe_search": state.SafeSearch, "ai_semantic_inspection": state.AiSemanticInspection} {
+		for attr, v := range map[string]types.Bool{"decryption_enabled": state.DecryptionEnabled, "intelligent_proxy": state.IntelligentProxy, "end_user_notification": state.EndUserNotification, "single_sign_on": state.SingleSignOn, "safe_search": state.SafeSearch, "ai_semantic_inspection": state.AiSemanticInspection, "ai_supply_chain_prohibited_suppliers": state.AiSupplyChainProhibitedSuppliers, "ai_supply_chain_code_execution": state.AiSupplyChainCodeExecution, "ai_supply_chain_copyleft_license": state.AiSupplyChainCopyleftLicense} {
 			if v.IsNull() || v.ValueBool() {
 				t.Errorf("%s = %s, want false", attr, v)
 			}
@@ -417,4 +443,143 @@ func TestSecurityProfilePolicySettingDataSourceRead(t *testing.T) {
 			t.Errorf("requests = %q, want one request below /policies/v2/policysettings/ with the slashes of the id escaped", got)
 		}
 	})
+}
+
+// The mask of aiSupplyChainCategories is read by the first digit only when it is "0" or 54 hexadecimal digits, anything else is
+// unknown and gives null for the three options, not false: false would claim that nothing is blocked.
+func TestAiSupplyChainOption(t *testing.T) {
+	pattern := func(raw string) string {
+		mask := gjson.Get(`{"m":`+raw+`}`, "m")
+		var out string
+		for _, value := range []int{aiSupplyChainValueProhibitedSuppliers, aiSupplyChainValueCodeExecution, aiSupplyChainValueCopyleftLicense} {
+			switch v := aiSupplyChainOption(mask, value); {
+			case v.IsNull():
+				out += "N"
+			case v.ValueBool():
+				out += "T"
+			default:
+				out += "F"
+			}
+		}
+		return out
+	}
+	quote := strconv.Quote
+
+	t.Run("0 is off", func(t *testing.T) {
+		if got := pattern(`"0"`); got != "FFF" {
+			t.Errorf(`"0" = %s, want FFF`, got)
+		}
+	})
+
+	t.Run("every value of the first digit gives its categories", func(t *testing.T) {
+		// the categories are the bits 2, 4 and 8 of the digit, the bit 1 is not one of them
+		for digit := 0; digit < 16; digit++ {
+			hex := strconv.FormatInt(int64(digit), 16)
+			want := ""
+			for _, bit := range []int{2, 4, 8} {
+				if digit&bit != 0 {
+					want += "T"
+				} else {
+					want += "F"
+				}
+			}
+			for _, d := range []string{hex, strings.ToUpper(hex)} {
+				if got := pattern(quote(policySettingMask(d))); got != want {
+					t.Errorf("the first digit %s = %s, want %s", d, got, want)
+				}
+			}
+		}
+	})
+
+	t.Run("the digits after the first one are not read", func(t *testing.T) {
+		for _, tail := range []string{"1", "F", "A", "9"} {
+			if got := pattern(quote(policySettingMask("4")[:53] + tail)); got != "FTF" {
+				t.Errorf("the last digit %s = %s, want FTF", tail, got)
+			}
+		}
+		if got := pattern(quote("8" + strings.Repeat("F", 53))); got != "FFT" {
+			t.Errorf("all other digits F = %s, want FFT", got)
+		}
+	})
+
+	t.Run("a value that is not 0 or 54 hexadecimal digits is unknown", func(t *testing.T) {
+		for name, raw := range map[string]string{
+			"null":                             `null`,
+			"a number 0":                       `0`,
+			"a number 2":                       `2`,
+			"true":                             `true`,
+			"a list":                           `["2"]`,
+			"an object":                        `{}`,
+			"an empty string":                  `""`,
+			"00":                               `"00"`,
+			"2":                                `"2"`,
+			"53 digits":                        quote(policySettingMask("2")[:53]),
+			"55 digits":                        quote(policySettingMask("2") + "0"),
+			"a letter that is not a hex digit": quote("G" + strings.Repeat("0", 53)),
+			"a sign":                           quote("+" + strings.Repeat("0", 53)),
+			"a space":                          quote(" " + strings.Repeat("0", 53)),
+			"0x":                               quote("0x" + strings.Repeat("0", 52)),
+			"a non-hex digit after the first":  quote("2" + strings.Repeat("0", 52) + "g"),
+			"a unicode digit":                  quote("٢" + strings.Repeat("0", 53)),
+		} {
+			if got := pattern(raw); got != "NNN" {
+				t.Errorf("%s (%s) = %s, want NNN", name, raw, got)
+			}
+		}
+		if got := aiSupplyChainOption(gjson.Result{}, aiSupplyChainValueCodeExecution); !got.IsNull() {
+			t.Errorf("a missing key = %s, want null", got)
+		}
+	})
+}
+
+// The state is checked by attribute name: the Read tests get the struct back from the same state, so two swapped `tfsdk` tags would
+// pass them. Each option is turned on alone and every option of the state is compared by its name.
+func TestSecurityProfilePolicySettingAiSupplyChainAttributeNames(t *testing.T) {
+	options := []struct{ attr, digit, label string }{
+		{"ai_supply_chain_prohibited_suppliers", "2", "Prohibited Suppliers"},
+		{"ai_supply_chain_code_execution", "4", "Code Execution"},
+		{"ai_supply_chain_copyleft_license", "8", "Copyleft License"},
+	}
+	for _, on := range options {
+		t.Run(on.attr, func(t *testing.T) {
+			server := newPolicySettingServer(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(policySettingBody(t, map[string]any{"aiSupplyChainCategories": policySettingMask(on.digit)})))
+			})
+			_, resp := readPolicySetting(t, server, "77777777")
+			if resp.Diagnostics.HasError() {
+				t.Fatalf("unexpected error: %v", resp.Diagnostics)
+			}
+			var raw map[string]tftypes.Value
+			if err := resp.State.Raw.As(&raw); err != nil {
+				t.Fatalf("state: %v", err)
+			}
+			for _, other := range options {
+				var got *bool
+				if err := raw[other.attr].As(&got); err != nil {
+					t.Fatalf("%s: %v", other.attr, err)
+				}
+				if got == nil {
+					t.Errorf("with only %s on, %s is null in the state", on.attr, other.attr)
+				} else if want := other.attr == on.attr; *got != want {
+					t.Errorf("with only %s on, %s = %t in the state, want %t", on.attr, other.attr, *got, want)
+				}
+			}
+		})
+	}
+
+	// the descriptions come from the YAML and regenerate cleanly if two of them are swapped, so only a test notices
+	var schemaResp datasource.SchemaResponse
+	(&SecurityProfilePolicySettingDataSource{}).Schema(context.Background(), datasource.SchemaRequest{}, &schemaResp)
+	for _, o := range options {
+		a, ok := schemaResp.Schema.Attributes[o.attr]
+		if !ok {
+			t.Errorf("attribute %s is missing", o.attr)
+			continue
+		}
+		want := "Specifies whether blocking of " + o.label + " is enabled (Web UI AI Supply Chain Blocking, " + o.label + ")."
+		if got := a.GetMarkdownDescription(); got != want {
+			t.Errorf("%s: description %q, want %q", o.attr, got, want)
+		}
+	}
 }

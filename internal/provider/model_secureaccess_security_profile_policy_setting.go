@@ -30,16 +30,18 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
 type SecurityProfilePolicySetting struct {
-	Id                      types.String `tfsdk:"id"`
-	Name                    types.String `tfsdk:"name"`
-	DecryptionEnabled       types.Bool   `tfsdk:"decryption_enabled"`
-	IntelligentProxy        types.Bool   `tfsdk:"intelligent_proxy"`
-	EndUserNotification     types.Bool   `tfsdk:"end_user_notification"`
-	SingleSignOn            types.Bool   `tfsdk:"single_sign_on"`
-	SafeSearch              types.Bool   `tfsdk:"safe_search"`
-	AiSupplyChainCategories types.String `tfsdk:"ai_supply_chain_categories"`
-	AiSemanticInspection    types.Bool   `tfsdk:"ai_semantic_inspection"`
-	Reporting               types.String `tfsdk:"reporting"`
+	Id                               types.String `tfsdk:"id"`
+	Name                             types.String `tfsdk:"name"`
+	DecryptionEnabled                types.Bool   `tfsdk:"decryption_enabled"`
+	IntelligentProxy                 types.Bool   `tfsdk:"intelligent_proxy"`
+	EndUserNotification              types.Bool   `tfsdk:"end_user_notification"`
+	SingleSignOn                     types.Bool   `tfsdk:"single_sign_on"`
+	SafeSearch                       types.Bool   `tfsdk:"safe_search"`
+	AiSupplyChainProhibitedSuppliers types.Bool   `tfsdk:"ai_supply_chain_prohibited_suppliers"`
+	AiSupplyChainCodeExecution       types.Bool   `tfsdk:"ai_supply_chain_code_execution"`
+	AiSupplyChainCopyleftLicense     types.Bool   `tfsdk:"ai_supply_chain_copyleft_license"`
+	AiSemanticInspection             types.Bool   `tfsdk:"ai_semantic_inspection"`
+	Reporting                        types.String `tfsdk:"reporting"`
 }
 
 // End of section. //template:end types
@@ -89,11 +91,6 @@ func (data *SecurityProfilePolicySetting) fromBody(ctx context.Context, res gjso
 	} else {
 		data.SafeSearch = types.BoolNull()
 	}
-	if value := res.Get("aiSupplyChainCategories"); value.Exists() {
-		data.AiSupplyChainCategories = types.StringValue(value.String())
-	} else {
-		data.AiSupplyChainCategories = types.StringNull()
-	}
 	if value := res.Get("mcpSemanticInspection"); value.Exists() {
 		data.AiSemanticInspection = types.BoolValue(value.Bool())
 	} else {
@@ -104,6 +101,7 @@ func (data *SecurityProfilePolicySetting) fromBody(ctx context.Context, res gjso
 	} else {
 		data.Reporting = types.StringNull()
 	}
+	data.adjustRead(ctx, res, nil)
 }
 
 // End of section. //template:end fromBody
@@ -124,6 +122,11 @@ func (data *SecurityProfilePolicySetting) fromBody(ctx context.Context, res gjso
 
 // End of section. //template:end adjustBody
 
-// Section below is generated&owned by "gen/generator.go". //template:begin adjustRead
-
-// End of section. //template:end adjustRead
+// adjustRead reads the three AI Supply Chain Blocking options from `aiSupplyChainCategories`, a mask string. They are null if the mask
+// is missing or is neither `0` nor 54 hexadecimal digits.
+func (data *SecurityProfilePolicySetting) adjustRead(ctx context.Context, res gjson.Result, prior *SecurityProfilePolicySetting) {
+	mask := res.Get("aiSupplyChainCategories")
+	data.AiSupplyChainProhibitedSuppliers = aiSupplyChainOption(mask, aiSupplyChainValueProhibitedSuppliers)
+	data.AiSupplyChainCodeExecution = aiSupplyChainOption(mask, aiSupplyChainValueCodeExecution)
+	data.AiSupplyChainCopyleftLicense = aiSupplyChainOption(mask, aiSupplyChainValueCopyleftLicense)
+}

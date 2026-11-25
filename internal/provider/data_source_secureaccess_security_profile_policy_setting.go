@@ -86,8 +86,16 @@ func (d *SecurityProfilePolicySettingDataSource) Schema(ctx context.Context, req
 				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether SafeSearch is enabled.").String,
 				Computed:            true,
 			},
-			"ai_supply_chain_categories": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Mask of the blocked AI supply chain categories (Web UI AI Supply Chain Blocking). The API returns `0` if the blocking is off, otherwise a mask string, according to the Security Profiles API guide its first digit adds up 2 for Prohibited Suppliers, 4 for Code Execution and 8 for Copyleft License (as a hexadecimal digit) and the 53 digits after it are 0.").String,
+			"ai_supply_chain_prohibited_suppliers": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether blocking of Prohibited Suppliers is enabled (Web UI AI Supply Chain Blocking, Prohibited Suppliers).").String,
+				Computed:            true,
+			},
+			"ai_supply_chain_code_execution": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether blocking of Code Execution is enabled (Web UI AI Supply Chain Blocking, Code Execution).").String,
+				Computed:            true,
+			},
+			"ai_supply_chain_copyleft_license": schema.BoolAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether blocking of Copyleft License is enabled (Web UI AI Supply Chain Blocking, Copyleft License).").String,
 				Computed:            true,
 			},
 			"ai_semantic_inspection": schema.BoolAttribute{
