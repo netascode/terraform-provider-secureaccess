@@ -88,9 +88,9 @@ func (r *DLPCustomClassificationResource) Schema(ctx context.Context, req resour
 					stringvalidator.OneOf("any", "all"),
 				},
 			},
-			"included_data_identifiers": schema.ListNestedAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("List of data identifiers included in the DLP Custom Classification.").String,
-				Optional:            true,
+			"included_data_identifiers": schema.SetNestedAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Data identifiers included in the DLP Custom Classification.").String,
+				Required:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
@@ -100,8 +100,8 @@ func (r *DLPCustomClassificationResource) Schema(ctx context.Context, req resour
 					},
 				},
 			},
-			"excluded_data_identifiers": schema.ListNestedAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("List of data identifiers excluded from the DLP Custom Classification.").String,
+			"excluded_data_identifiers": schema.SetNestedAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Data identifiers excluded from the DLP Custom Classification.").String,
 				Optional:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -211,6 +211,8 @@ func (r *DLPCustomClassificationResource) Read(ctx context.Context, req resource
 
 // End of section. //template:end read
 
+// Section below is generated&owned by "gen/generator.go". //template:begin update
+
 func (r *DLPCustomClassificationResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state DLPCustomClassification
 
@@ -231,12 +233,15 @@ func (r *DLPCustomClassificationResource) Update(ctx context.Context, req resour
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Update", plan.Id.ValueString()))
 
-	body := plan.toBody(ctx, state)
-	body = plan.adjustBody(ctx, body)
-	res, err := r.client.Patch(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PATCH), got error: %s, %s", err, res.String()))
-		return
+	body := plan.toBodyPatchMerge(ctx, state)
+	if body != "" {
+		res, err := r.client.Patch(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PATCH), got error: %s, %s", err, res.String()))
+			return
+		}
+	} else {
+		tflog.Debug(ctx, fmt.Sprintf("%s: No changes to PATCH", plan.Id.ValueString()))
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
@@ -244,6 +249,8 @@ func (r *DLPCustomClassificationResource) Update(ctx context.Context, req resour
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 }
+
+// End of section. //template:end update
 
 // Section below is generated&owned by "gen/generator.go". //template:begin delete
 

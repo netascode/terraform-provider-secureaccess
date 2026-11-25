@@ -38,12 +38,14 @@ type Identities struct {
 }
 
 type IdentitiesItems struct {
-	Id      types.String `tfsdk:"id"`
-	Deleted types.Bool   `tfsdk:"deleted"`
+	Id      types.Int64 `tfsdk:"id"`
+	TypeID  types.Int64 `tfsdk:"type_id"`
+	Deleted types.Bool  `tfsdk:"deleted"`
 }
 
 var identitiesItemType = types.ObjectType{AttrTypes: map[string]attr.Type{
-	"id":      types.StringType,
+	"id":      types.Int64Type,
+	"type_id": types.Int64Type,
 	"deleted": types.BoolType,
 }}
 
@@ -110,11 +112,12 @@ func (data *Identities) fromBody(ctx context.Context, res gjson.Result) diag.Dia
 		}
 		if existing, ok := items[t][name]; ok {
 			diags.AddWarning("Duplicate identity name",
-				fmt.Sprintf("Multiple identities of type %q are named %q, keeping id %s and skipping id %s.", t, name, existing.Id.ValueString(), v.Get("id").String()))
+				fmt.Sprintf("Multiple identities of type %q are named %q, keeping id %d and skipping id %d.", t, name, existing.Id.ValueInt64(), v.Get("id").Int()))
 			return true
 		}
 		items[t][name] = IdentitiesItems{
-			Id:      types.StringValue(v.Get("id").String()),
+			Id:      types.Int64Value(v.Get("id").Int()),
+			TypeID:  types.Int64Value(v.Get("type.id").Int()),
 			Deleted: types.BoolValue(v.Get("deleted").Bool()),
 		}
 		return true

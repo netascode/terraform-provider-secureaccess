@@ -1,0 +1,12 @@
+---
+name: DLP AI Guardrails Data Identifier
+rest_endpoint: /policies/v2/dlp/aiGuardrails/dataIdentifiers
+doc_category: Secure
+no_resource: true
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the DLP AI Guardrails Data Identifier.
+    example: my_dlp_data
+    data_source_query: true

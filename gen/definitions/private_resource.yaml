@@ -96,9 +96,10 @@ attributes:
           - model_name: protocol
             type: String
             description: The protocol for the IP address destination.
-            enum_values: ["any", "tcp", "udp", "http/https", "ssh", "rdp-tcp"]
+            enum_values: ["Any", "TCP", "UDP", "HTTP/HTTPS"] #"SSH", "RDP-TCP"
+            case_insensitive: true
             mandatory: true
-            example: http/https
+            example: HTTP/HTTPS
           - model_name: ports
             type: String
             description: The port number or list of comma-separated port numbers that you can use to connect to the Private Resource.

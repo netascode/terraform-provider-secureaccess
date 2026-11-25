@@ -24,7 +24,7 @@ import (
 )
 
 // The `@case:lower` modifier converts a value read from the API response to lowercase,
-// e.g. `res.Get("value.protocol|@case:lower")`. Used by attributes with `lowercase_response: true`.
+// e.g. `res.Get("protocol|@case:lower")`. Used to match list elements by key attributes with `case_insensitive: true`.
 func init() {
 	gjson.AddModifier("case", func(json, arg string) string {
 		if arg == "lower" {

@@ -37,28 +37,28 @@ resource "secureaccess_dlp_custom_classification" "example" {
 
 - `evaluation_strategy` (String) Evaluation strategy of the Data Identifiers.
   - Choices: `any`, `all`
+- `included_data_identifiers` (Attributes Set) Data identifiers included in the DLP Custom Classification. (see [below for nested schema](#nestedatt--included_data_identifiers))
 - `name` (String) Name of the DLP Custom Classification.
 
 ### Optional
 
 - `description` (String) Description of the DLP Custom Classification.
-- `excluded_data_identifiers` (Attributes List) List of data identifiers excluded from the DLP Custom Classification. (see [below for nested schema](#nestedatt--excluded_data_identifiers))
-- `included_data_identifiers` (Attributes List) List of data identifiers included in the DLP Custom Classification. (see [below for nested schema](#nestedatt--included_data_identifiers))
+- `excluded_data_identifiers` (Attributes Set) Data identifiers excluded from the DLP Custom Classification. (see [below for nested schema](#nestedatt--excluded_data_identifiers))
 
 ### Read-Only
 
 - `id` (String) Id of the object
 
-<a id="nestedatt--excluded_data_identifiers"></a>
-### Nested Schema for `excluded_data_identifiers`
+<a id="nestedatt--included_data_identifiers"></a>
+### Nested Schema for `included_data_identifiers`
 
 Required:
 
 - `id` (String) Identifier of the data identifier.
 
 
-<a id="nestedatt--included_data_identifiers"></a>
-### Nested Schema for `included_data_identifiers`
+<a id="nestedatt--excluded_data_identifiers"></a>
+### Nested Schema for `excluded_data_identifiers`
 
 Required:
 

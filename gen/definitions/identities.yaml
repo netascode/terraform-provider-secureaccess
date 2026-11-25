@@ -136,11 +136,16 @@ attributes:
     map_key_example: site
     attributes:
       - model_name: id
-        type: String
+        type: Int64
         resource_id: true
         description: Id of the Identity.
         exclude_example: true
         exclude_test: true
+      - model_name: id
+        data_path: ["type"]
+        tf_name: type_id
+        type: Int64
+        description: Type ID of the Identity.
       - model_name: deleted
         type: Bool
         description: Deletion status of the Identity.

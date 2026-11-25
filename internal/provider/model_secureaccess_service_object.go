@@ -20,6 +20,7 @@ package provider
 // Section below is generated&owned by "gen/generator.go". //template:begin imports
 import (
 	"context"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/netascode/terraform-provider-secureaccess/internal/provider/helpers"
@@ -88,8 +89,11 @@ func (data *ServiceObject) fromBody(ctx context.Context, res gjson.Result) {
 	} else {
 		data.Description = types.StringNull()
 	}
-	if value := res.Get("value.protocol|@case:lower"); value.Exists() {
-		data.Protocol = types.StringValue(value.String())
+	if value := res.Get("value.protocol"); value.Exists() {
+		// Case-insensitive comparison, keep the configured value if it differs only in case
+		if data.Protocol.IsNull() || !strings.EqualFold(data.Protocol.ValueString(), value.String()) {
+			data.Protocol = types.StringValue(value.String())
+		}
 	} else {
 		data.Protocol = types.StringNull()
 	}
@@ -119,8 +123,11 @@ func (data *ServiceObject) fromBodyPartial(ctx context.Context, res gjson.Result
 	} else {
 		data.Description = types.StringNull()
 	}
-	if value := res.Get("value.protocol|@case:lower"); value.Exists() && !data.Protocol.IsNull() {
-		data.Protocol = types.StringValue(value.String())
+	if value := res.Get("value.protocol"); value.Exists() && !data.Protocol.IsNull() {
+		// Case-insensitive comparison, keep the configured value if it differs only in case
+		if !strings.EqualFold(data.Protocol.ValueString(), value.String()) {
+			data.Protocol = types.StringValue(value.String())
+		}
 	} else {
 		data.Protocol = types.StringNull()
 	}

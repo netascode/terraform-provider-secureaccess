@@ -91,7 +91,8 @@ func (d *IdentitiesDataSource) Schema(ctx context.Context, req datasource.Schema
 			"items": schema.MapAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Map of Identities grouped by type. The key of the outer map is the identity type (e.g. `site`), the key of the inner map is the name of the individual Identity. If set, only the listed types are returned, and only the listed names of a type whose inner map is not empty.").String,
 				ElementType: types.MapType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{
-					"id":      types.StringType,
+					"id":      types.Int64Type,
+					"type_id": types.Int64Type,
 					"deleted": types.BoolType,
 				}}},
 				Optional: true,

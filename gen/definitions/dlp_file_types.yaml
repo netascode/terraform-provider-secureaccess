@@ -1,0 +1,48 @@
+# Manual data source
+# Read() - single Get() instead of GetAll(), items read from `fileTypes`
+# APIBEHAVIOUR: no pagination, single request returns all File Types and File Type Groups
+---
+name: DLP File Types
+rest_endpoint: /policies/v2/dlp/fileTypes
+doc_category: Secure
+no_resource: true
+no_import: true
+no_id: true
+is_bulk: true
+ds_description: >-
+  This resource reads DLP File Types.\n
+  If `items` is empty, all DLP File Types are returned, otherwise only the listed ones.\n
+  If `filter` is provided, only DLP File Types matching the filter are returned.
+attributes:
+  - model_name: filter
+    tf_only: true
+    type: String
+    data_source_optional_parameter: true
+    description: Case-insensitive substring used to filter DLP file types by name.
+    exclude_example: true
+    exclude_test: true
+  - tf_name: items
+    type: Map
+    description: >-
+      Map of DLP File Types. The key of the map is the name of the individual DLP File Type.
+    map_key_example: zip
+    attributes:
+      - model_name: id
+        type: Int64
+        resource_id: true
+        description: Id of the DLP File Type.
+        exclude_example: true
+        exclude_test: true
+      - model_name: mimeType
+        type: String
+        description: MIME type.
+        computed: true
+      - model_name: extension
+        type: String
+        description: File extension.
+        computed: true
+      - model_name: groupId
+        tf_name: file_type_group_id
+        type: Int64
+        description: Id of the DLP File Type Group the DLP File Type belongs to.
+        computed: true

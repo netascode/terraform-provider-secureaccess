@@ -252,7 +252,10 @@ func (data *PrivateResource) fromBody(ctx context.Context, res gjson.Result) {
 					parent := &data
 					data := PrivateResourceAddressesProtocolsAndPorts{}
 					if value := res.Get("protocol"); value.Exists() {
-						data.Protocol = types.StringValue(value.String())
+						// Case-insensitive comparison, keep the configured value if it differs only in case
+						if data.Protocol.IsNull() || !strings.EqualFold(data.Protocol.ValueString(), value.String()) {
+							data.Protocol = types.StringValue(value.String())
+						}
 					} else {
 						data.Protocol = types.StringNull()
 					}
@@ -411,8 +414,8 @@ func (data *PrivateResource) fromBodyPartial(ctx context.Context, res gjson.Resu
 		}
 		protocolsAndPortsArray := res.Get("protocolPorts")
 		for i := 0; i < len(data.ProtocolsAndPorts); i++ {
-			keys := [...]string{"protocol", "ports"}
-			keyValues := [...]string{data.ProtocolsAndPorts[i].Protocol.ValueString(), data.ProtocolsAndPorts[i].Ports.ValueString()}
+			keys := [...]string{"protocol|@case:lower", "ports"}
+			keyValues := [...]string{strings.ToLower(data.ProtocolsAndPorts[i].Protocol.ValueString()), data.ProtocolsAndPorts[i].Ports.ValueString()}
 
 			parent := &data
 			data := (*parent).ProtocolsAndPorts[i]
@@ -446,7 +449,10 @@ func (data *PrivateResource) fromBodyPartial(ctx context.Context, res gjson.Resu
 				continue
 			}
 			if value := res.Get("protocol"); value.Exists() && !data.Protocol.IsNull() {
-				data.Protocol = types.StringValue(value.String())
+				// Case-insensitive comparison, keep the configured value if it differs only in case
+				if !strings.EqualFold(data.Protocol.ValueString(), value.String()) {
+					data.Protocol = types.StringValue(value.String())
+				}
 			} else {
 				data.Protocol = types.StringNull()
 			}

@@ -80,8 +80,8 @@ func (d *DLPCustomClassificationDataSource) Schema(ctx context.Context, req data
 				MarkdownDescription: helpers.NewAttributeDescription("Evaluation strategy of the Data Identifiers.").String,
 				Computed:            true,
 			},
-			"included_data_identifiers": schema.ListNestedAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("List of data identifiers included in the DLP Custom Classification.").String,
+			"included_data_identifiers": schema.SetNestedAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Data identifiers included in the DLP Custom Classification.").String,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -92,8 +92,8 @@ func (d *DLPCustomClassificationDataSource) Schema(ctx context.Context, req data
 					},
 				},
 			},
-			"excluded_data_identifiers": schema.ListNestedAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("List of data identifiers excluded from the DLP Custom Classification.").String,
+			"excluded_data_identifiers": schema.SetNestedAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Data identifiers excluded from the DLP Custom Classification.").String,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
