@@ -1,0 +1,130 @@
+// Copyright © 2023 Cisco Systems, Inc. and its affiliates.
+// All rights reserved.
+//
+// Licensed under the Mozilla Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://mozilla.org/MPL/2.0/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: MPL-2.0
+
+package provider
+
+// Section below is generated&owned by "gen/generator.go". //template:begin imports
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/tidwall/gjson"
+)
+
+// End of section. //template:end imports
+
+// Section below is generated&owned by "gen/generator.go". //template:begin types
+
+type DLPFileTypes struct {
+	Filter types.String                 `tfsdk:"filter"`
+	Items  map[string]DLPFileTypesItems `tfsdk:"items"`
+}
+
+type DLPFileTypesItems struct {
+	Id              types.Int64  `tfsdk:"id"`
+	MimeType        types.String `tfsdk:"mime_type"`
+	Extension       types.String `tfsdk:"extension"`
+	FileTypeGroupId types.Int64  `tfsdk:"file_type_group_id"`
+}
+
+// End of section. //template:end types
+
+// Section below is generated&owned by "gen/generator.go". //template:begin getPath
+
+func (data DLPFileTypes) getPath() string {
+	return "/policies/v2/dlp/fileTypes"
+}
+
+// End of section. //template:end getPath
+
+// Section below is generated&owned by "gen/generator.go". //template:begin toBody
+
+// End of section. //template:end toBody
+
+// Section below is generated&owned by "gen/generator.go". //template:begin toBodyPatchMerge
+
+// End of section. //template:end toBodyPatchMerge
+
+// Section below is generated&owned by "gen/generator.go". //template:begin fromBody
+
+func (data *DLPFileTypes) fromBody(ctx context.Context, res gjson.Result) {
+	// Build lookup map for O(1) access
+	itemsByName := make(map[string]gjson.Result)
+	res.ForEach(func(_, v gjson.Result) bool {
+		if name := v.Get("name").String(); name != "" {
+			// Item names are matched case-insensitively
+			itemsByName[strings.ToLower(name)] = v
+		}
+		return true
+	})
+	for k := range data.Items {
+		parent := &data
+		data := (*parent).Items[k]
+		res, found := itemsByName[strings.ToLower(k)]
+		if !found {
+			tflog.Debug(ctx, fmt.Sprintf("subresource not found, removing: name=%v", k))
+			delete((*parent).Items, k)
+			continue
+		}
+		if value := res.Get("id"); value.Exists() {
+			data.Id = types.Int64Value(value.Int())
+		} else {
+			data.Id = types.Int64Null()
+		}
+		if value := res.Get("mimeType"); value.Exists() {
+			data.MimeType = types.StringValue(value.String())
+		} else {
+			data.MimeType = types.StringNull()
+		}
+		if value := res.Get("extension"); value.Exists() {
+			data.Extension = types.StringValue(value.String())
+		} else {
+			data.Extension = types.StringNull()
+		}
+		if value := res.Get("groupId"); value.Exists() {
+			data.FileTypeGroupId = types.Int64Value(value.Int())
+		} else {
+			data.FileTypeGroupId = types.Int64Null()
+		}
+		(*parent).Items[k] = data
+	}
+}
+
+// End of section. //template:end fromBody
+
+// Section below is generated&owned by "gen/generator.go". //template:begin fromBodyPartial
+
+// End of section. //template:end fromBodyPartial
+
+// Section below is generated&owned by "gen/generator.go". //template:begin fromBodyUnknowns
+
+// End of section. //template:end fromBodyUnknowns
+
+// Section below is generated&owned by "gen/generator.go". //template:begin toBodyPutDelete
+
+// End of section. //template:end toBodyPutDelete
+
+// Section below is generated&owned by "gen/generator.go". //template:begin adjustBody
+
+// End of section. //template:end adjustBody
+
+// Section below is generated&owned by "gen/generator.go". //template:begin adjustRead
+
+// End of section. //template:end adjustRead

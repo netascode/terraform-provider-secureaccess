@@ -1,0 +1,35 @@
+# Manual data source
+# Read() - single Get() instead of GetAll(), items read from `fileTypeGroups`
+# APIBEHAVIOUR: no pagination, single request returns all File Types and File Type Groups
+---
+name: DLP File Type Groups
+rest_endpoint: /policies/v2/dlp/fileTypes
+doc_category: Secure
+no_resource: true
+no_import: true
+no_id: true
+is_bulk: true
+ds_description: >-
+  This resource reads DLP File Type Groups.\n
+  If `items` is empty, all DLP File Type Groups are returned, otherwise only the listed ones.\n
+  If `filter` is provided, only DLP File Type Groups matching the filter are returned.
+attributes:
+  - model_name: filter
+    tf_only: true
+    type: String
+    data_source_optional_parameter: true
+    description: Case-insensitive substring used to filter DLP file type groups by name.
+    exclude_example: true
+    exclude_test: true
+  - tf_name: items
+    type: Map
+    description: >-
+      Map of DLP File Type Groups. The key of the map is the name of the individual DLP File Type Group.
+    map_key_example: Compressed files
+    attributes:
+      - model_name: id
+        type: Int64
+        resource_id: true
+        description: Id of the DLP File Type Group.
+        exclude_example: true
+        exclude_test: true
