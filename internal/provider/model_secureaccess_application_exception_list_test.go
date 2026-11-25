@@ -20,10 +20,10 @@ package provider
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,8 +37,8 @@ import (
 	"github.com/netascode/go-secureaccess"
 )
 
-// This file is not generated. It tests the data sources application_exception_list and application_exception_lists, and the paging that they share,
-// against a fake of the Secure Access API that behaves as the exception application list routes did on the int environment: the answer is
+// This file is not generated. It tests the data sources application_exception_list and application_exception_lists, and that they read every page of a route with the
+// paginator of the client (pages of 100), against a fake of the Secure Access API that behaves as the exception application list routes did on the int environment: the answer is
 // {status, meta{page, limit, total}, data}, without `limit` a page holds 100 items, `limit` accepts up to 1000 (more is a 400), `limit` 0 and `page` 0 are
 // a 400, a page past the end is an empty `data`, the settings of a list are in `data` of the answer of GET by id, and the answer has no `meta`.
 // Only the ids, the names and the dates are made up. Lists of more than 125 applications were not observed, the large ones here are synthetic.
@@ -142,6 +142,26 @@ func (s *excServer) requests() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]string(nil), s.paths...)
+}
+
+// pageRequests returns the requests as "METHOD /path", and as "METHOD /path page=N limit=M" for the request of a page: the client decides how it
+// orders the query, the tests do not.
+func (s *excServer) pageRequests() []string {
+	var out []string
+	for _, r := range s.requests() {
+		method, rest, _ := strings.Cut(r, " ")
+		path, query, _ := strings.Cut(rest, "?")
+		values, err := url.ParseQuery(query)
+		switch {
+		case err != nil || (query != "" && !values.Has("page") && !values.Has("limit")):
+			out = append(out, r)
+		case query == "":
+			out = append(out, method+" "+path)
+		default:
+			out = append(out, fmt.Sprintf("%s %s page=%s limit=%s", method, path, values.Get("page"), values.Get("limit")))
+		}
+	}
+	return out
 }
 
 // excListServer serves one list with the given applications under the id 5001, everything else is a 404 as the API answers an unknown id.
@@ -335,18 +355,19 @@ func TestApplicationExceptionListSchema(t *testing.T) {
 }
 
 func TestApplicationExceptionListDataSourceRead(t *testing.T) {
-	t.Run("reads the settings and every application with limit 1000, in two requests", func(t *testing.T) {
+	t.Run("reads the settings and every application, in pages of 100", func(t *testing.T) {
 		server := excListServer(t, excApps(125))
 		state, resp := readExceptionApplicationList(t, server, "5001")
 		if resp.Diagnostics.HasError() {
 			t.Fatalf("unexpected error: %v", resp.Diagnostics)
 		}
 		want := []string{
-			"GET /policies/v2/exceptionApplicationLists/5001?",
-			"GET /policies/v2/exceptionApplicationLists/5001/applications?page=1&limit=1000",
+			"GET /policies/v2/exceptionApplicationLists/5001",
+			"GET /policies/v2/exceptionApplicationLists/5001/applications page=1 limit=100",
+			"GET /policies/v2/exceptionApplicationLists/5001/applications page=2 limit=100",
 		}
-		if got := server.requests(); strings.Join(got, "|") != strings.Join(want, "|") {
-			t.Errorf("requests = %q, want %q (one page of limit 1000: a call without limit is cut at 100)", got, want)
+		if got := server.pageRequests(); strings.Join(got, "|") != strings.Join(want, "|") {
+			t.Errorf("requests = %q, want %q (the settings, then the two pages of 125 applications)", got, want)
 		}
 		if state.Id.ValueString() != "5001" || state.Name.ValueString() != "my_do_not_decrypt_list" {
 			t.Errorf("id = %q, name = %q", state.Id.ValueString(), state.Name.ValueString())
@@ -366,17 +387,17 @@ func TestApplicationExceptionListDataSourceRead(t *testing.T) {
 		}
 	})
 
-	t.Run("reads a list of more than 1000 applications page by page, in the order of the API", func(t *testing.T) {
-		server := excListServer(t, excApps(2345))
+	t.Run("reads a list of more than 100 applications page by page, in the order of the API", func(t *testing.T) {
+		server := excListServer(t, excApps(345))
 		state, resp := readExceptionApplicationList(t, server, "5001")
 		if resp.Diagnostics.HasError() {
 			t.Fatalf("unexpected error: %v", resp.Diagnostics)
 		}
-		if got := server.requests(); len(got) != 4 || got[1] != "GET /policies/v2/exceptionApplicationLists/5001/applications?page=1&limit=1000" || got[3] != "GET /policies/v2/exceptionApplicationLists/5001/applications?page=3&limit=1000" {
-			t.Errorf("requests = %q, want the settings and three pages of 1000", got)
+		if got := server.pageRequests(); len(got) != 5 || got[1] != "GET /policies/v2/exceptionApplicationLists/5001/applications page=1 limit=100" || got[4] != "GET /policies/v2/exceptionApplicationLists/5001/applications page=4 limit=100" {
+			t.Errorf("requests = %q, want the settings and 4 pages of 100", got)
 		}
-		if len(state.Applications) != 2345 {
-			t.Fatalf("applications = %d, want 2345", len(state.Applications))
+		if len(state.Applications) != 345 {
+			t.Fatalf("applications = %d, want 345", len(state.Applications))
 		}
 		for i, a := range state.Applications {
 			if a.ApplicationId.ValueInt64() != int64(1000+i*3) {
@@ -385,8 +406,8 @@ func TestApplicationExceptionListDataSourceRead(t *testing.T) {
 		}
 	})
 
-	t.Run("a list of exactly 1000 applications is one page, a list of 1001 is two", func(t *testing.T) {
-		for n, wantRequests := range map[int]int{1000: 2, 1001: 3} {
+	t.Run("a list of exactly 100 applications is one page, a list of 101 is two", func(t *testing.T) {
+		for n, wantRequests := range map[int]int{100: 2, 101: 3} {
 			server := excListServer(t, excApps(n))
 			state, resp := readExceptionApplicationList(t, server, "5001")
 			if resp.Diagnostics.HasError() {
@@ -426,98 +447,27 @@ func TestApplicationExceptionListDataSourceRead(t *testing.T) {
 		}
 	})
 
-	t.Run("the pages of the applications are checked against meta.total", func(t *testing.T) {
-		cases := []struct {
-			name, want string
-			apps       func(w http.ResponseWriter, r *http.Request)
-		}{
-			{"total grows while the pages are read", "`meta.total` changed from 1500 to 1501", func(w http.ResponseWriter, r *http.Request) {
-				page := r.URL.Query().Get("page")
-				total := 1500
-				if page == "2" {
-					total = 1501
+	t.Run("an answer without a list in data is an error", func(t *testing.T) {
+		for name, body := range map[string]map[string]any{
+			"data is an object": {"meta": map[string]any{"total": 1}, "data": map[string]any{"applications": []any{}}},
+			"data is a string":  {"meta": map[string]any{"total": 1}, "data": "x"},
+			"no data":           {"meta": map[string]any{"total": 1}},
+		} {
+			server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.EscapedPath() == "/policies/v2/exceptionApplicationLists/5001" {
+					excWrite(w, http.StatusOK, excSettings(1))
+					return
 				}
-				items := make([]any, 0)
-				for i := 0; i < 1000; i++ {
-					items = append(items, excApp(i))
-				}
-				excWrite(w, 200, map[string]any{"meta": map[string]any{"page": 1, "limit": 1000, "total": total}, "data": items})
-			}},
-			{"the API ignores page, so the first page comes again", "page 2 is identical to page 1, the API ignores `page`", func(w http.ResponseWriter, r *http.Request) {
-				items := make([]any, 0)
-				for i := 0; i < 1000; i++ {
-					items = append(items, excApp(i))
-				}
-				// 2000 is two full pages: the counts add up to the total, only the repeated page shows the fault
-				excWrite(w, 200, map[string]any{"meta": map[string]any{"page": 1, "limit": 1000, "total": 2000}, "data": items})
-			}},
-			{"the API answers more items than meta.total", "read 2000 items, but `meta.total` is 1500", func(w http.ResponseWriter, r *http.Request) {
-				items := make([]any, 0)
-				for i := 0; i < 1000; i++ {
-					n := i
-					if r.URL.Query().Get("page") == "2" {
-						n += 1000
-					}
-					items = append(items, excApp(n))
-				}
-				excWrite(w, 200, map[string]any{"meta": map[string]any{"page": 1, "limit": 1000, "total": 1500}, "data": items})
-			}},
-			{"a page is empty before the total is reached", "page 2 is empty, but only 1000 of 1500 items were read", func(w http.ResponseWriter, r *http.Request) {
-				items := make([]any, 0)
-				if r.URL.Query().Get("page") == "1" {
-					for i := 0; i < 1000; i++ {
-						items = append(items, excApp(i))
-					}
-				}
-				excWrite(w, 200, map[string]any{"meta": map[string]any{"page": 1, "limit": 1000, "total": 1500}, "data": items})
-			}},
-			{"the API cuts the page at 100 although it was asked for 1000", "page 2 is empty, but only 100 of 125 items were read", func(w http.ResponseWriter, r *http.Request) {
-				items := make([]any, 0)
-				if r.URL.Query().Get("page") == "1" {
-					for i := 0; i < 100; i++ {
-						items = append(items, excApp(i))
-					}
-				}
-				excWrite(w, 200, map[string]any{"meta": map[string]any{"page": 1, "limit": 100, "total": 125}, "data": items})
-			}},
-			{"meta.total is missing", "expected a number in `meta.total`, got: Null", func(w http.ResponseWriter, r *http.Request) {
-				excWrite(w, 200, map[string]any{"data": []any{excApp(0)}})
-			}},
-			{"meta.total is a string", "expected a number in `meta.total`, got: String", func(w http.ResponseWriter, r *http.Request) {
-				excWrite(w, 200, map[string]any{"meta": map[string]any{"total": "1"}, "data": []any{excApp(0)}})
-			}},
-			{"data is not a list", "expected a list in `data`, got: JSON", func(w http.ResponseWriter, r *http.Request) {
-				excWrite(w, 200, map[string]any{"meta": map[string]any{"total": 1}, "data": map[string]any{"applications": []any{}}})
-			}},
-			{"a page holds more than the limit", "1001 items, more than the limit of 1000", func(w http.ResponseWriter, r *http.Request) {
-				items := make([]any, 0)
-				for i := 0; i < 1001; i++ {
-					items = append(items, excApp(i))
-				}
-				excWrite(w, 200, map[string]any{"meta": map[string]any{"total": 1001}, "data": items})
-			}},
-		}
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
-				// a read that does not stop at the first fault would otherwise run into the limit of 1000 pages, a thousand requests of 0.2 s
-				defer func(old int) { exceptionApplicationListMaxPages = old }(exceptionApplicationListMaxPages)
-				exceptionApplicationListMaxPages = 10
-				server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
-					if r.URL.EscapedPath() == "/policies/v2/exceptionApplicationLists/5001" {
-						excWrite(w, http.StatusOK, excSettings(1))
-						return
-					}
-					tc.apps(w, r)
-				})
-				state, resp := readExceptionApplicationList(t, server, "5001")
-				detail := excErrorDetail(t, resp)
-				if !strings.Contains(detail, "Failed to retrieve the applications of the object") || !strings.Contains(detail, tc.want) {
-					t.Errorf("detail = %q, want the failed read of the applications and %q", detail, tc.want)
-				}
-				if !state.Id.IsNull() || state.Applications != nil {
-					t.Errorf("state must stay empty after an error, got %+v", state)
-				}
+				excWrite(w, http.StatusOK, body)
 			})
+			state, resp := readExceptionApplicationList(t, server, "5001")
+			detail := excErrorDetail(t, resp)
+			if !strings.Contains(detail, "Failed to retrieve the applications of the object") || !strings.Contains(detail, "no items array found") {
+				t.Errorf("%s: detail = %q, want the failed read of the applications and the error of the client", name, detail)
+			}
+			if !state.Id.IsNull() || state.Applications != nil {
+				t.Errorf("%s: state must stay empty after an error, got %+v", name, state)
+			}
 		}
 	})
 
@@ -534,8 +484,8 @@ func TestApplicationExceptionListDataSourceRead(t *testing.T) {
 		})
 		state, resp := readExceptionApplicationList(t, server, "5001")
 		detail := excErrorDetail(t, resp)
-		if !strings.Contains(detail, "page 3") || !strings.Contains(detail, "StatusCode 500") {
-			t.Errorf("detail = %q, want page 3 and the status 500", detail)
+		if !strings.Contains(detail, "StatusCode 500") || !strings.Contains(detail, `{"message":"internal"}`) {
+			t.Errorf("detail = %q, want the status 500 and the answer of the API", detail)
 		}
 		if !state.Id.IsNull() || state.Applications != nil {
 			t.Errorf("state must stay empty after an error, got %+v", state)
@@ -625,22 +575,22 @@ func TestApplicationExceptionListsDataSourceRead(t *testing.T) {
 		return out
 	}
 
-	t.Run("reads the ids with limit 1000 in one request", func(t *testing.T) {
+	t.Run("reads the ids in one request of 100", func(t *testing.T) {
 		server := idsServer(t, []any{16708649, 16708650, 17000001})
 		state, resp := readExceptionApplicationLists(t, server)
 		if resp.Diagnostics.HasError() {
 			t.Fatalf("unexpected error: %v", resp.Diagnostics)
 		}
-		if got := server.requests(); len(got) != 1 || got[0] != "GET /policies/v2/exceptionApplicationLists?page=1&limit=1000" {
-			t.Errorf("requests = %q, want one page of limit 1000", got)
+		if got := server.pageRequests(); len(got) != 1 || got[0] != "GET /policies/v2/exceptionApplicationLists page=1 limit=100" {
+			t.Errorf("requests = %q, want one page of limit 100", got)
 		}
 		if got := idsOf(t, state); fmt.Sprint(got) != "[16708649 16708650 17000001]" {
 			t.Errorf("ids = %v", got)
 		}
 	})
 
-	t.Run("reads more than 1000 ids page by page", func(t *testing.T) {
-		ids := make([]any, 1500)
+	t.Run("reads more than 100 ids page by page", func(t *testing.T) {
+		ids := make([]any, 250)
 		for i := range ids {
 			ids[i] = 100000 + i
 		}
@@ -650,7 +600,7 @@ func TestApplicationExceptionListsDataSourceRead(t *testing.T) {
 			t.Fatalf("unexpected error: %v", resp.Diagnostics)
 		}
 		got := idsOf(t, state)
-		if len(got) != 1500 || got[0] != 100000 || got[1499] != 101499 || len(server.requests()) != 2 {
+		if len(got) != 250 || got[0] != 100000 || got[249] != 100249 || len(server.requests()) != 3 {
 			t.Errorf("read %d ids with %d requests", len(got), len(server.requests()))
 		}
 	})
@@ -685,35 +635,6 @@ func TestApplicationExceptionListsDataSourceRead(t *testing.T) {
 		}
 	})
 
-	t.Run("a total that is not reached is an error", func(t *testing.T) {
-		defer func(old int) { exceptionApplicationListMaxPages = old }(exceptionApplicationListMaxPages)
-		exceptionApplicationListMaxPages = 10
-		server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
-			data := []any{}
-			if r.URL.Query().Get("page") == "1" {
-				data = []any{16708649}
-			}
-			excWrite(w, http.StatusOK, map[string]any{"meta": map[string]any{"page": 1, "limit": 1000, "total": 3}, "data": data})
-		})
-		_, resp := readExceptionApplicationLists(t, server)
-		if detail := excErrorDetail(t, resp); !strings.Contains(detail, "page 2 is empty, but only 1 of 3 items were read") || !strings.Contains(detail, "Failed to retrieve objects") {
-			t.Errorf("detail = %q", detail)
-		}
-	})
-
-	t.Run("an API that ignores page is an error, not a set with the same id three times", func(t *testing.T) {
-		server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
-			excWrite(w, http.StatusOK, map[string]any{"meta": map[string]any{"page": 1, "limit": 1000, "total": 3}, "data": []any{16708649}})
-		})
-		state, resp := readExceptionApplicationLists(t, server)
-		if detail := excErrorDetail(t, resp); !strings.Contains(detail, "page 2 is identical to page 1") {
-			t.Errorf("detail = %q", detail)
-		}
-		if !state.Ids.IsNull() {
-			t.Errorf("state must stay empty after an error, got %s", state.Ids)
-		}
-	})
-
 	t.Run("an id that the API lists twice is an error", func(t *testing.T) {
 		server := idsServer(t, []any{16708649, 16708650, 16708649})
 		state, resp := readExceptionApplicationLists(t, server)
@@ -730,61 +651,13 @@ func TestApplicationExceptionListsDataSourceRead(t *testing.T) {
 			excWrite(w, http.StatusForbidden, map[string]any{"message": "Access denied"})
 		})
 		state, resp := readExceptionApplicationLists(t, server)
-		if detail := excErrorDetail(t, resp); !strings.Contains(detail, "StatusCode 403") || !strings.Contains(detail, "page 1") {
+		if detail := excErrorDetail(t, resp); !strings.Contains(detail, "StatusCode 403") || !strings.Contains(detail, `{"message":"Access denied"}`) {
 			t.Errorf("detail = %q", detail)
 		}
 		if !state.Ids.IsNull() {
 			t.Errorf("state must stay empty after an error, got %s", state.Ids)
 		}
 	})
-}
-
-func TestReadExceptionApplicationListPagesStops(t *testing.T) {
-	// an API that answers one item per page and a total that is never reached must not keep the read busy for ever
-	defer func(old int) { exceptionApplicationListMaxPages = old }(exceptionApplicationListMaxPages)
-	exceptionApplicationListMaxPages = 7
-	var mu sync.Mutex
-	requests := 0
-	server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
-		mu.Lock()
-		requests++
-		mu.Unlock()
-		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-		excWrite(w, http.StatusOK, map[string]any{"meta": map[string]any{"total": 5000}, "data": []any{page}})
-	})
-	_, err := readExceptionApplicationListPages(context.Background(), newExcClient(t, server), "/policies/v2/exceptionApplicationLists")
-	if err == nil || !strings.Contains(err.Error(), "the total of 5000 was not reached") {
-		t.Fatalf("err = %v, want the stop at the maximum number of pages", err)
-	}
-	if requests != exceptionApplicationListMaxPages {
-		t.Errorf("requests = %d, want %d", requests, exceptionApplicationListMaxPages)
-	}
-}
-
-func TestReadExceptionApplicationListPagesRejectsAnImpossibleTotal(t *testing.T) {
-	// a total that more pages than the maximum would be needed for is an error on the first page, not after the maximum number of requests
-	defer func(old int) { exceptionApplicationListMaxPages = old }(exceptionApplicationListMaxPages)
-	exceptionApplicationListMaxPages = 7
-	for name, total := range map[string]int64{"7001 items": 7001, "five billion": 5000000000, "the largest int64": 9223372036854775807} {
-		server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
-			excWrite(w, http.StatusOK, map[string]any{"meta": map[string]any{"total": total}, "data": []any{1}})
-		})
-		_, err := readExceptionApplicationListPages(context.Background(), newExcClient(t, server), "/policies/v2/exceptionApplicationLists")
-		if err == nil || !strings.Contains(err.Error(), "page 1: `meta.total` is "+strconv.FormatInt(total, 10)+", more than 7 pages of 1000 items") {
-			t.Errorf("%s: err = %v", name, err)
-		}
-		if got := server.requests(); len(got) != 1 {
-			t.Errorf("%s: requests = %q, want the first page only", name, got)
-		}
-	}
-	// the largest total that fits is read
-	server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
-		excPaged(w, r, excApps(7000))
-	})
-	out, err := readExceptionApplicationListPages(context.Background(), newExcClient(t, server), "/policies/v2/exceptionApplicationLists")
-	if err != nil || len(server.requests()) != 7 || strings.Count(out, `"applicationId"`) != 7000 {
-		t.Errorf("7000 items in 7 pages: err = %v, requests = %d", err, len(server.requests()))
-	}
 }
 
 func TestApplicationExceptionListDataSourceReadDetails(t *testing.T) {
@@ -855,118 +728,6 @@ func TestApplicationExceptionListDataSourceReadDetails(t *testing.T) {
 			t.Errorf("application = %+v, want only the id set", a)
 		}
 	})
-}
-
-func TestReadExceptionApplicationListPagesDetails(t *testing.T) {
-	t.Run("the default limit of pages is large enough for the largest list and small enough to stop", func(t *testing.T) {
-		if exceptionApplicationListMaxPages != 1000 || exceptionApplicationListPageSize != 1000 {
-			t.Errorf("max pages = %d, page size = %d, want 1000 and 1000", exceptionApplicationListMaxPages, exceptionApplicationListPageSize)
-		}
-	})
-
-	t.Run("request modifiers reach every request", func(t *testing.T) {
-		var mu sync.Mutex
-		seen := map[string]int{}
-		server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
-			mu.Lock()
-			seen[r.Header.Get("X-Test-Mod")]++
-			mu.Unlock()
-			excPaged(w, r, excApps(1500))
-		})
-		mod := func(req *secureaccess.Req) { req.HttpReq.Header.Set("X-Test-Mod", "yes") }
-		out, err := readExceptionApplicationListPages(context.Background(), newExcClient(t, server), "/policies/v2/exceptionApplicationLists/1/applications", mod)
-		if err != nil || strings.Count(out, `"applicationId"`) != 1500 {
-			t.Fatalf("err = %v", err)
-		}
-		if seen["yes"] != 2 || len(seen) != 1 {
-			t.Errorf("requests by value of the header = %v, want both pages with the modifier", seen)
-		}
-	})
-
-	t.Run("an error returns no items and keeps the error of the client", func(t *testing.T) {
-		server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Query().Get("page") == "2" {
-				excWrite(w, http.StatusInternalServerError, map[string]any{"message": "internal"})
-				return
-			}
-			excPaged(w, r, excApps(1500))
-		})
-		out, err := readExceptionApplicationListPages(context.Background(), newExcClient(t, server), "/policies/v2/exceptionApplicationLists/1/applications")
-		if err == nil || out != "" {
-			t.Fatalf("out = %q, err = %v, want no items and an error", out, err)
-		}
-		if errors.Unwrap(err) == nil || !strings.Contains(err.Error(), "page 2") {
-			t.Errorf("err = %v, want the error of the client wrapped, with the page", err)
-		}
-		if !strings.Contains(err.Error(), `{"message":"internal"}`) {
-			t.Errorf("err = %v, want the body of the answer of the API", err)
-		}
-	})
-
-	t.Run("a total that shrinks while the pages are read is an error", func(t *testing.T) {
-		server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
-			total := 1500
-			if r.URL.Query().Get("page") == "2" {
-				total = 1400
-			}
-			items := make([]any, 0)
-			for i := 0; i < 1000; i++ {
-				items = append(items, excApp(i+1000*(map[bool]int{true: 1, false: 0}[r.URL.Query().Get("page") == "2"])))
-			}
-			excWrite(w, http.StatusOK, map[string]any{"meta": map[string]any{"total": total}, "data": items})
-		})
-		out, err := readExceptionApplicationListPages(context.Background(), newExcClient(t, server), "/policies/v2/exceptionApplicationLists/1/applications")
-		if err == nil || !strings.Contains(err.Error(), "`meta.total` changed from 1500 to 1400") || out != "" {
-			t.Errorf("out has %d bytes, err = %v", len(out), err)
-		}
-	})
-}
-
-func TestApplicationExceptionListTotalChangesOnAnyPage(t *testing.T) {
-	// the items are always the n applications of the list, only meta.total moves, on page 2 or on page 3
-	for _, tc := range []struct {
-		name          string
-		n, newTotal   int
-		changedOnPage string
-	}{
-		{"shrinks on page 2 of 2", 1500, 1499, "2"},
-		{"grows on page 2 of 2", 1500, 1501, "2"},
-		{"shrinks on page 3 of 3", 2345, 2344, "3"},
-		{"grows on page 3 of 3", 2345, 2346, "3"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			defer func(old int) { exceptionApplicationListMaxPages = old }(exceptionApplicationListMaxPages)
-			exceptionApplicationListMaxPages = 10
-			all := excApps(tc.n)
-			server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.EscapedPath() == "/policies/v2/exceptionApplicationLists/5001" {
-					excWrite(w, http.StatusOK, excSettings(tc.n))
-					return
-				}
-				page := r.URL.Query().Get("page")
-				total := tc.n
-				if page == tc.changedOnPage {
-					total = tc.newTotal
-				}
-				items := []any{}
-				p, _ := strconv.Atoi(page)
-				if lo := (p - 1) * 1000; lo < tc.n {
-					hi := lo + 1000
-					if hi > tc.n {
-						hi = tc.n
-					}
-					items = all[lo:hi]
-				}
-				excWrite(w, http.StatusOK, map[string]any{"meta": map[string]any{"total": total}, "data": items})
-			})
-			_, resp := readExceptionApplicationList(t, server, "5001")
-			detail := excErrorDetail(t, resp)
-			want := fmt.Sprintf("page %s: `meta.total` changed from %d to %d", tc.changedOnPage, tc.n, tc.newTotal)
-			if !strings.Contains(detail, want) {
-				t.Errorf("detail = %q, want %q", detail, want)
-			}
-		})
-	}
 }
 
 func TestApplicationExceptionListApplicationsMustBeObjects(t *testing.T) {

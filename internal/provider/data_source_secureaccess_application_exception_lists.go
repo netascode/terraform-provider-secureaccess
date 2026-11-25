@@ -94,17 +94,17 @@ func (d *ApplicationExceptionListsDataSource) Read(ctx context.Context, req data
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", "Application Exception Lists"))
 
-	// The ids are read page by page, all of them or an error
-	ids, err := readExceptionApplicationListPages(ctx, d.client, config.getPath(), reqMods...)
+	// The client reads the ids page by page, with the `page` and `limit` of the answer
+	ids, err := d.client.GetAllWithPaginator(ctx, config.getPath(), secureaccess.PageLimitKeyedPagination, reqMods...)
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, got error: %s", err))
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, got error: %s", exceptionApplicationListError(err, ids)))
 		return
 	}
 	// The ids are numbers: the generated fromBody() would read anything else as 0
 	var invalid gjson.Result
 	var duplicate string
 	seen := map[string]bool{}
-	gjson.Parse(ids).ForEach(func(_, id gjson.Result) bool {
+	ids.ForEach(func(_, id gjson.Result) bool {
 		if id.Type != gjson.Number {
 			invalid = id
 			return false
@@ -124,7 +124,7 @@ func (d *ApplicationExceptionListsDataSource) Read(ctx context.Context, req data
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, the id %s is listed more than once", duplicate))
 		return
 	}
-	body, err := sjson.SetRaw("{}", "ids", ids)
+	body, err := sjson.SetRaw("{}", "ids", ids.Raw)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to build the object, got error: %s", err))
 		return

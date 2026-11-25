@@ -1,6 +1,6 @@
 # Manual data source: the schema and fromBody() are generated, Read() is hand-written
-# -> Read(): every page of GET /policies/v2/exceptionApplicationLists (`page` and `limit=1000`), the ids are put into a body as `ids` before fromBody().
-#    An error is reported when `meta.total` is missing or changes between the pages, when the ids read are not `meta.total`, when a page is empty before the total is reached, repeats the page before or holds more than `limit` ids, when `meta.total` is more than 1000 pages of 1000 ids, when an id is not a number or when an id is listed twice.
+# -> Read(): GetAllWithPaginator() with PageLimitKeyedPagination for GET /policies/v2/exceptionApplicationLists, the ids are put into a body as `ids` before fromBody().
+#    An error is reported when an id is not a number or is listed more than once.
 # The list holds the ids of the exception application lists that the Do Not Decrypt lists of the organization use (the `exceptionapplicationlistId` of the Do Not Decrypt lists), the draft of the API says: unique, ordered by id, deleted lists excluded.
 # APIBEHAVIOUR: the answer is {status, meta{page, limit, total}, data: [ids]}. Without `limit` `meta.limit` is 100 (a page of 100 ids was not seen, the cut at 100 was seen on the applications of a list), `limit` accepts up to 1000 (1001 is a 400), `limit` 0, -1, abc and `page` 0 are a 400, a page past the end is a 200 with an empty `data`.
 # APIBEHAVIOUR: in lowercase (/policies/v2/exceptionapplicationlists) the route is a 404 "no Route matched" of the gateway (seen on this route only).

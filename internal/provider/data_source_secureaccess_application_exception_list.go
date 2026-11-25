@@ -154,20 +154,20 @@ func (d *ApplicationExceptionListDataSource) Read(ctx context.Context, req datas
 		return
 	}
 
-	// The applications are read page by page, all of them or an error
-	applications, err := readExceptionApplicationListPages(ctx, d.client, urlPath+"/applications", reqMods...)
+	// The client reads the applications page by page, with the `page` and `limit` of the answer
+	applications, err := d.client.GetAllWithPaginator(ctx, urlPath+"/applications", secureaccess.PageLimitKeyedPagination, reqMods...)
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve the applications of the object, got error: %s", err))
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve the applications of the object, got error: %s", exceptionApplicationListError(err, applications)))
 		return
 	}
 	// the generated fromBody() would read an item that is not an object as an application without any value
-	for i, application := range gjson.Parse(applications).Array() {
+	for i, application := range applications.Array() {
 		if !application.IsObject() {
 			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve the applications of the object, expected an object as application %d, got: %s", i, application.Type))
 			return
 		}
 	}
-	body, err := sjson.SetRaw(settings.Raw, "applications", applications)
+	body, err := sjson.SetRaw(settings.Raw, "applications", applications.Raw)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to build the object, got error: %s", err))
 		return
@@ -179,4 +179,12 @@ func (d *ApplicationExceptionListDataSource) Read(ctx context.Context, req datas
 
 	diags = resp.State.Set(ctx, &config)
 	resp.Diagnostics.Append(diags...)
+}
+
+// exceptionApplicationListError adds the answer of the API to the error of the client, which carries only the status code.
+func exceptionApplicationListError(err error, res secureaccess.Res) string {
+	if answer := res.String(); answer != "" {
+		return fmt.Sprintf("%s, answer of the API: %s", err, answer)
+	}
+	return err.Error()
 }
