@@ -153,10 +153,10 @@ func (r *PrivateResourceResource) Schema(ctx context.Context, req resource.Schem
 							NestedObject: schema.NestedAttributeObject{
 								Attributes: map[string]schema.Attribute{
 									"protocol": schema.StringAttribute{
-										MarkdownDescription: helpers.NewAttributeDescription("The protocol for the IP address destination.").AddStringEnumDescription("any", "tcp", "udp", "http/https", "ssh", "rdp-tcp").String,
+										MarkdownDescription: helpers.NewAttributeDescription("The protocol for the IP address destination.").AddStringEnumDescription("Any", "TCP", "UDP", "HTTP/HTTPS").String,
 										Required:            true,
 										Validators: []validator.String{
-											stringvalidator.OneOf("any", "tcp", "udp", "http/https", "ssh", "rdp-tcp"),
+											stringvalidator.OneOf("Any", "TCP", "UDP", "HTTP/HTTPS"),
 										},
 									},
 									"ports": schema.StringAttribute{

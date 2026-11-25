@@ -167,7 +167,7 @@ type YamlConfigAttribute struct {
 	Computed                    bool                  `yaml:"computed"`
 	Optional                    bool                  `yaml:"optional"`
 	ComputedRefreshValue        bool                  `yaml:"computed_refresh_value"`
-	LowercaseResponse           bool                  `yaml:"lowercase_response"`
+	CaseInsensitive             bool                  `yaml:"case_insensitive"`
 	ComputedBodyParam           bool                  `yaml:"computed_body_param"`
 	ComputedDependsOn           []string              `yaml:"computed_depends_on"`
 	DefaultValue                string                `yaml:"default_value"`
@@ -660,8 +660,8 @@ func (attr *YamlConfigAttribute) init(parentGoTypeName string) error {
 		attr.MapKeyModelName = "name"
 	}
 
-	if attr.LowercaseResponse && attr.Type != "String" {
-		return fmt.Errorf("%q: `lowercase_response: true` can only be used with `type: String`", attr.TfName)
+	if attr.CaseInsensitive && attr.Type != "String" {
+		return fmt.Errorf("%q: `case_insensitive: true` can only be used with `type: String`", attr.TfName)
 	}
 
 	if attr.ComputedRefreshValue && !attr.Computed {
