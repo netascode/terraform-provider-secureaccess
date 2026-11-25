@@ -1,0 +1,12 @@
+---
+name: DLP Builtin Data Identifier
+rest_endpoint: /policies/v2/dlp/builtIn/dataIdentifiers
+doc_category: Secure
+no_resource: true
+attributes:
+  - model_name: name
+    type: String
+    mandatory: true
+    description: Name of the DLP Builtin Data Identifier.
+    example: my_dlp_data
+    data_source_query: true

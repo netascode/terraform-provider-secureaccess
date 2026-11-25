@@ -334,6 +334,39 @@ func (data {{camelCase .Name}}) toBody(ctx context.Context, state {{camelCase .N
 {{end}}
 // End of section. //template:end toBody
 
+// Section below is generated&owned by "gen/generator.go". //template:begin toBodyPatchMerge
+{{if and (not .NoResource) .PatchUpdateMerge}}
+// toBodyPatchMerge returns a PATCH body containing only the attributes which differ between data and state.
+// Attributes removed from data are set to an empty value of their type, as null is ignored by the API.
+// Returns an empty string if there is nothing to update.
+func (data {{camelCase .Name}}) toBodyPatchMerge(ctx context.Context, state {{camelCase .Name}}) string {
+	planBody := data.toBody(ctx, {{camelCase .Name}}{})
+	stateBody := state.toBody(ctx, {{camelCase .Name}}{})
+	{{- if .AdjustBody}}
+	planBody = data.adjustBody(ctx, planBody)
+	stateBody = state.adjustBody(ctx, stateBody)
+	{{- end}}
+	body := ""
+	{{- range patchMergePaths .Attributes}}
+	if planValue, stateValue := gjson.Get(planBody, "{{.Path}}"), gjson.Get(stateBody, "{{.Path}}"); planValue.Raw != stateValue.Raw {
+		{{- if .Empty}}
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "{{.Path}}", planValue.Raw)
+		} else {
+			body, _ = sjson.SetRaw(body, "{{.Path}}", `{{.Empty}}`)
+		}
+		{{- else}}
+		if planValue.Exists() {
+			body, _ = sjson.SetRaw(body, "{{.Path}}", planValue.Raw)
+		}
+		{{- end}}
+	}
+	{{- end}}
+	return body
+}
+{{end}}
+// End of section. //template:end toBodyPatchMerge
+
 // Section below is generated&owned by "gen/generator.go". //template:begin fromBody
 
 func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result) {
@@ -347,8 +380,15 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	{{- end}}
 	{{- if and (not .Value) (not .WriteOnly) (not .Reference)}}
 	{{- if or (eq .Type "String") (eq .Type "Int64") (eq .Type "Float64") (eq .Type "Bool")}}
-	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}} {
+	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"{{end}}); value.Exists(){{if or (isListEntry .) .EmptyAsNull}} && value.Type != gjson.Null{{end}}{{if .EmptyAsNull}}{{if eq .Type "String"}} && value.String() != ""{{else if eq .Type "Bool"}} && value.Bool(){{else if eq .Type "Int64"}} && value.Int() != 0{{else}} && value.Float() != 0{{end}}{{end}} {
+		{{- if .CaseInsensitive}}
+		// Case-insensitive comparison, keep the configured value if it differs only in case
+		if data.{{toGoName .TfName}}.IsNull() || !strings.EqualFold(data.{{toGoName .TfName}}.ValueString(), value.String()) {
+			data.{{toGoName .TfName}} = types.{{.Type}}Value(value.String())
+		}
+		{{- else}}
 		data.{{toGoName .TfName}} = types.{{.Type}}Value(value.{{if eq .Type "Int64"}}Int{{else if eq .Type "Float64"}}Float{{else}}{{.Type}}{{end}}())
+		{{- end}}
 	} else {
 		{{- if .DefaultValue}}
 		data.{{toGoName .TfName}} = types.{{.Type}}Value({{if eq .Type "String"}}"{{end}}{{.DefaultValue}}{{if eq .Type "String"}}"{{end}})
@@ -357,7 +397,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 		{{- end}}
 	}
 	{{- else if isListSet .}}
-	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}} {
+	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}}{{if .EmptyAsNull}} && len(value.Array()) > 0{{end}} {
 		data.{{toGoName .TfName}} = helpers.Get{{.ElementType}}{{.Type}}(value.Array())
 	} else {
 		data.{{toGoName .TfName}} = types.{{.Type}}Null(types.{{.ElementType}}Type)
@@ -365,7 +405,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	{{- else if isComputedNestedList .}}
 	data.fromBody{{toGoName .TfName}}(ctx, res)
 	{{- else if isNestedListSet .}}
-	if value := res{{if isListEntry .}}.Get(`{{listEntryPath .}}`){{else if .ModelName}}.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"){{end}}; value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}} {
+	if value := res{{if isListEntry .}}.Get(`{{listEntryPath .}}`){{else if .ModelName}}.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"){{end}}; value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}}{{if .EmptyAsNull}} && len(value.Array()) > 0{{end}} {
 		data.{{toGoName .TfName}} = make([]{{.GoTypeName}}, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
@@ -379,7 +419,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	// Build lookup map for O(1) access
 	{{- if or $.ImportNameQuery $.IsBulk}}
 	itemsByName := make(map[string]gjson.Result)
-	res.{{if .ModelName}}Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}").{{end}}ForEach(func(_, v gjson.Result) bool {
+	res.{{if .ModelName}}Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}").{{end}}ForEach(func(_, v gjson.Result) bool {
 		if name := v.Get("{{.MapKeyModelName}}").String(); name != "" {
 			{{- if $.IsBulk}}
 			// Item names are matched case-insensitively
@@ -392,7 +432,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 	})
 	{{- else}}
 	itemsById := make(map[string]gjson.Result)
-	res.{{if .ModelName}}Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}").{{end}}ForEach(func(_, v gjson.Result) bool {
+	res.{{if .ModelName}}Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}").{{end}}ForEach(func(_, v gjson.Result) bool {
 		if id := v.Get("id").String(); id != "" {
 			itemsById[id] = v
 		}
@@ -459,7 +499,7 @@ func (data *{{camelCase .Name}}) fromBody(ctx context.Context, res gjson.Result)
 // fromBody{{toGoName .TfName}} replaces the computed only {{.TfName}} list with the values from a JSON.
 func (data *{{camelCase $.Name}}) fromBody{{toGoName .TfName}}(ctx context.Context, res gjson.Result) {
 	elemType := types.ObjectType{AttrTypes: {{.GoTypeName}}AttrTypes}
-	value := res{{if .ModelName}}.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"){{end}}
+	value := res{{if .ModelName}}.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"){{end}}
 	if !value.Exists() {
 		data.{{toGoName .TfName}} = types.ListNull(elemType)
 		return
@@ -488,13 +528,20 @@ func (data *{{camelCase $.Name}}) fromBody{{toGoName .TfName}}(ctx context.Conte
 	{{- if .TfOnly}}{{- continue}}{{- end}}
 	{{- if and (not .Value) (not .WriteOnly) (not .Reference)}}
 	{{- if or (eq .Type "String") (eq .Type "Int64") (eq .Type "Float64") (eq .Type "Bool")}}
-	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}}{{if not .ResourceId}}{{if not .ComputedRefreshValue}} && !data.{{toGoName .TfName}}.IsNull(){{end}}{{end}} {
+	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}}{{if not .ResourceId}}{{if not .ComputedRefreshValue}} && !data.{{toGoName .TfName}}.IsNull(){{end}}{{end}} {
+		{{- if .CaseInsensitive}}
+		// Case-insensitive comparison, keep the configured value if it differs only in case
+		if !strings.EqualFold(data.{{toGoName .TfName}}.ValueString(), value.String()) {
+			data.{{toGoName .TfName}} = types.{{.Type}}Value(value.String())
+		}
+		{{- else}}
 		data.{{toGoName .TfName}} = types.{{.Type}}Value(value.{{if eq .Type "Int64"}}Int{{else if eq .Type "Float64"}}Float{{else}}{{.Type}}{{end}}())
+		{{- end}}
 	} else {{if .DefaultValue}}if data.{{toGoName .TfName}}.Value{{.Type}}() != {{if eq .Type "String"}}"{{end}}{{.DefaultValue}}{{if eq .Type "String"}}"{{end}} {{end}}{
 		data.{{toGoName .TfName}} = types.{{.Type}}Null()
 	}
 	{{- else if isListSet .}}
-	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}} && !data.{{toGoName .TfName}}.IsNull() {
+	if value := res.Get({{if isListEntry .}}`{{listEntryPath .}}`{{else}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"{{end}}); value.Exists(){{if isListEntry .}} && value.Type != gjson.Null{{end}} && !data.{{toGoName .TfName}}.IsNull() {
 		data.{{toGoName .TfName}} = helpers.Get{{.ElementType}}{{.Type}}(value.Array())
 	} else {
 		data.{{toGoName .TfName}} = types.{{.Type}}Null(types.{{.ElementType}}Type)
@@ -520,7 +567,7 @@ func (data *{{camelCase $.Name}}) fromBody{{toGoName .TfName}}(ctx context.Conte
 	{{- if isNestedMap .}}
 	// Build lookup map for O(1) access by id
 	itemsById := make(map[string]gjson.Result)
-	res.{{if .ModelName}}Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}").{{end}}ForEach(func(_, v gjson.Result) bool {
+	res.{{if .ModelName}}Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}").{{end}}ForEach(func(_, v gjson.Result) bool {
 		if id := v.Get("id").String(); id != "" {
 			itemsById[id] = v
 		}
@@ -535,7 +582,7 @@ func (data *{{camelCase $.Name}}) fromBody{{toGoName .TfName}}(ctx context.Conte
 		res, _ := itemsById[data.Id.ValueString()]
 	{{- else if .OrderedList }}
 	{{- $arrayVar := printf "%sArray" (lowerFirst (toGoName .TfName))}}
-	{{$arrayVar}} := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}").Array()
+	{{$arrayVar}} := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}").Array()
 	{
 		l := len({{$arrayVar}})
 		tflog.Debug(ctx, fmt.Sprintf("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}} array resizing from %d to %d", len(data.{{toGoName .TfName}}), l))
@@ -552,10 +599,10 @@ func (data *{{camelCase $.Name}}) fromBody{{toGoName .TfName}}(ctx context.Conte
 		res := {{$arrayVar}}[i]
 	{{- else }}
 	{{- $arrayVar := printf "%sArray" (lowerFirst (toGoName .TfName))}}
-	{{if .ModelName}}{{$arrayVar}} := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"){{end}}
+	{{if .ModelName}}{{$arrayVar}} := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"){{end}}
 	for i := 0; i < len(data.{{toGoName .TfName}}); i++ {
-		keys := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if or (eq .Type "Int64") (eq .Type "Bool") (eq .Type "String") (and .Id (isListSet .))}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}", {{end}}{{end}}{{end}} }
-		keyValues := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if eq .Type "Int64"}}strconv.FormatInt(data.{{$list}}[i].{{toGoName .TfName}}.ValueInt64(), 10), {{else if eq .Type "Bool"}}strconv.FormatBool(data.{{$list}}[i].{{toGoName .TfName}}.ValueBool()), {{else if eq .Type "String"}}data.{{$list}}[i].{{toGoName .TfName}}.Value{{.Type}}(), {{else if and .Id (isListSet .)}}helpers.ListSetKeyValue(data.{{$list}}[i].{{toGoName .TfName}}), {{end}}{{end}}{{end}} }
+		keys := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if or (eq .Type "Int64") (eq .Type "Bool") (eq .Type "String") (and .Id (isListSet .))}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .CaseInsensitive}}|@case:lower{{end}}", {{end}}{{end}}{{end}} }
+		keyValues := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if eq .Type "Int64"}}strconv.FormatInt(data.{{$list}}[i].{{toGoName .TfName}}.ValueInt64(), 10), {{else if eq .Type "Bool"}}strconv.FormatBool(data.{{$list}}[i].{{toGoName .TfName}}.ValueBool()), {{else if eq .Type "String"}}{{if .CaseInsensitive}}strings.ToLower(data.{{$list}}[i].{{toGoName .TfName}}.Value{{.Type}}()){{else}}data.{{$list}}[i].{{toGoName .TfName}}.Value{{.Type}}(){{end}}, {{else if and .Id (isListSet .)}}helpers.ListSetKeyValue(data.{{$list}}[i].{{toGoName .TfName}}), {{end}}{{end}}{{end}} }
 
 		parent := &data
 		data := (*parent).{{toGoName .TfName}}[i]
@@ -648,7 +695,7 @@ func (data *{{camelCase .Name}}) fromBodyUnknowns(ctx context.Context, res gjson
 	{{- if not .ComputedRefreshValue }}
 	if data.{{toGoName .TfName}}.IsUnknown() {
 	{{- end}}
-		if value := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"); value.Exists() {
+		if value := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"); value.Exists() {
 			data.{{toGoName .TfName}} = types.{{.Type}}Value(value.{{if eq .Type "Int64"}}Int{{else if eq .Type "Float64"}}Float{{else}}{{.Type}}{{end}}())
 		} else {
 			data.{{toGoName .TfName}} = types.{{.Type}}Null()
@@ -666,7 +713,7 @@ func (data *{{camelCase .Name}}) fromBodyUnknowns(ctx context.Context, res gjson
 	{{- $list := (toGoName .TfName)}}
 	{{- if .OrderedList }}
 	{{- $arrayVar := printf "%sArray" (lowerFirst (toGoName .TfName))}}
-	{{$arrayVar}} := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}").Array()
+	{{$arrayVar}} := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}").Array()
 	for i := range data.{{toGoName .TfName}} {
 		var r gjson.Result
 		if i < len({{$arrayVar}}) {
@@ -674,10 +721,10 @@ func (data *{{camelCase .Name}}) fromBodyUnknowns(ctx context.Context, res gjson
 		}
 	{{- else if isNestedListSet .}}
 	{{- $arrayVar := printf "%sArray" (lowerFirst (toGoName .TfName))}}
-	{{if .ModelName}}{{$arrayVar}} := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"){{end}}
+	{{if .ModelName}}{{$arrayVar}} := res.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"){{end}}
 	for i := range data.{{toGoName .TfName}} {
-		keys := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if or (eq .Type "Int64") (eq .Type "Bool") (eq .Type "String") (and .Id (isListSet .))}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}", {{end}}{{end}}{{end}} }
-		keyValues := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if eq .Type "Int64"}}strconv.FormatInt(data.{{$list}}[i].{{toGoName .TfName}}.ValueInt64(), 10), {{else if eq .Type "Bool"}}strconv.FormatBool(data.{{$list}}[i].{{toGoName .TfName}}.ValueBool()), {{else if eq .Type "String"}}data.{{$list}}[i].{{toGoName .TfName}}.Value{{.Type}}(), {{else if and .Id (isListSet .)}}helpers.ListSetKeyValue(data.{{$list}}[i].{{toGoName .TfName}}), {{end}}{{end}}{{end}} }
+		keys := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if or (eq .Type "Int64") (eq .Type "Bool") (eq .Type "String") (and .Id (isListSet .))}}"{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .CaseInsensitive}}|@case:lower{{end}}", {{end}}{{end}}{{end}} }
+		keyValues := [...]string{ {{$noId := not (hasId .Attributes)}}{{range .Attributes}}{{if or .Id (and $noId (not .Value))}}{{if eq .Type "Int64"}}strconv.FormatInt(data.{{$list}}[i].{{toGoName .TfName}}.ValueInt64(), 10), {{else if eq .Type "Bool"}}strconv.FormatBool(data.{{$list}}[i].{{toGoName .TfName}}.ValueBool()), {{else if eq .Type "String"}}{{if .CaseInsensitive}}strings.ToLower(data.{{$list}}[i].{{toGoName .TfName}}.Value{{.Type}}()){{else}}data.{{$list}}[i].{{toGoName .TfName}}.Value{{.Type}}(){{end}}, {{else if and .Id (isListSet .)}}helpers.ListSetKeyValue(data.{{$list}}[i].{{toGoName .TfName}}), {{end}}{{end}}{{end}} }
 
 		var r gjson.Result
 		{{if .ModelName}}{{$arrayVar}}{{else}}res{{end}}.ForEach(
@@ -701,7 +748,7 @@ func (data *{{camelCase .Name}}) fromBodyUnknowns(ctx context.Context, res gjson
 	// Build lookup maps for O(1) access
 	itemsByName := make(map[string]gjson.Result)
 	itemsById := make(map[string]gjson.Result)
-	res.{{if .ModelName}}Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}").{{end}}ForEach(func(_, v gjson.Result) bool {
+	res.{{if .ModelName}}Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}").{{end}}ForEach(func(_, v gjson.Result) bool {
 		if name := v.Get("{{.MapKeyModelName}}").String(); name != "" {
 			itemsByName[name] = v
 		}
@@ -723,7 +770,7 @@ func (data *{{camelCase .Name}}) fromBodyUnknowns(ctx context.Context, res gjson
 		{{- if or (and .ResourceId (not .Reference)) .Computed}}
 		{{- if or (eq .Type "String") (eq .Type "Int64") (eq .Type "Float64") (eq .Type "Bool")}}
 		if v := data.{{$list}}[i]; v.{{toGoName .TfName}}.IsUnknown() {
-			if value := r.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}{{if .LowercaseResponse}}|@case:lower{{end}}"); value.Exists() {
+			if value := r.Get("{{range .DataPath}}{{.}}.{{end}}{{.ModelName}}"); value.Exists() {
 				v.{{toGoName .TfName}} = types.{{.Type}}Value(value.{{if eq .Type "Int64"}}Int{{else if eq .Type "Float64"}}Float{{else}}{{.Type}}{{end}}())
 			} else {
 				v.{{toGoName .TfName}} = types.{{.Type}}Null()

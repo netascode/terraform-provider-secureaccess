@@ -29,7 +29,7 @@ resource "secureaccess_private_resource" "example" {
       addresses = ["192.168.1.0/24"]
       protocols_and_ports = [
         {
-          protocol = "http/https"
+          protocol = "HTTP/HTTPS"
           ports    = "443"
         }
       ]
@@ -72,7 +72,7 @@ Required:
 
 - `ports` (String) The port number or list of comma-separated port numbers that you can use to connect to the Private Resource.
 - `protocol` (String) The protocol for the IP address destination.
-  - Choices: `any`, `tcp`, `udp`, `http/https`, `ssh`, `rdp-tcp`
+  - Choices: `Any`, `TCP`, `UDP`, `HTTP/HTTPS`
 
 
 

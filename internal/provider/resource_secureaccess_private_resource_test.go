@@ -36,7 +36,7 @@ func TestAccSecureAccessPrivateResource(t *testing.T) {
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_private_resource.test", "endpoint_connection_methods.0.type", "client"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_private_resource.test", "endpoint_connection_methods.0.client_reachable_addresses.0", "192.168.1.0/24"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_private_resource.test", "addresses.0.addresses.0", "192.168.1.0/24"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_private_resource.test", "addresses.0.protocols_and_ports.0.protocol", "http/https"))
+	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_private_resource.test", "addresses.0.protocols_and_ports.0.protocol", "HTTP/HTTPS"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_private_resource.test", "addresses.0.protocols_and_ports.0.ports", "443"))
 
 	var steps []resource.TestStep
@@ -78,7 +78,7 @@ func testAccSecureAccessPrivateResourceConfig_minimum() string {
 	config += `	addresses = [{` + "\n"
 	config += `		addresses = ["192.168.1.0/24"]` + "\n"
 	config += `		protocols_and_ports = [{` + "\n"
-	config += `			protocol = "http/https"` + "\n"
+	config += `			protocol = "HTTP/HTTPS"` + "\n"
 	config += `			ports = "443"` + "\n"
 	config += `		}]` + "\n"
 	config += `	}]` + "\n"
@@ -101,7 +101,7 @@ func testAccSecureAccessPrivateResourceConfig_all() string {
 	config += `	addresses = [{` + "\n"
 	config += `		addresses = ["192.168.1.0/24"]` + "\n"
 	config += `		protocols_and_ports = [{` + "\n"
-	config += `			protocol = "http/https"` + "\n"
+	config += `			protocol = "HTTP/HTTPS"` + "\n"
 	config += `			ports = "443"` + "\n"
 	config += `		}]` + "\n"
 	config += `	}]` + "\n"

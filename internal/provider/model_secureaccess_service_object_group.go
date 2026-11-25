@@ -203,8 +203,11 @@ func (data *ServiceObjectGroup) fromBody(ctx context.Context, res gjson.Result) 
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
 			data := ServiceObjectGroupLiterals{}
-			if value := res.Get("protocol|@case:lower"); value.Exists() {
-				data.Protocol = types.StringValue(value.String())
+			if value := res.Get("protocol"); value.Exists() {
+				// Case-insensitive comparison, keep the configured value if it differs only in case
+				if data.Protocol.IsNull() || !strings.EqualFold(data.Protocol.ValueString(), value.String()) {
+					data.Protocol = types.StringValue(value.String())
+				}
 			} else {
 				data.Protocol = types.StringNull()
 			}
@@ -337,7 +340,7 @@ func (data *ServiceObjectGroup) fromBodyPartial(ctx context.Context, res gjson.R
 	literalsArray := res.Get("values")
 	for i := 0; i < len(data.Literals); i++ {
 		keys := [...]string{"protocol|@case:lower"}
-		keyValues := [...]string{data.Literals[i].Protocol.ValueString()}
+		keyValues := [...]string{strings.ToLower(data.Literals[i].Protocol.ValueString())}
 
 		parent := &data
 		data := (*parent).Literals[i]
@@ -370,8 +373,11 @@ func (data *ServiceObjectGroup) fromBodyPartial(ctx context.Context, res gjson.R
 
 			continue
 		}
-		if value := res.Get("protocol|@case:lower"); value.Exists() && !data.Protocol.IsNull() {
-			data.Protocol = types.StringValue(value.String())
+		if value := res.Get("protocol"); value.Exists() && !data.Protocol.IsNull() {
+			// Case-insensitive comparison, keep the configured value if it differs only in case
+			if !strings.EqualFold(data.Protocol.ValueString(), value.String()) {
+				data.Protocol = types.StringValue(value.String())
+			}
 		} else {
 			data.Protocol = types.StringNull()
 		}

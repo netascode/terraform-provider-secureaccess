@@ -274,15 +274,15 @@ func destinationListDestinationsPath(id string) string {
 }
 
 // destinationListReadDestinations retrieves all destinations, as those are not included in the main object response,
-// and injects them into res under "destinations". Pagination is handled by the client.
-func destinationListReadDestinations(ctx context.Context, client *secureaccess.Client, id string, res gjson.Result, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
+// and returns them as a list.
+func destinationListReadDestinations(ctx context.Context, client *secureaccess.Client, id string, reqMods ...func(*secureaccess.Req)) (gjson.Result, error) {
 	items, err := client.GetAll(ctx, destinationListDestinationsPath(id), reqMods...)
 	if err != nil {
-		return res, fmt.Errorf("failed to retrieve destinations (GET): %w, %s", err, items.String())
+		return gjson.Result{}, fmt.Errorf("failed to retrieve destinations (GET): %w, %s", err, items.String())
 	}
 	if !items.IsArray() {
-		return res, fmt.Errorf("failed to retrieve destinations, expected a list, got: %s", items.Type)
+		return gjson.Result{}, fmt.Errorf("failed to retrieve destinations, expected a list, got: %s", items.Type)
 	}
-	s, _ := sjson.SetRaw(res.String(), "destinations", items.Raw)
-	return gjson.Parse(s), nil
+
+	return items.Result, nil
 }

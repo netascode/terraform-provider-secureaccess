@@ -19,7 +19,7 @@ attributes:
     type: String
     mandatory: true
     enum_values: ["tcp", "udp", "icmp", "any"]
-    lowercase_response: true
+    case_insensitive: true
     description: Protocol of the Service Object.
     example: tcp
   - model_name: ports

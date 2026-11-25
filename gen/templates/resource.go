@@ -163,6 +163,16 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 					float64validator.Between({{.MinFloat}}, {{.MaxFloat}}),
 				},
 				{{- else if or (ne .MinList 0) (ne .MaxList 0)}}
+				{{- if isSet .}}
+				Validators: []validator.Set{
+					{{- if ne .MinList 0}}
+					setvalidator.SizeAtLeast({{.MinList}}),
+					{{- end}}
+					{{- if ne .MaxList 0}}
+					setvalidator.SizeAtMost({{.MaxList}}),
+					{{- end}}
+				},
+				{{- else}}
 				Validators: []validator.List{
 					{{- if ne .MinList 0}}
 					listvalidator.SizeAtLeast({{.MinList}}),
@@ -171,6 +181,7 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 					listvalidator.SizeAtMost({{.MaxList}}),
 					{{- end}}
 				},
+				{{- end}}
 				{{- end}}
 				{{- if and (len .DefaultValue) (eq .Type "Int64")}}
 				Default:             int64default.StaticInt64({{.DefaultValue}}),
@@ -459,6 +470,16 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 											},
 										},
 										{{- if or (ne .MinList 0) (ne .MaxList 0)}}
+										{{- if isSet .}}
+										Validators: []validator.Set{
+											{{- if ne .MinList 0}}
+											setvalidator.SizeAtLeast({{.MinList}}),
+											{{- end}}
+											{{- if ne .MaxList 0}}
+											setvalidator.SizeAtMost({{.MaxList}}),
+											{{- end}}
+										},
+										{{- else}}
 										Validators: []validator.List{
 											{{- if ne .MinList 0}}
 											listvalidator.SizeAtLeast({{.MinList}}),
@@ -469,12 +490,23 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 										},
 										{{- end}}
 										{{- end}}
+										{{- end}}
 									},
 									{{- end}}
 									{{- end}}
 								},
 							},
 							{{- if or (ne .MinList 0) (ne .MaxList 0)}}
+							{{- if isSet .}}
+							Validators: []validator.Set{
+								{{- if ne .MinList 0}}
+								setvalidator.SizeAtLeast({{.MinList}}),
+								{{- end}}
+								{{- if ne .MaxList 0}}
+								setvalidator.SizeAtMost({{.MaxList}}),
+								{{- end}}
+							},
+							{{- else}}
 							Validators: []validator.List{
 								{{- if ne .MinList 0}}
 								listvalidator.SizeAtLeast({{.MinList}}),
@@ -483,6 +515,7 @@ func (r *{{camelCase .Name}}Resource) Schema(ctx context.Context, req resource.S
 								listvalidator.SizeAtMost({{.MaxList}}),
 								{{- end}}
 							},
+							{{- end}}
 							{{- end}}
 							{{- end}}
 						},
@@ -689,7 +722,19 @@ func (r *{{camelCase .Name}}Resource) Update(ctx context.Context, req resource.U
 	{{- end}}
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Update", plan.Id.ValueString()))
-	{{- if not .NoUpdate}}
+	{{- if .PatchUpdateMerge}}
+
+	body := plan.toBodyPatchMerge(ctx, state)
+	if body != "" {
+		res, err := r.client.Patch(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), body, reqMods...)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (PATCH), got error: %s, %s", err, res.String()))
+			return
+		}
+	} else {
+		tflog.Debug(ctx, fmt.Sprintf("%s: No changes to PATCH", plan.Id.ValueString()))
+	}
+	{{- else if not .NoUpdate}}
 
 	body := plan.toBody(ctx, state)
 	{{- if .AdjustBody}}
