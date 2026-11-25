@@ -121,6 +121,7 @@ attributes:
         type: Int64
         description: ID of the file type.
         example: 250
+        test_value: data.secureaccess_dlp_file_types.all.items["cdr"].id
       - model_name: name
         type: String
         description: Name of the file type.
@@ -137,6 +138,7 @@ attributes:
         type: Int64
         description: ID of the file type group.
         example: 6
+        test_value: data.secureaccess_dlp_file_type_groups.all.items["Documents"].id
       - model_name: name
         type: String
         description: Name of the file type group.
@@ -154,6 +156,7 @@ attributes:
         type: Int64
         description: ID of the file type.
         example: 156
+        test_value: data.secureaccess_dlp_file_types.all.items["dbf"].id
       - model_name: name
         type: String
         description: Name of the file type.
@@ -170,6 +173,7 @@ attributes:
         type: Int64
         description: ID of the file type group.
         example: 2
+        test_value: data.secureaccess_dlp_file_type_groups.all.items["Compressed files"].id
       - model_name: name
         type: String
         description: Name of the file type group.
@@ -326,3 +330,5 @@ test_prerequisites: |-
   data "secureaccess_dlp_builtin_classification" "test" {
     name = "Privacy Guardrail"
   }
+  data "secureaccess_dlp_file_types" "all" {}
+  data "secureaccess_dlp_file_type_groups" "all" {}

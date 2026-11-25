@@ -40,12 +40,8 @@ func TestAccSecureAccessDLPAIGuardrailsRule(t *testing.T) {
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_ai_guardrails_rule.test", "file_size_from_unit", "KB"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_ai_guardrails_rule.test", "file_size_to", "10240"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_ai_guardrails_rule.test", "file_size_to_unit", "KB"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_ai_guardrails_rule.test", "file_types_included.0.id", "250"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_ai_guardrails_rule.test", "file_types_included.0.name", "cdr"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_ai_guardrails_rule.test", "file_type_groups_included.0.id", "6"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_ai_guardrails_rule.test", "file_types_excluded.0.id", "156"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_ai_guardrails_rule.test", "file_types_excluded.0.name", "dbf"))
-	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_ai_guardrails_rule.test", "file_type_groups_excluded.0.id", "2"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_ai_guardrails_rule.test", "file_type_groups_excluded.0.name", "Compressed files"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_ai_guardrails_rule.test", "unclassified_files_scan", "false"))
 	checks = append(checks, resource.TestCheckResourceAttr("secureaccess_dlp_ai_guardrails_rule.test", "identities_included.0.type_id", "7"))
@@ -91,6 +87,8 @@ const testAccSecureAccessDLPAIGuardrailsRulePrerequisitesConfig = `
 data "secureaccess_dlp_builtin_classification" "test" {
   name = "Privacy Guardrail"
 }
+data "secureaccess_dlp_file_types" "all" {}
+data "secureaccess_dlp_file_type_groups" "all" {}
 `
 
 // End of section. //template:end testPrerequisites
@@ -137,18 +135,18 @@ func testAccSecureAccessDLPAIGuardrailsRuleConfig_all() string {
 	config += `	file_size_to = 10240` + "\n"
 	config += `	file_size_to_unit = "KB"` + "\n"
 	config += `	file_types_included = [{` + "\n"
-	config += `		id = 250` + "\n"
+	config += `		id = data.secureaccess_dlp_file_types.all.items["cdr"].id` + "\n"
 	config += `		name = "cdr"` + "\n"
 	config += `	}]` + "\n"
 	config += `	file_type_groups_included = [{` + "\n"
-	config += `		id = 6` + "\n"
+	config += `		id = data.secureaccess_dlp_file_type_groups.all.items["Documents"].id` + "\n"
 	config += `	}]` + "\n"
 	config += `	file_types_excluded = [{` + "\n"
-	config += `		id = 156` + "\n"
+	config += `		id = data.secureaccess_dlp_file_types.all.items["dbf"].id` + "\n"
 	config += `		name = "dbf"` + "\n"
 	config += `	}]` + "\n"
 	config += `	file_type_groups_excluded = [{` + "\n"
-	config += `		id = 2` + "\n"
+	config += `		id = data.secureaccess_dlp_file_type_groups.all.items["Compressed files"].id` + "\n"
 	config += `		name = "Compressed files"` + "\n"
 	config += `	}]` + "\n"
 	config += `	unclassified_files_scan = false` + "\n"
