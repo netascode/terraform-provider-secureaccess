@@ -57,7 +57,7 @@ func (d *ApplicationExceptionListDataSource) Metadata(_ context.Context, req dat
 func (d *ApplicationExceptionListDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This data source reads an exception application list, found by its `id`. A Do Not Decrypt list that has applications uses one, the API returns its `id` as `exceptionapplicationlistId` of that Do Not Decrypt list. Get the ids from the `secureaccess_application_exception_lists` data source. The data source reads all applications of the list.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This data source reads an exception application list, found by its `id`.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -65,11 +65,11 @@ func (d *ApplicationExceptionListDataSource) Schema(ctx context.Context, req dat
 				Required:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Name of the exception application list. On the lists observed it is the name of the Do Not Decrypt list that uses it.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the exception application list.").String,
 				Computed:            true,
 			},
 			"allowed_count": schema.Int64Attribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Number of allowed applications in the full list. On every list observed it was the number of all applications.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Number of allowed applications in the full list.").String,
 				Computed:            true,
 			},
 			"blocked_count": schema.Int64Attribute{
@@ -102,7 +102,7 @@ func (d *ApplicationExceptionListDataSource) Schema(ctx context.Context, req dat
 							Computed:            true,
 						},
 						"has_urls": schema.BoolAttribute{
-							MarkdownDescription: "The `hasUrls` of the application as the API returns it. The API draft lists it as a boolean without a description, it was false on every application observed.",
+							MarkdownDescription: "The `hasUrls` of the application as the API returns it.",
 							Computed:            true,
 						},
 						"action": schema.StringAttribute{
