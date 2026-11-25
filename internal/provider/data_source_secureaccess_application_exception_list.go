@@ -154,7 +154,7 @@ func (d *ApplicationExceptionListDataSource) Read(ctx context.Context, req datas
 		return
 	}
 
-	// The client reads the applications page by page, with the `page` and `limit` of the answer
+	// The client reads the applications page by page (`page` and `limit`, 100 items a page) until `meta.total` or a short page
 	applications, err := d.client.GetAllWithPaginator(ctx, urlPath+"/applications", secureaccess.PageLimitKeyedPagination, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve the applications of the object, got error: %s", exceptionApplicationListError(err, applications)))

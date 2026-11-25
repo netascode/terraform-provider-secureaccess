@@ -94,7 +94,7 @@ func (d *ApplicationExceptionListsDataSource) Read(ctx context.Context, req data
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", "Application Exception Lists"))
 
-	// The client reads the ids page by page, with the `page` and `limit` of the answer
+	// The client reads the ids page by page (`page` and `limit`, 100 items a page) until `meta.total` or a short page
 	ids, err := d.client.GetAllWithPaginator(ctx, config.getPath(), secureaccess.PageLimitKeyedPagination, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, got error: %s", exceptionApplicationListError(err, ids)))

@@ -248,6 +248,10 @@ func excErrorDetail(t *testing.T, resp datasource.ReadResponse) string {
 	if !resp.Diagnostics.HasError() {
 		t.Fatalf("want an error, got none")
 	}
+	// exactly one error: a Read() that forgets a return reports a second, confusing error after the first one
+	if n := len(resp.Diagnostics.Errors()); n != 1 {
+		t.Errorf("want exactly one error, got %d: %v", n, resp.Diagnostics.Errors())
+	}
 	d := resp.Diagnostics.Errors()[0]
 	if d.Summary() != "Client Error" {
 		t.Errorf("summary = %q, want Client Error", d.Summary())
@@ -460,13 +464,10 @@ func TestApplicationExceptionListDataSourceRead(t *testing.T) {
 				}
 				excWrite(w, http.StatusOK, body)
 			})
-			state, resp := readExceptionApplicationList(t, server, "5001")
+			_, resp := readExceptionApplicationList(t, server, "5001")
 			detail := excErrorDetail(t, resp)
 			if !strings.Contains(detail, "Failed to retrieve the applications of the object") || !strings.Contains(detail, "no items array found") {
 				t.Errorf("%s: detail = %q, want the failed read of the applications and the error of the client", name, detail)
-			}
-			if !state.Id.IsNull() || state.Applications != nil {
-				t.Errorf("%s: state must stay empty after an error, got %+v", name, state)
 			}
 		}
 	})
@@ -482,25 +483,43 @@ func TestApplicationExceptionListDataSourceRead(t *testing.T) {
 				excPaged(w, r, excApps(2345))
 			}
 		})
-		state, resp := readExceptionApplicationList(t, server, "5001")
+		_, resp := readExceptionApplicationList(t, server, "5001")
 		detail := excErrorDetail(t, resp)
 		if !strings.Contains(detail, "StatusCode 500") || !strings.Contains(detail, `{"message":"internal"}`) {
 			t.Errorf("detail = %q, want the status 500 and the answer of the API", detail)
 		}
-		if !state.Id.IsNull() || state.Applications != nil {
-			t.Errorf("state must stay empty after an error, got %+v", state)
+	})
+
+	t.Run("an error whose answer is empty or not JSON carries no answer", func(t *testing.T) {
+		for name, body := range map[string]string{"empty": "", "not JSON": "Bad Gateway"} {
+			server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.EscapedPath() == "/policies/v2/exceptionApplicationLists/5001" {
+					excWrite(w, http.StatusOK, excSettings(2345))
+					return
+				}
+				w.WriteHeader(http.StatusBadGateway)
+				_, _ = w.Write([]byte(body))
+			})
+			_, resp := readExceptionApplicationList(t, server, "5001")
+			detail := excErrorDetail(t, resp)
+			if !strings.Contains(detail, "StatusCode 502") || strings.Contains(detail, "answer of the API") {
+				t.Errorf("%s: detail = %q, want the status 502 and no answer of the API", name, detail)
+			}
 		}
 	})
 
 	t.Run("the settings without an object in data are an error", func(t *testing.T) {
-		for name, body := range map[string]map[string]any{
-			"no data":          {"status": map[string]any{"code": 200}},
-			"data is a list":   {"data": []any{}},
-			"data is a string": {"data": "x"},
+		for name, tc := range map[string]struct {
+			body map[string]any
+			got  string
+		}{
+			"no data":          {map[string]any{"status": map[string]any{"code": 200}}, "Null"},
+			"data is a list":   {map[string]any{"data": []any{}}, "JSON"},
+			"data is a string": {map[string]any{"data": "x"}, "String"},
 		} {
-			server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) { excWrite(w, http.StatusOK, body) })
+			server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) { excWrite(w, http.StatusOK, tc.body) })
 			_, resp := readExceptionApplicationList(t, server, "5001")
-			if detail := excErrorDetail(t, resp); !strings.Contains(detail, "expected an object in `data`") {
+			if detail := excErrorDetail(t, resp); !strings.Contains(detail, "expected an object in `data`, got: "+tc.got) {
 				t.Errorf("%s: detail = %q", name, detail)
 			}
 			if got := server.requests(); len(got) != 1 {
@@ -524,16 +543,13 @@ func TestApplicationExceptionListDataSourceRead(t *testing.T) {
 			server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
 				excWrite(w, tc.status, json.RawMessage(tc.body))
 			})
-			state, resp := readExceptionApplicationList(t, server, tc.id)
+			_, resp := readExceptionApplicationList(t, server, tc.id)
 			detail := excErrorDetail(t, resp)
 			if !strings.Contains(detail, "Failed to retrieve object") || !strings.Contains(detail, "StatusCode "+strconv.Itoa(tc.status)) {
 				t.Errorf("detail = %q, want the failed read and the status %d", detail, tc.status)
 			}
 			if got := server.requests(); len(got) != 1 || !strings.HasPrefix(got[0], "GET /policies/v2/exceptionApplicationLists/"+tc.id+"?") {
 				t.Errorf("requests = %q, want one GET of the list, no read of the applications", got)
-			}
-			if !state.Id.IsNull() || !state.Name.IsNull() {
-				t.Errorf("state must stay empty after an error, got %+v", state)
 			}
 		})
 	}
@@ -546,6 +562,23 @@ func TestApplicationExceptionListDataSourceRead(t *testing.T) {
 		got := server.requests()
 		if len(got) != 1 || !strings.HasPrefix(got[0], "GET /policies/v2/exceptionApplicationLists/1%2F") || strings.Contains(got[0], "Lists/1/") {
 			t.Errorf("requests = %q, want one request below /policies/v2/exceptionApplicationLists/ with the slashes of the id escaped", got)
+		}
+	})
+
+	t.Run("an id with a ?, a # or a % is one path segment, it adds no query and no slash", func(t *testing.T) {
+		for _, id := range []string{"5001?x=1", "5001#x", "5001%2F..%2FthreatCategories"} {
+			server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
+				excWrite(w, http.StatusNotFound, map[string]any{"message": "not found"})
+			})
+			readExceptionApplicationList(t, server, id)
+			got := server.requests()
+			if len(got) != 1 {
+				t.Fatalf("%q: requests = %q, want one", id, got)
+			}
+			path, query, _ := strings.Cut(strings.TrimPrefix(got[0], "GET "), "?")
+			if decoded, err := url.PathUnescape(path); err != nil || decoded != "/policies/v2/exceptionApplicationLists/"+id || query != "" {
+				t.Errorf("%q: request = %q, want the id as the last path segment, unchanged once the path is decoded, and no query", id, got[0])
+			}
 		}
 	})
 }
@@ -625,24 +658,18 @@ func TestApplicationExceptionListsDataSourceRead(t *testing.T) {
 			{"a string", "x", "String"}, {"a bool", true, "True"}, {"null", nil, "Null"}, {"an object", map[string]any{"id": 1}, "JSON"}, {"a list", []any{1}, "JSON"},
 		} {
 			server := idsServer(t, []any{16708649, tc.bad})
-			state, resp := readExceptionApplicationLists(t, server)
+			_, resp := readExceptionApplicationLists(t, server)
 			if detail := excErrorDetail(t, resp); !strings.Contains(detail, "expected a number as id, got: "+tc.want) {
 				t.Errorf("%s: detail = %q", tc.name, detail)
-			}
-			if !state.Ids.IsNull() {
-				t.Errorf("%s: state must stay empty after an error, got %s", tc.name, state.Ids)
 			}
 		}
 	})
 
 	t.Run("an id that the API lists twice is an error", func(t *testing.T) {
 		server := idsServer(t, []any{16708649, 16708650, 16708649})
-		state, resp := readExceptionApplicationLists(t, server)
+		_, resp := readExceptionApplicationLists(t, server)
 		if detail := excErrorDetail(t, resp); !strings.Contains(detail, "the id 16708649 is listed more than once") {
 			t.Errorf("detail = %q", detail)
-		}
-		if !state.Ids.IsNull() {
-			t.Errorf("state must stay empty after an error, got %s", state.Ids)
 		}
 	})
 
@@ -650,12 +677,9 @@ func TestApplicationExceptionListsDataSourceRead(t *testing.T) {
 		server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
 			excWrite(w, http.StatusForbidden, map[string]any{"message": "Access denied"})
 		})
-		state, resp := readExceptionApplicationLists(t, server)
+		_, resp := readExceptionApplicationLists(t, server)
 		if detail := excErrorDetail(t, resp); !strings.Contains(detail, "StatusCode 403") || !strings.Contains(detail, `{"message":"Access denied"}`) {
 			t.Errorf("detail = %q", detail)
-		}
-		if !state.Ids.IsNull() {
-			t.Errorf("state must stay empty after an error, got %s", state.Ids)
 		}
 	})
 }
@@ -731,19 +755,38 @@ func TestApplicationExceptionListDataSourceReadDetails(t *testing.T) {
 }
 
 func TestApplicationExceptionListApplicationsMustBeObjects(t *testing.T) {
-	for name, bad := range map[string]any{"a string": "x", "null": nil, "a number": 5, "a list": []any{1}} {
+	for name, tc := range map[string]struct {
+		bad any
+		got string
+	}{"a string": {"x", "String"}, "null": {nil, "Null"}, "a number": {5, "Number"}, "a list": {[]any{1}, "JSON"}} {
 		t.Run(name, func(t *testing.T) {
 			server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.EscapedPath() == "/policies/v2/exceptionApplicationLists/5001" {
 					excWrite(w, http.StatusOK, excSettings(2))
 					return
 				}
-				excPaged(w, r, []any{excApp(0), bad})
+				excPaged(w, r, []any{excApp(0), tc.bad})
 			})
 			_, resp := readExceptionApplicationList(t, server, "5001")
-			if detail := excErrorDetail(t, resp); !strings.Contains(detail, "expected an object as application 1") {
+			if detail := excErrorDetail(t, resp); !strings.Contains(detail, "expected an object as application 1, got: "+tc.got) {
 				t.Errorf("detail = %q", detail)
 			}
 		})
 	}
+
+	t.Run("an application on the second page is checked too", func(t *testing.T) {
+		apps := excApps(125)
+		apps[120] = "x"
+		server := newExcServer(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.EscapedPath() == "/policies/v2/exceptionApplicationLists/5001" {
+				excWrite(w, http.StatusOK, excSettings(125))
+				return
+			}
+			excPaged(w, r, apps)
+		})
+		_, resp := readExceptionApplicationList(t, server, "5001")
+		if detail := excErrorDetail(t, resp); !strings.Contains(detail, "expected an object as application 120, got: String") {
+			t.Errorf("detail = %q", detail)
+		}
+	})
 }
