@@ -352,6 +352,7 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewServiceObjectDataSource,
 		NewServiceObjectGroupDataSource,
 		NewSiteDataSource,
+		NewTenantControlDataSource,
 		NewThreatCategoryDataSource,
 	}
 }
