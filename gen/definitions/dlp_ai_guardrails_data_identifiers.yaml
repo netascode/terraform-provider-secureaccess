@@ -1,0 +1,32 @@
+---
+name: DLP AI Guardrails Data Identifiers
+rest_endpoint: /policies/v2/dlp/aiGuardrails/dataIdentifiers
+doc_category: Secure
+no_resource: true
+no_import: true
+no_id: true
+is_bulk: true
+ds_description: >-
+  This resource reads DLP AI Guardrails Data Identifiers.\n
+  If `items` is empty, all DLP AI Guardrails Data Identifiers are returned, otherwise only the listed ones.\n
+  If `filter` is provided, only DLP AI Guardrails Data Identifiers matching the filter are returned.
+attributes:
+  - model_name: filter
+    tf_only: true
+    type: String
+    data_source_optional_parameter: true
+    description: Case-insensitive substring used to filter DLP AI Guardrails data identifiers by name.
+    exclude_example: true
+    exclude_test: true
+  - tf_name: items
+    type: Map
+    description: >-
+      Map of DLP AI Guardrails Data Identifiers. The key of the map is the name of the individual DLP AI Guardrails Data Identifier.
+    map_key_example: Email Address
+    attributes:
+      - model_name: id
+        type: String
+        resource_id: true
+        description: Id of the DLP AI Guardrails Data Identifier.
+        exclude_example: true
+        exclude_test: true

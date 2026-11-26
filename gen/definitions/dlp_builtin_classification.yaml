@@ -8,5 +8,5 @@ attributes:
     type: String
     mandatory: true
     description: Name of the DLP Builtin Data Classification.
-    example: my_dlp_data
+    example: Built-in PCI Classification
     data_source_query: true

@@ -8,5 +8,5 @@ attributes:
     type: String
     mandatory: true
     description: Name of the DLP Builtin Data Identifier.
-    example: my_dlp_data
+    example: Aggressive Behavior
     data_source_query: true

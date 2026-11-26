@@ -8,5 +8,5 @@ attributes:
     type: String
     mandatory: true
     description: Name of the DLP AI Guardrails Data Identifier.
-    example: my_dlp_data
+    example: Email Address
     data_source_query: true
