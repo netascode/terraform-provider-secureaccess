@@ -5,21 +5,19 @@ subcategory: "Resources"
 description: |-
   This resource reads Application Categories.
   If items is empty, all Application Categories are returned, otherwise only the listed ones.
-  If filter is provided, only Application Categories matching the filter are returned.
 ---
 
 # secureaccess_application_categories (Data Source)
 
 This resource reads Application Categories.
  If `items` is empty, all Application Categories are returned, otherwise only the listed ones.
- If `filter` is provided, only Application Categories matching the filter are returned.
 
 ## Example Usage
 
 ```terraform
 data "secureaccess_application_categories" "example" {
   items = {
-    "My Application Category" = {
+    "Anonymizer" = {
     }
   }
 }
@@ -30,7 +28,6 @@ data "secureaccess_application_categories" "example" {
 
 ### Optional
 
-- `filter` (String) Case-insensitive substring used to filter application categories by name.
 - `items` (Attributes Map) Map of Application Categories. The key of the map is the name of the individual Application Category. (see [below for nested schema](#nestedatt--items))
 
 <a id="nestedatt--items"></a>

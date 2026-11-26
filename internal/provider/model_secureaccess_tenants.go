@@ -33,8 +33,7 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
 type Tenants struct {
-	Filter types.String            `tfsdk:"filter"`
-	Items  map[string]TenantsItems `tfsdk:"items"`
+	Items map[string]TenantsItems `tfsdk:"items"`
 }
 
 type TenantsItems struct {

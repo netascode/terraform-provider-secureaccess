@@ -5,14 +5,12 @@ subcategory: "Secure"
 description: |-
   This resource reads DLP Builtin Data Identifiers.
   If items is empty, all DLP Builtin Data Identifiers are returned, otherwise only the listed ones.
-  If filter is provided, only DLP Builtin Data Identifiers matching the filter are returned.
 ---
 
 # secureaccess_dlp_builtin_data_identifiers (Data Source)
 
 This resource reads DLP Builtin Data Identifiers.
  If `items` is empty, all DLP Builtin Data Identifiers are returned, otherwise only the listed ones.
- If `filter` is provided, only DLP Builtin Data Identifiers matching the filter are returned.
 
 ## Example Usage
 
@@ -30,7 +28,6 @@ data "secureaccess_dlp_builtin_data_identifiers" "example" {
 
 ### Optional
 
-- `filter` (String) Case-insensitive substring used to filter DLP builtin data identifiers by name.
 - `items` (Attributes Map) Map of DLP Builtin Data Identifiers. The key of the map is the name of the individual DLP Builtin Data Identifier. (see [below for nested schema](#nestedatt--items))
 
 <a id="nestedatt--items"></a>

@@ -5,14 +5,12 @@ subcategory: "Resources"
 description: |-
   This resource reads Content Category Lists.
   If items is empty, all Content Category Lists are returned, otherwise only the listed ones.
-  If filter is provided, only Content Category Lists matching the filter are returned.
 ---
 
 # secureaccess_content_category_lists (Data Source)
 
 This resource reads Content Category Lists.
  If `items` is empty, all Content Category Lists are returned, otherwise only the listed ones.
- If `filter` is provided, only Content Category Lists matching the filter are returned.
 
 ## Example Usage
 
@@ -30,7 +28,6 @@ data "secureaccess_content_category_lists" "example" {
 
 ### Optional
 
-- `filter` (String) Case-insensitive substring used to filter content category lists by name.
 - `items` (Attributes Map) Map of Content Category Lists. The key of the map is the name of the individual Content Category List. (see [below for nested schema](#nestedatt--items))
 
 <a id="nestedatt--items"></a>

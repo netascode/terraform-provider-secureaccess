@@ -1,5 +1,6 @@
 # Manual Resource
 # -> imports - adds `slices` for identityTypesStaticBody()
+# Read() - warns about names in `items` not found, as fromBody() drops them silently
 # This data source returns hardcoded values untill relevant API Endpoint is implemented
 # Manual model
 # identityTypesStatic - hardcoded id/label pairs of Identity Types
@@ -15,17 +16,8 @@ no_import: true
 no_id: true
 is_bulk: true
 ds_description: >-
-  This resource reads Identity Types.\n
-  Available Identity Types include, but are not limited to: `Registered Networks`, `AD Groups`, `AD Devices`, `AD Users`, `Apple Devices`, `Internal Networks`, `Sites`, `Network Devices`, `ChromeOS Devices`, `Network Tunnel Groups`, `Google Workspace Users`, `Google Workspace Organizational Units`, `Catalyst SD-WAN Service VPN IDs`, `Security Group Tags`,
-  `iOS/Android Devices` and `macOS/Windows Devices`.\n
+  This resource reads Identity Types.
 attributes:
-  - model_name: filter
-    tf_only: true
-    type: String
-    data_source_optional_parameter: true
-    description: Case-insensitive substring used to filter identity types by name.
-    exclude_example: true
-    exclude_test: true
   - tf_name: items
     type: Map
     description: >-

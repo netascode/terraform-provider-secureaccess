@@ -4,13 +4,11 @@ page_title: "secureaccess_identity_types Data Source - terraform-provider-secure
 subcategory: "Resources"
 description: |-
   This resource reads Identity Types.
-  Available Identity Types include, but are not limited to: Registered Networks, AD Groups, AD Devices, AD Users, Apple Devices, Internal Networks, Sites, Network Devices, ChromeOS Devices, Network Tunnel Groups, Google Workspace Users, Google Workspace Organizational Units, Catalyst SD-WAN Service VPN IDs, Security Group Tags, iOS/Android Devices and macOS/Windows Devices.
 ---
 
 # secureaccess_identity_types (Data Source)
 
 This resource reads Identity Types.
- Available Identity Types include, but are not limited to: `Registered Networks`, `AD Groups`, `AD Devices`, `AD Users`, `Apple Devices`, `Internal Networks`, `Sites`, `Network Devices`, `ChromeOS Devices`, `Network Tunnel Groups`, `Google Workspace Users`, `Google Workspace Organizational Units`, `Catalyst SD-WAN Service VPN IDs`, `Security Group Tags`, `iOS/Android Devices` and `macOS/Windows Devices`.
 
 ## Example Usage
 
@@ -28,7 +26,6 @@ data "secureaccess_identity_types" "example" {
 
 ### Optional
 
-- `filter` (String) Case-insensitive substring used to filter identity types by name.
 - `items` (Attributes Map) Map of Identity Types. The key of the map is the name of the individual Identity Type. (see [below for nested schema](#nestedatt--items))
 
 <a id="nestedatt--items"></a>

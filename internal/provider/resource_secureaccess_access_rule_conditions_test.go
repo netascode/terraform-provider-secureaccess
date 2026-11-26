@@ -188,7 +188,7 @@ func TestAccSecureAccessAccessRuleSecurityGroupTags(t *testing.T) {
 			{
 				Config: `
 data "secureaccess_identities" "sgt" {
-  identity_types = ["sgt_id"]
+  identity_type = "sgt_id"
 }
 
 resource "secureaccess_network_object" "test" {
@@ -203,7 +203,7 @@ resource "secureaccess_access_rule" "test" {
   log_level                          = "LOG_ALL"
   traffic_type                       = "PRIVATE_NETWORK"
   destination_network_object_ids     = [secureaccess_network_object.test.id]
-  destination_security_group_tag_ids = slice(sort([for v in values(data.secureaccess_identities.sgt.items["sgt_id"]) : tostring(v.id)]), 0, 2)
+  destination_security_group_tag_ids = slice(sort([for v in values(data.secureaccess_identities.sgt.items) : tostring(v.id)]), 0, 2)
 }
 `,
 				Check: resource.ComposeTestCheckFunc(

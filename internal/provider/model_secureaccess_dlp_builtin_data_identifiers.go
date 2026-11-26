@@ -33,8 +33,7 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
 type DLPBuiltinDataIdentifiers struct {
-	Filter types.String                              `tfsdk:"filter"`
-	Items  map[string]DLPBuiltinDataIdentifiersItems `tfsdk:"items"`
+	Items map[string]DLPBuiltinDataIdentifiersItems `tfsdk:"items"`
 }
 
 type DLPBuiltinDataIdentifiersItems struct {

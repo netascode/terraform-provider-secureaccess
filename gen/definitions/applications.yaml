@@ -1,5 +1,6 @@
 # Manual data source
 # Read() - single Get() instead of GetAll(), items read from `data.applications`, keyed by `label`
+#        - warns about names in `items` not found, as fromBody() drops them silently
 # Manual model
 # fromBody() - items keyed by `label`
 # APIBEHAVIOUR: no pagination, single request returns all items
@@ -14,20 +15,12 @@ is_bulk: true
 ds_description: >-
   This resource reads Applications.\n
   If `items` is empty, all Applications are returned, otherwise only the listed ones.\n
-  If `filter` is provided, only Applications matching the filter are returned.
 attributes:
-  - model_name: filter
-    tf_only: true
-    type: String
-    data_source_optional_parameter: true
-    description: Case-insensitive substring used to filter applications by name.
-    exclude_example: true
-    exclude_test: true
   - tf_name: items
     type: Map
     description: >-
       Map of Applications. The key of the map is the name of the individual Application.
-    map_key_example: My Application
+    map_key_example: Cisco Webex Assistant
     attributes:
       - model_name: id
         type: String

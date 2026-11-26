@@ -33,8 +33,7 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
 type ResourceConnectorGroups struct {
-	Filter types.String                            `tfsdk:"filter"`
-	Items  map[string]ResourceConnectorGroupsItems `tfsdk:"items"`
+	Items map[string]ResourceConnectorGroupsItems `tfsdk:"items"`
 }
 
 type ResourceConnectorGroupsItems struct {

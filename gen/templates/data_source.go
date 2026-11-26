@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/datasourcevalidator"
@@ -94,7 +95,7 @@ func (d *{{camelCase .Name}}DataSource) Schema(ctx context.Context, req datasour
 			{{- end}}
 			{{- range .Attributes}}
 			{{- if not .Value}}
-			"{{.TfName}}": schema.{{if .MapOfMaps}}Map{{else if isNestedListMapSet .}}{{.Type}}Nested{{else if isList .}}List{{else if isSet .}}Set{{else if eq .Type "Versions"}}List{{else if eq .Type "Version"}}Int64{{else}}{{.Type}}{{end}}Attribute{
+			"{{.TfName}}": schema.{{if isNestedListMapSet .}}{{.Type}}Nested{{else if isList .}}List{{else if isSet .}}Set{{else if eq .Type "Versions"}}List{{else if eq .Type "Version"}}Int64{{else}}{{.Type}}{{end}}Attribute{
 				MarkdownDescription: helpers.NewAttributeDescription("{{if .DsDescription}}{{.DsDescription}}{{else}}{{.Description}}{{end}}")
 					{{- if and (len .EnumValues) (or .DataSourceQuery .DataSourceOptionalParameter) -}}
 					.AddStringEnumDescription({{range .EnumValues}}"{{.}}", {{end}})
@@ -105,15 +106,6 @@ func (d *{{camelCase .Name}}DataSource) Schema(ctx context.Context, req datasour
 					.String,
 				{{- if isListSet .}}
 				ElementType:         types.{{.ElementType}}Type,
-				{{- end}}
-				{{- if .MapOfMaps}}
-				ElementType: types.MapType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{
-					{{- range .Attributes}}
-					{{- if not .Value}}
-					"{{.TfName}}": {{if isList .}}types.ListType{ElemType: types.{{.ElementType}}Type}{{else if isSet .}}types.SetType{ElemType: types.{{.ElementType}}Type}{{else}}types.{{.Type}}Type{{end}},
-					{{- end}}
-					{{- end}}
-				}}},
 				{{- end}}
 				{{- if .Reference}}
 				Required:            true,
@@ -148,7 +140,7 @@ func (d *{{camelCase .Name}}DataSource) Schema(ctx context.Context, req datasour
 				},
 				{{- end}}
 				{{- end}}
-				{{- if and (isNestedListMapSet .) (not .MapOfMaps)}}
+				{{- if isNestedListMapSet .}}
 				{{- $parentNestedMap := isNestedMap .}}
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -334,7 +326,13 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 
 	{{- if .IsBulk}}
 	{{- $items := getAttributeByTfName .Attributes "items"}}
-	{{- $filter := getAttributeByTfName .Attributes "filter"}}
+
+	// Item names requested in config, used to warn about the ones not found
+	requestedNames := make([]string, 0, len(config.{{toGoName $items.TfName}}))
+	for name := range config.{{toGoName $items.TfName}} {
+		requestedNames = append(requestedNames, name)
+	}
+	sort.Strings(requestedNames)
 
 	// Read all items if user did not provide any specific item names in the config
 	if len(config.{{toGoName $items.TfName}}) == 0 {
@@ -346,21 +344,17 @@ func (d *{{camelCase .Name}}DataSource) Read(ctx context.Context, req datasource
 			return true
 		})
 	}
-	{{- if $filter.TfName}}
-
-	// Keep only items whose name contains the filter (case-insensitive)
-	if filter := strings.ToLower(config.{{toGoName $filter.TfName}}.ValueString()); filter != "" {
-		for name := range config.{{toGoName $items.TfName}} {
-			if !strings.Contains(strings.ToLower(name), filter) {
-				tflog.Debug(ctx, fmt.Sprintf("item does not match filter, removing: name=%v", name))
-				delete(config.{{toGoName $items.TfName}}, name)
-			}
-		}
-	}
-	{{- end}}
 	{{- end}}
 
 	config.fromBody(ctx, res.Result)
+	{{- if .IsBulk}}
+	{{- $items := getAttributeByTfName .Attributes "items"}}
+	for _, name := range requestedNames {
+		if _, ok := config.{{toGoName $items.TfName}}[name]; !ok {
+			resp.Diagnostics.AddWarning("Item not found", fmt.Sprintf("{{.Name}}: %q not found, removed from `{{$items.TfName}}`.", name))
+		}
+	}
+	{{- end}}
 	{{- if .SettingsList}}
 	config.Id = types.StringValue("{{snakeCase .Name}}")
 	{{- end}}

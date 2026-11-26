@@ -33,8 +33,7 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
 type IdentityTypes struct {
-	Filter types.String                  `tfsdk:"filter"`
-	Items  map[string]IdentityTypesItems `tfsdk:"items"`
+	Items map[string]IdentityTypesItems `tfsdk:"items"`
 }
 
 type IdentityTypesItems struct {

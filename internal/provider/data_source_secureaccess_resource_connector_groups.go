@@ -21,7 +21,7 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strings"
+	"sort"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -56,14 +56,9 @@ func (d *ResourceConnectorGroupsDataSource) Metadata(_ context.Context, req data
 func (d *ResourceConnectorGroupsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource reads Resource Connector Groups.\n If `items` is empty, all Resource Connector Groups are returned, otherwise only the listed ones.\n If `filter` is provided, only Resource Connector Groups matching the filter are returned.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This resource reads Resource Connector Groups.\n If `items` is empty, all Resource Connector Groups are returned, otherwise only the listed ones.\n").String,
 
 		Attributes: map[string]schema.Attribute{
-			"filter": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Case-insensitive substring used to filter resource connector groups by name.").String,
-				Optional:            true,
-				Computed:            true,
-			},
 			"items": schema.MapNestedAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Map of Resource Connector Groups. The key of the map is the name of the individual Resource Connector Group.").String,
 				Optional:            true,
@@ -160,6 +155,13 @@ func (d *ResourceConnectorGroupsDataSource) Read(ctx context.Context, req dataso
 		return
 	}
 
+	// Item names requested in config, used to warn about the ones not found
+	requestedNames := make([]string, 0, len(config.Items))
+	for name := range config.Items {
+		requestedNames = append(requestedNames, name)
+	}
+	sort.Strings(requestedNames)
+
 	// Read all items if user did not provide any specific item names in the config
 	if len(config.Items) == 0 {
 		config.Items = map[string]ResourceConnectorGroupsItems{}
@@ -171,17 +173,12 @@ func (d *ResourceConnectorGroupsDataSource) Read(ctx context.Context, req dataso
 		})
 	}
 
-	// Keep only items whose name contains the filter (case-insensitive)
-	if filter := strings.ToLower(config.Filter.ValueString()); filter != "" {
-		for name := range config.Items {
-			if !strings.Contains(strings.ToLower(name), filter) {
-				tflog.Debug(ctx, fmt.Sprintf("item does not match filter, removing: name=%v", name))
-				delete(config.Items, name)
-			}
+	config.fromBody(ctx, res.Result)
+	for _, name := range requestedNames {
+		if _, ok := config.Items[name]; !ok {
+			resp.Diagnostics.AddWarning("Item not found", fmt.Sprintf("Resource Connector Groups: %q not found, removed from `items`.", name))
 		}
 	}
-
-	config.fromBody(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", "Resource Connector Groups"))
 

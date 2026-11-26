@@ -65,7 +65,7 @@ resource "secureaccess_access_rule" "block_contractors_or_lab" {
   log_level    = "LOG_ALL"
   traffic_type = "PUBLIC_INTERNET"
 
-  source_identity_ids       = [data.secureaccess_identities.contractors.items["directory_group"]["Contractors"].id]
+  source_identity_ids       = [data.secureaccess_identities.contractors.items["Contractors"].id]
   source_network_object_ids = [secureaccess_network_object.lab.id]
 }
 ```
@@ -84,7 +84,7 @@ resource "secureaccess_access_rule" "finance_from_poland" {
   log_level    = "LOG_ALL"
   traffic_type = "PUBLIC_INTERNET"
 
-  source_identity_ids = [data.secureaccess_identities.finance.items["directory_group"]["Finance"].id]
+  source_identity_ids = [data.secureaccess_identities.finance.items["Finance"].id]
   source_geolocations = ["PL"]
   source_operator     = "AND"
 }
@@ -293,7 +293,7 @@ identities of type `sgt_id`.
 
 ```terraform
 data "secureaccess_identities" "sgt" {
-  identity_types = ["sgt_id"]
+  identity_type = "sgt_id"
 }
 
 resource "secureaccess_access_rule" "employees_to_developers" {
@@ -302,8 +302,8 @@ resource "secureaccess_access_rule" "employees_to_developers" {
   log_level    = "LOG_ALL"
   traffic_type = "PRIVATE_NETWORK"
 
-  source_identity_ids                = [data.secureaccess_identities.employees.items["directory_group"]["Employees"].id]
-  destination_security_group_tag_ids = [data.secureaccess_identities.sgt.items["sgt_id"]["Developers"].id]
+  source_identity_ids                = [data.secureaccess_identities.employees.items["Employees"].id]
+  destination_security_group_tag_ids = [data.secureaccess_identities.sgt.items["Developers"].id]
 }
 ```
 
@@ -337,7 +337,7 @@ Most attributes take IDs. They can come from resources managed in the same confi
 | `destination_application_list_ids` | `secureaccess_application_list` |
 | `destination_list_ids` | `secureaccess_destination_list` |
 | `destination_private_resource_ids`, `destination_private_resource_group_ids` | `secureaccess_private_resource`, `secureaccess_private_resource_group` |
-| `destination_security_group_tag_ids` | `secureaccess_identities` with `identity_types = ["sgt_id"]` |
+| `destination_security_group_tag_ids` | `secureaccess_identities` with `identity_type = "sgt_id"` |
 
 ~> **Note:** Sites and Roaming Computers are referenced in `source_identity_ids` by their `origin_id`, not by their `id`.
 Using `secureaccess_site.example.id` or `secureaccess_roaming_computer.example.id` fails at apply, use
@@ -352,8 +352,8 @@ data "secureaccess_content_categories" "example" {
 }
 
 data "secureaccess_identities" "finance" {
-  identity_types = ["directory_group"]
-  filter         = "Finance"
+  identity_type = "directory_group"
+  search        = "Finance"
 }
 ```
 

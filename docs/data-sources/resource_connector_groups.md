@@ -5,14 +5,12 @@ subcategory: "Connect"
 description: |-
   This resource reads Resource Connector Groups.
   If items is empty, all Resource Connector Groups are returned, otherwise only the listed ones.
-  If filter is provided, only Resource Connector Groups matching the filter are returned.
 ---
 
 # secureaccess_resource_connector_groups (Data Source)
 
 This resource reads Resource Connector Groups.
  If `items` is empty, all Resource Connector Groups are returned, otherwise only the listed ones.
- If `filter` is provided, only Resource Connector Groups matching the filter are returned.
 
 ## Example Usage
 
@@ -30,7 +28,6 @@ data "secureaccess_resource_connector_groups" "example" {
 
 ### Optional
 
-- `filter` (String) Case-insensitive substring used to filter resource connector groups by name.
 - `items` (Attributes Map) Map of Resource Connector Groups. The key of the map is the name of the individual Resource Connector Group. (see [below for nested schema](#nestedatt--items))
 
 <a id="nestedatt--items"></a>

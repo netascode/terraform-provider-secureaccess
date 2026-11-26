@@ -5,14 +5,12 @@ subcategory: "Secure"
 description: |-
   This resource reads DLP File Types.
   If items is empty, all DLP File Types are returned, otherwise only the listed ones.
-  If filter is provided, only DLP File Types matching the filter are returned.
 ---
 
 # secureaccess_dlp_file_types (Data Source)
 
 This resource reads DLP File Types.
  If `items` is empty, all DLP File Types are returned, otherwise only the listed ones.
- If `filter` is provided, only DLP File Types matching the filter are returned.
 
 ## Example Usage
 
@@ -30,7 +28,6 @@ data "secureaccess_dlp_file_types" "example" {
 
 ### Optional
 
-- `filter` (String) Case-insensitive substring used to filter DLP file types by name.
 - `items` (Attributes Map) Map of DLP File Types. The key of the map is the name of the individual DLP File Type. (see [below for nested schema](#nestedatt--items))
 
 <a id="nestedatt--items"></a>

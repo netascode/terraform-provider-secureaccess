@@ -1,5 +1,6 @@
 # Manual data source
 # Read() - single Get() instead of GetAll(), items read from `fileTypeGroups`
+#        - warns about names in `items` not found, as fromBody() drops them silently
 # APIBEHAVIOUR: no pagination, single request returns all File Types and File Type Groups
 ---
 name: DLP File Type Groups
@@ -12,15 +13,7 @@ is_bulk: true
 ds_description: >-
   This resource reads DLP File Type Groups.\n
   If `items` is empty, all DLP File Type Groups are returned, otherwise only the listed ones.\n
-  If `filter` is provided, only DLP File Type Groups matching the filter are returned.
 attributes:
-  - model_name: filter
-    tf_only: true
-    type: String
-    data_source_optional_parameter: true
-    description: Case-insensitive substring used to filter DLP file type groups by name.
-    exclude_example: true
-    exclude_test: true
   - tf_name: items
     type: Map
     description: >-

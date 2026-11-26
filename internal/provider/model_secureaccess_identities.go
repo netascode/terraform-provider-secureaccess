@@ -17,44 +17,41 @@
 
 package provider
 
+// Section below is generated&owned by "gen/generator.go". //template:begin imports
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/tidwall/gjson"
 )
 
+// End of section. //template:end imports
+
+// Section below is generated&owned by "gen/generator.go". //template:begin types
+
 type Identities struct {
-	Filter         types.String `tfsdk:"filter"`
-	IncludeDeleted types.Bool   `tfsdk:"include_deleted"`
-	IdentityTypes  types.List   `tfsdk:"identity_types"`
-	// Items are map[type]map[name]IdentitiesItems
-	Items types.Map `tfsdk:"items"`
+	IdentityType   types.String               `tfsdk:"identity_type"`
+	Search         types.String               `tfsdk:"search"`
+	IncludeDeleted types.Bool                 `tfsdk:"include_deleted"`
+	Items          map[string]IdentitiesItems `tfsdk:"items"`
 }
 
 type IdentitiesItems struct {
 	Id      types.Int64 `tfsdk:"id"`
-	TypeID  types.Int64 `tfsdk:"type_id"`
+	TypeId  types.Int64 `tfsdk:"type_id"`
 	Deleted types.Bool  `tfsdk:"deleted"`
 }
 
-var identitiesItemType = types.ObjectType{AttrTypes: map[string]attr.Type{
-	"id":      types.Int64Type,
-	"type_id": types.Int64Type,
-	"deleted": types.BoolType,
-}}
-
-var identitiesItemsElemType = types.MapType{ElemType: identitiesItemType}
+// End of section. //template:end types
 
 // Section below is generated&owned by "gen/generator.go". //template:begin getPath
 
 func (data Identities) getPath() string {
-	return "/reports/v2/identities"
+	return fmt.Sprintf("/reports/v2/identities?identitytypes=%v", url.QueryEscape(data.IdentityType.ValueString()))
 }
 
 // End of section. //template:end getPath
@@ -63,85 +60,52 @@ func (data Identities) getPath() string {
 
 // End of section. //template:end toBody
 
-func (data *Identities) fromBody(ctx context.Context, res gjson.Result) diag.Diagnostics {
-	var diags diag.Diagnostics
-	if data.IncludeDeleted.IsNull() {
-		data.IncludeDeleted = types.BoolValue(false)
-	}
-	includeDeleted := data.IncludeDeleted.ValueBool()
+// Section below is generated&owned by "gen/generator.go". //template:begin toBodyPatchMerge
 
-	// Types and names requested in config, names are matched case-insensitively
-	var requested map[string]map[string]IdentitiesItems
-	if !data.Items.IsNull() && !data.Items.IsUnknown() {
-		diags.Append(data.Items.ElementsAs(ctx, &requested, false)...)
-		if diags.HasError() {
-			return diags
-		}
-	}
-	requestedNames := make(map[string]map[string]bool, len(requested))
-	for t, names := range requested {
-		requestedNames[t] = make(map[string]bool, len(names))
-		for name := range names {
-			requestedNames[t][strings.ToLower(name)] = true
-		}
-	}
+// End of section. //template:end toBodyPatchMerge
 
-	items := make(map[string]map[string]IdentitiesItems)
-	for t := range requested {
-		items[t] = map[string]IdentitiesItems{}
-	}
+// Section below is generated&owned by "gen/generator.go". //template:begin fromBody
+
+func (data *Identities) fromBody(ctx context.Context, res gjson.Result) {
+	data.IncludeDeleted = types.BoolValue(false)
+	// Build lookup map for O(1) access
+	itemsByName := make(map[string]gjson.Result)
 	res.ForEach(func(_, v gjson.Result) bool {
-		t := v.Get("type.type").String()
-		name := v.Get("label").String()
-		if t == "" || name == "" {
-			return true
-		}
-		// API has no parameter for deleted identities, they are skipped here.
-		// Some deleted identities are only marked by `(deleted)` in the name.
-		if !includeDeleted && (v.Get("deleted").Bool() || strings.Contains(name, "(deleted)")) {
-			return true
-		}
-		if requested != nil {
-			names, ok := requestedNames[t]
-			if !ok || (len(names) > 0 && !names[strings.ToLower(name)]) {
-				return true
-			}
-		}
-		if items[t] == nil {
-			items[t] = map[string]IdentitiesItems{}
-		}
-		if existing, ok := items[t][name]; ok {
-			diags.AddWarning("Duplicate identity name",
-				fmt.Sprintf("Multiple identities of type %q are named %q, keeping id %d and skipping id %d.", t, name, existing.Id.ValueInt64(), v.Get("id").Int()))
-			return true
-		}
-		items[t][name] = IdentitiesItems{
-			Id:      types.Int64Value(v.Get("id").Int()),
-			TypeID:  types.Int64Value(v.Get("type.id").Int()),
-			Deleted: types.BoolValue(v.Get("deleted").Bool()),
+		if name := v.Get("label").String(); name != "" {
+			// Item names are matched case-insensitively
+			itemsByName[strings.ToLower(name)] = v
 		}
 		return true
 	})
-	for t, names := range requested {
-		for name := range names {
-			found := false
-			for n := range items[t] {
-				if strings.EqualFold(n, name) {
-					found = true
-					break
-				}
-			}
-			if !found {
-				tflog.Debug(ctx, fmt.Sprintf("subresource not found, removing: type=%v name=%v", t, name))
-			}
+	for k := range data.Items {
+		parent := &data
+		data := (*parent).Items[k]
+		res, found := itemsByName[strings.ToLower(k)]
+		if !found {
+			tflog.Debug(ctx, fmt.Sprintf("subresource not found, removing: name=%v", k))
+			delete((*parent).Items, k)
+			continue
 		}
+		if value := res.Get("id"); value.Exists() {
+			data.Id = types.Int64Value(value.Int())
+		} else {
+			data.Id = types.Int64Null()
+		}
+		if value := res.Get("type.id"); value.Exists() {
+			data.TypeId = types.Int64Value(value.Int())
+		} else {
+			data.TypeId = types.Int64Null()
+		}
+		if value := res.Get("deleted"); value.Exists() {
+			data.Deleted = types.BoolValue(value.Bool())
+		} else {
+			data.Deleted = types.BoolNull()
+		}
+		(*parent).Items[k] = data
 	}
-
-	value, d := types.MapValueFrom(ctx, identitiesItemsElemType, items)
-	diags.Append(d...)
-	data.Items = value
-	return diags
 }
+
+// End of section. //template:end fromBody
 
 // Section below is generated&owned by "gen/generator.go". //template:begin fromBodyPartial
 
@@ -158,3 +122,7 @@ func (data *Identities) fromBody(ctx context.Context, res gjson.Result) diag.Dia
 // Section below is generated&owned by "gen/generator.go". //template:begin adjustBody
 
 // End of section. //template:end adjustBody
+
+// Section below is generated&owned by "gen/generator.go". //template:begin adjustRead
+
+// End of section. //template:end adjustRead

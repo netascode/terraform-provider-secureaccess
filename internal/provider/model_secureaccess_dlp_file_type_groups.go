@@ -33,8 +33,7 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
 type DLPFileTypeGroups struct {
-	Filter types.String                      `tfsdk:"filter"`
-	Items  map[string]DLPFileTypeGroupsItems `tfsdk:"items"`
+	Items map[string]DLPFileTypeGroupsItems `tfsdk:"items"`
 }
 
 type DLPFileTypeGroupsItems struct {

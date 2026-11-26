@@ -9,15 +9,7 @@ is_bulk: true
 ds_description: >-
   This resource reads Resource Connector Groups.\n
   If `items` is empty, all Resource Connector Groups are returned, otherwise only the listed ones.\n
-  If `filter` is provided, only Resource Connector Groups matching the filter are returned.
 attributes:
-  - model_name: filter
-    tf_only: true
-    type: String
-    data_source_optional_parameter: true
-    description: Case-insensitive substring used to filter resource connector groups by name.
-    exclude_example: true
-    exclude_test: true
   - tf_name: items
     type: Map
     description: >-

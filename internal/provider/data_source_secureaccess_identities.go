@@ -26,9 +26,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -64,11 +62,18 @@ func (d *IdentitiesDataSource) Metadata(_ context.Context, req datasource.Metada
 func (d *IdentitiesDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This is Early Access and may be subject to changes. This resource reads Identities, grouped by identity type.\n If `items` is empty, all Identities are returned, otherwise only the listed types are returned.\n If `filter` is provided, only Identities with name matching the filter are returned.\n If `identity_types` is provided, only Identities of the listed types are returned. Use this as primary filter over `items`.\n").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This is Early Access and may be subject to changes. This resource reads Identities of a single identity type.\n If `items` is empty, all Identities of `identity_type` are returned, otherwise only the listed ones.\n If `search` is provided, only Identities matching the search string are returned.\n").String,
 
 		Attributes: map[string]schema.Attribute{
-			"filter": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Case-insensitive substring used to filter identities by name.").String,
+			"identity_type": schema.StringAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Identity type to read.").AddStringEnumDescription("ad_connector", "android", "anyconnect", "app_connector_agent", "bdr", "branch", "chromebook_user", "connected_devices", "device", "directory_computer", "directory_domain", "directory_group", "directory_user", "domain_controller", "edlp_client", "gsuite_domain", "gsuite_group", "gsuite_user", "internal_network", "meraki_auto_vpn", "mobile_device", "network", "network_device", "network_dns_forwarder", "network_tunnel_hub", "on_network", "policy", "roaming", "saml_group", "saml_user", "secure_web_appliance", "sgt_id", "site", "tunnel_device", "vpn", "vpn_id", "ztna_client").String,
+				Required:            true,
+				Validators: []validator.String{
+					stringvalidator.OneOf("ad_connector", "android", "anyconnect", "app_connector_agent", "bdr", "branch", "chromebook_user", "connected_devices", "device", "directory_computer", "directory_domain", "directory_group", "directory_user", "domain_controller", "edlp_client", "gsuite_domain", "gsuite_group", "gsuite_user", "internal_network", "meraki_auto_vpn", "mobile_device", "network", "network_device", "network_dns_forwarder", "network_tunnel_hub", "on_network", "policy", "roaming", "saml_group", "saml_user", "secure_web_appliance", "sgt_id", "site", "tunnel_device", "vpn", "vpn_id", "ztna_client"),
+				},
+			},
+			"search": schema.StringAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Search string, only Identities where it appears in the Identity data are returned.").String,
 				Optional:            true,
 				Computed:            true,
 			},
@@ -77,26 +82,26 @@ func (d *IdentitiesDataSource) Schema(ctx context.Context, req datasource.Schema
 				Optional:            true,
 				Computed:            true,
 			},
-			"identity_types": schema.ListAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("List of identity types to include. Use this as primary filter for the identities returned.").AddStringEnumDescription("ad_connector", "android", "anyconnect", "app_connector_agent", "bdr", "branch", "chromebook_user", "connected_devices", "device", "directory_computer", "directory_domain", "directory_group", "directory_user", "domain_controller", "edlp_client", "gsuite_domain", "gsuite_group", "gsuite_user", "internal_network", "meraki_auto_vpn", "mobile_device", "network", "network_device", "network_dns_forwarder", "network_tunnel_hub", "on_network", "policy", "roaming", "saml_group", "saml_user", "secure_web_appliance", "sgt_id", "site", "tunnel_device", "vpn", "vpn_id", "ztna_client", "-ad_connector", "-android", "-anyconnect", "-app_connector_agent", "-bdr", "-branch", "-chromebook_user", "-connected_devices", "-device", "-directory_computer", "-directory_domain", "-directory_group", "-directory_user", "-domain_controller", "-edlp_client", "-gsuite_domain", "-gsuite_group", "-gsuite_user", "-internal_network", "-meraki_auto_vpn", "-mobile_device", "-network", "-network_device", "-network_dns_forwarder", "-network_tunnel_hub", "-on_network", "-policy", "-roaming", "-saml_group", "-saml_user", "-secure_web_appliance", "-sgt_id", "-site", "-tunnel_device", "-vpn", "-vpn_id", "-ztna_client").String,
-				ElementType:         types.StringType,
+			"items": schema.MapNestedAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Map of Identities. The key of the map is the name of the individual Identity.").String,
 				Optional:            true,
 				Computed:            true,
-				Validators: []validator.List{
-					listvalidator.ValueStringsAre(
-						stringvalidator.OneOf("ad_connector", "android", "anyconnect", "app_connector_agent", "bdr", "branch", "chromebook_user", "connected_devices", "device", "directory_computer", "directory_domain", "directory_group", "directory_user", "domain_controller", "edlp_client", "gsuite_domain", "gsuite_group", "gsuite_user", "internal_network", "meraki_auto_vpn", "mobile_device", "network", "network_device", "network_dns_forwarder", "network_tunnel_hub", "on_network", "policy", "roaming", "saml_group", "saml_user", "secure_web_appliance", "sgt_id", "site", "tunnel_device", "vpn", "vpn_id", "ztna_client", "-ad_connector", "-android", "-anyconnect", "-app_connector_agent", "-bdr", "-branch", "-chromebook_user", "-connected_devices", "-device", "-directory_computer", "-directory_domain", "-directory_group", "-directory_user", "-domain_controller", "-edlp_client", "-gsuite_domain", "-gsuite_group", "-gsuite_user", "-internal_network", "-meraki_auto_vpn", "-mobile_device", "-network", "-network_device", "-network_dns_forwarder", "-network_tunnel_hub", "-on_network", "-policy", "-roaming", "-saml_group", "-saml_user", "-secure_web_appliance", "-sgt_id", "-site", "-tunnel_device", "-vpn", "-vpn_id", "-ztna_client"),
-					),
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"id": schema.Int64Attribute{
+							MarkdownDescription: "Id of the Identity.",
+							Computed:            true,
+						},
+						"type_id": schema.Int64Attribute{
+							MarkdownDescription: "Type ID of the Identity.",
+							Computed:            true,
+						},
+						"deleted": schema.BoolAttribute{
+							MarkdownDescription: "Deletion status of the Identity.",
+							Computed:            true,
+						},
+					},
 				},
-			},
-			"items": schema.MapAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Map of Identities grouped by type. The key of the outer map is the identity type (e.g. `site`), the key of the inner map is the name of the individual Identity. If set, only the listed types are returned, and only the listed names of a type whose inner map is not empty.").String,
-				ElementType: types.MapType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{
-					"id":      types.Int64Type,
-					"type_id": types.Int64Type,
-					"deleted": types.BoolType,
-				}}},
-				Optional: true,
-				Computed: true,
 			},
 		},
 	}
@@ -127,41 +132,30 @@ func (d *IdentitiesDataSource) Read(ctx context.Context, req datasource.ReadRequ
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", "Identities"))
 
-	// Filter and identity types are passed to the API as query parameters
+	// Default applies only when not configured, fromBody() always sets it
+	includeDeleted := config.IncludeDeleted
+	if includeDeleted.IsNull() || includeDeleted.IsUnknown() {
+		includeDeleted = types.BoolValue(false)
+	}
+
+	// Search is passed to the API as query parameter, identity type is part of getPath()
 	query := url.Values{}
-	if filter := config.Filter.ValueString(); filter != "" {
-		query.Set("search", filter)
-	}
-	if !config.IdentityTypes.IsNull() && !config.IdentityTypes.IsUnknown() {
-		var identityTypes []string
-		resp.Diagnostics.Append(config.IdentityTypes.ElementsAs(ctx, &identityTypes, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		if len(identityTypes) > 0 {
-			query.Set("identitytypes", strings.Join(identityTypes, ","))
-		}
-	}
-	// Without explicit identity types, only the types listed in items are requested
-	if query.Get("identitytypes") == "" && !config.Items.IsNull() && !config.Items.IsUnknown() && len(config.Items.Elements()) > 0 {
-		itemTypes := make([]string, 0, len(config.Items.Elements()))
-		for t := range config.Items.Elements() {
-			itemTypes = append(itemTypes, t)
-		}
-		sort.Strings(itemTypes)
-		query.Set("identitytypes", strings.Join(itemTypes, ","))
+	if search := config.Search.ValueString(); search != "" {
+		query.Set("search", search)
 	}
 
 	// Endpoint uses its own offset/limit pagination without total count, where
 	// limit must always be set. A page shorter than the limit is the last one.
+	// Deleted identities are skipped here, as the API has no parameter for them.
+	// Some deleted identities are only marked by `(deleted)` in the name.
 	const maxItems = 5000
+	seen := map[string]int64{}
 	var sb strings.Builder
 	sb.WriteByte('[')
-	first := true
 	for offset := 0; ; offset += maxItems {
 		query.Set("limit", strconv.Itoa(maxItems))
 		query.Set("offset", strconv.Itoa(offset))
-		urlPath := config.getPath() + "?" + query.Encode()
+		urlPath := config.getPath() + "&" + query.Encode()
 		page, err := d.client.Get(ctx, urlPath, reqMods...)
 		if err != nil {
 			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
@@ -175,12 +169,25 @@ func (d *IdentitiesDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		}
 		count := 0
 		items.ForEach(func(_, v gjson.Result) bool {
-			if !first {
+			count++
+			name := v.Get("label").String()
+			if name == "" {
+				return true
+			}
+			if !includeDeleted.ValueBool() && (v.Get("deleted").Bool() || strings.Contains(name, "(deleted)")) {
+				return true
+			}
+			// Names are matched case-insensitively, the first identity is kept
+			if id, ok := seen[strings.ToLower(name)]; ok {
+				resp.Diagnostics.AddWarning("Duplicate identity name",
+					fmt.Sprintf("Multiple identities of type %q are named %q, keeping id %d and skipping id %d.", config.IdentityType.ValueString(), name, id, v.Get("id").Int()))
+				return true
+			}
+			seen[strings.ToLower(name)] = v.Get("id").Int()
+			if len(seen) > 1 {
 				sb.WriteByte(',')
 			}
 			sb.WriteString(v.Raw)
-			first = false
-			count++
 			return true
 		})
 		if count < maxItems {
@@ -190,10 +197,31 @@ func (d *IdentitiesDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	sb.WriteByte(']')
 	res := gjson.Parse(sb.String())
 
-	resp.Diagnostics.Append(config.fromBody(ctx, res)...)
-	if resp.Diagnostics.HasError() {
-		return
+	// Item names requested in config, used to warn about the ones not found
+	requestedNames := make([]string, 0, len(config.Items))
+	for name := range config.Items {
+		requestedNames = append(requestedNames, name)
 	}
+	sort.Strings(requestedNames)
+
+	// Read all items if user did not provide any specific item names in the config
+	if len(config.Items) == 0 {
+		config.Items = map[string]IdentitiesItems{}
+		res.ForEach(func(_, v gjson.Result) bool {
+			if name := v.Get("label").String(); name != "" {
+				config.Items[name] = IdentitiesItems{}
+			}
+			return true
+		})
+	}
+
+	config.fromBody(ctx, res)
+	for _, name := range requestedNames {
+		if _, ok := config.Items[name]; !ok {
+			resp.Diagnostics.AddWarning("Item not found", fmt.Sprintf("%s: %q not found, removed from `items`.", "Identities", name))
+		}
+	}
+	config.IncludeDeleted = includeDeleted
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", "Identities"))
 

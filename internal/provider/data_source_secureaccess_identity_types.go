@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
-	"strings"
+	"sort"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -58,14 +58,9 @@ func (d *IdentityTypesDataSource) Metadata(_ context.Context, req datasource.Met
 func (d *IdentityTypesDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This resource reads Identity Types.\n Available Identity Types include, but are not limited to: `Registered Networks`, `AD Groups`, `AD Devices`, `AD Users`, `Apple Devices`, `Internal Networks`, `Sites`, `Network Devices`, `ChromeOS Devices`, `Network Tunnel Groups`, `Google Workspace Users`, `Google Workspace Organizational Units`, `Catalyst SD-WAN Service VPN IDs`, `Security Group Tags`, `iOS/Android Devices` and `macOS/Windows Devices`.\n").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This resource reads Identity Types.").String,
 
 		Attributes: map[string]schema.Attribute{
-			"filter": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Case-insensitive substring used to filter identity types by name.").String,
-				Optional:            true,
-				Computed:            true,
-			},
 			"items": schema.MapNestedAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Map of Identity Types. The key of the map is the name of the individual Identity Type.").String,
 				Optional:            true,
@@ -110,6 +105,13 @@ func (d *IdentityTypesDataSource) Read(ctx context.Context, req datasource.ReadR
 		Result: gjson.ParseBytes(body),
 	}
 
+	// Item names requested in config, used to warn about the ones not found
+	requestedNames := make([]string, 0, len(config.Items))
+	for name := range config.Items {
+		requestedNames = append(requestedNames, name)
+	}
+	sort.Strings(requestedNames)
+
 	// Read all items if user did not provide any specific item names in the config
 	if len(config.Items) == 0 {
 		config.Items = map[string]IdentityTypesItems{}
@@ -121,17 +123,12 @@ func (d *IdentityTypesDataSource) Read(ctx context.Context, req datasource.ReadR
 		})
 	}
 
-	// Keep only items whose name contains the filter (case-insensitive)
-	if filter := strings.ToLower(config.Filter.ValueString()); filter != "" {
-		for name := range config.Items {
-			if !strings.Contains(strings.ToLower(name), filter) {
-				tflog.Debug(ctx, fmt.Sprintf("item does not match filter, removing: name=%v", name))
-				delete(config.Items, name)
-			}
+	config.fromBody(ctx, res.Result)
+	for _, name := range requestedNames {
+		if _, ok := config.Items[name]; !ok {
+			resp.Diagnostics.AddWarning("Item not found", fmt.Sprintf("%s: %q not found, removed from `items`.", "Identity Types", name))
 		}
 	}
-
-	config.fromBody(ctx, res.Result)
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", "Identity Types"))
 

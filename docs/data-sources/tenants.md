@@ -5,14 +5,12 @@ subcategory: "Multi-Tenant"
 description: |-
   This data source reads Tenants (organizations) managed by the Cisco Secure Access organization.
   If items is empty, all Tenants are returned, otherwise only the listed ones.
-  If filter is provided, only Tenants matching the filter are returned.
 ---
 
 # secureaccess_tenants (Data Source)
 
 This data source reads Tenants (organizations) managed by the Cisco Secure Access organization.
  If `items` is empty, all Tenants are returned, otherwise only the listed ones.
- If `filter` is provided, only Tenants matching the filter are returned.
 
 ## Example Usage
 
@@ -30,7 +28,6 @@ data "secureaccess_tenants" "example" {
 
 ### Optional
 
-- `filter` (String) Case-insensitive substring used to filter tenants by organization name.
 - `items` (Attributes Map) Map of Tenants. The key of the map is the organization name of the individual Tenant. (see [below for nested schema](#nestedatt--items))
 
 <a id="nestedatt--items"></a>

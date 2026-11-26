@@ -5,14 +5,12 @@ subcategory: "Secure"
 description: |-
   This resource reads DLP File Type Groups.
   If items is empty, all DLP File Type Groups are returned, otherwise only the listed ones.
-  If filter is provided, only DLP File Type Groups matching the filter are returned.
 ---
 
 # secureaccess_dlp_file_type_groups (Data Source)
 
 This resource reads DLP File Type Groups.
  If `items` is empty, all DLP File Type Groups are returned, otherwise only the listed ones.
- If `filter` is provided, only DLP File Type Groups matching the filter are returned.
 
 ## Example Usage
 
@@ -30,7 +28,6 @@ data "secureaccess_dlp_file_type_groups" "example" {
 
 ### Optional
 
-- `filter` (String) Case-insensitive substring used to filter DLP file type groups by name.
 - `items` (Attributes Map) Map of DLP File Type Groups. The key of the map is the name of the individual DLP File Type Group. (see [below for nested schema](#nestedatt--items))
 
 <a id="nestedatt--items"></a>

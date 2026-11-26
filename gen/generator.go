@@ -159,7 +159,6 @@ type YamlConfigAttribute struct {
 	MaxFloat                    float64               `yaml:"max_float"`
 	MapKeyExample               string                `yaml:"map_key_example"`
 	MapKeyModelName             string                `yaml:"map_key_model_name"`
-	MapOfMaps                   bool                  `yaml:"map_of_maps"`
 	OrderedList                 bool                  `yaml:"ordered_list"`
 	StringPatterns              []string              `yaml:"string_patterns"`
 	StringMinLength             int64                 `yaml:"string_min_length"`
@@ -829,9 +828,6 @@ func validateBulk(config YamlConfig) error {
 	}
 	if items := GetAttributeByTfName(config.Attributes, "items"); !IsNestedMap(items) {
 		return fmt.Errorf("`is_bulk: true` requires a top level nested Map attribute with `tf_name: items`")
-	}
-	if filter := GetAttributeByTfName(config.Attributes, "filter"); filter.TfName != "" && (filter.Type != "String" || !filter.TfOnly || !filter.DataSourceOptionalParameter) {
-		return fmt.Errorf("`is_bulk: true` requires the `filter` attribute to be a `tf_only` String with `data_source_optional_parameter: true`")
 	}
 	return nil
 }

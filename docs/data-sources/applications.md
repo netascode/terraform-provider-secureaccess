@@ -5,21 +5,19 @@ subcategory: "Resources"
 description: |-
   This resource reads Applications.
   If items is empty, all Applications are returned, otherwise only the listed ones.
-  If filter is provided, only Applications matching the filter are returned.
 ---
 
 # secureaccess_applications (Data Source)
 
 This resource reads Applications.
  If `items` is empty, all Applications are returned, otherwise only the listed ones.
- If `filter` is provided, only Applications matching the filter are returned.
 
 ## Example Usage
 
 ```terraform
 data "secureaccess_applications" "example" {
   items = {
-    "My Application" = {
+    "Cisco Webex Assistant" = {
     }
   }
 }
@@ -30,7 +28,6 @@ data "secureaccess_applications" "example" {
 
 ### Optional
 
-- `filter` (String) Case-insensitive substring used to filter applications by name.
 - `items` (Attributes Map) Map of Applications. The key of the map is the name of the individual Application. (see [below for nested schema](#nestedatt--items))
 
 <a id="nestedatt--items"></a>
