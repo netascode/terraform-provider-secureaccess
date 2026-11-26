@@ -55,6 +55,7 @@ type DoNotDecryptList struct {
 }
 
 type DoNotDecryptListDestinations struct {
+	Id          types.Int64  `tfsdk:"id"`
 	Destination types.String `tfsdk:"destination"`
 	Comment     types.String `tfsdk:"comment"`
 }
@@ -128,6 +129,11 @@ func (data *DoNotDecryptList) fromBody(ctx context.Context, res gjson.Result) {
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
 			data := DoNotDecryptListDestinations{}
+			if value := res.Get("id"); value.Exists() {
+				data.Id = types.Int64Value(value.Int())
+			} else {
+				data.Id = types.Int64Null()
+			}
 			if value := res.Get("destination"); value.Exists() {
 				data.Destination = types.StringValue(value.String())
 			} else {
@@ -214,6 +220,11 @@ func (data *DoNotDecryptList) fromBodyPartial(ctx context.Context, res gjson.Res
 
 			continue
 		}
+		if value := res.Get("id"); value.Exists() {
+			data.Id = types.Int64Value(value.Int())
+		} else {
+			data.Id = types.Int64Null()
+		}
 		if value := res.Get("destination"); value.Exists() && !data.Destination.IsNull() {
 			data.Destination = types.StringValue(value.String())
 		} else {
@@ -255,6 +266,38 @@ func (data *DoNotDecryptList) fromBodyPartial(ctx context.Context, res gjson.Res
 // fromBodyUnknowns updates the Unknown Computed tfstate values from a JSON.
 // Known values are not changed (usual for Computed attributes with UseStateForUnknown or with Default).
 func (data *DoNotDecryptList) fromBodyUnknowns(ctx context.Context, res gjson.Result) {
+	destinationsArray := res.Get("destinations")
+	for i := range data.Destinations {
+		keys := [...]string{"destination"}
+		keyValues := [...]string{data.Destinations[i].Destination.ValueString()}
+
+		var r gjson.Result
+		destinationsArray.ForEach(
+			func(_, v gjson.Result) bool {
+				found := false
+				for ik := range keys {
+					if helpers.GetKeyValue(v.Get(keys[ik])) != keyValues[ik] {
+						found = false
+						break
+					}
+					found = true
+				}
+				if found {
+					r = v
+					return false
+				}
+				return true
+			},
+		)
+		if v := data.Destinations[i]; v.Id.IsUnknown() {
+			if value := r.Get("id"); value.Exists() {
+				v.Id = types.Int64Value(value.Int())
+			} else {
+				v.Id = types.Int64Null()
+			}
+			data.Destinations[i] = v
+		}
+	}
 	if data.IsDefault.IsUnknown() {
 		if value := res.Get("isDefault"); value.Exists() {
 			data.IsDefault = types.BoolValue(value.Bool())
@@ -335,6 +378,13 @@ func doNotDecryptListWithDestinations(ctx context.Context, client *secureaccess.
 		return object, fmt.Errorf("failed to add the destinations to the object: %w", err)
 	}
 	return gjson.Parse(body), nil
+}
+
+// doNotDecryptListNotReadBack is the text of the warning for a read after Create() or Update() that failed. The object is
+// configured already, only the ids of the destinations are missing: the answer of the last request has no destinations, so
+// they stay empty and the next refresh reads them.
+func doNotDecryptListNotReadBack(err error) string {
+	return fmt.Sprintf("The object is configured, but its destinations could not be read to get their ids. The ids are read at the next refresh: %s", err)
 }
 
 // doNotDecryptListWithoutEmptyComments returns the destinations (a JSON array) without the `comment` of those whose

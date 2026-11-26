@@ -836,6 +836,9 @@ func TestDoNotDecryptListDataSourceRead(t *testing.T) {
 			if want := []string{"a.com", "c.com"}; !slices.Equal(names(got.Destinations), want) {
 				t.Fatalf("destinations = %v, want %v", names(got.Destinations), want)
 			}
+			if got.Destinations[0].Id.ValueInt64() != 1 || got.Destinations[1].Id.ValueInt64() != 2 {
+				t.Errorf("the ids of the destinations = %v, %v, want 1 and 2 (the ids of the destination list)", got.Destinations[0].Id, got.Destinations[1].Id)
+			}
 			if got.Destinations[0].Comment.ValueString() != "x" {
 				t.Errorf("the comment of a.com = %q", got.Destinations[0].Comment.ValueString())
 			}
@@ -982,10 +985,12 @@ func dndTestPlan(t *testing.T, s schema.Schema, model *DoNotDecryptList) tfsdk.P
 }
 
 // dndTestAPI is a fake API for the tests that run Update(): it answers the token request, keeps the body of every PUT to
-// the list with id 1 and fails the test on any other request.
+// the list with id 1, answers the read of the object that Update() makes at the end (the list has no destinations) and
+// fails the test on any other request.
 type dndTestAPI struct {
 	mu   sync.Mutex
 	puts []string
+	gets int
 }
 
 func (a *dndTestAPI) bodies() []string {
@@ -1005,6 +1010,11 @@ func dndTestResource(t *testing.T) (*DoNotDecryptListResource, *dndTestAPI) {
 			body, _ := io.ReadAll(r.Body)
 			api.mu.Lock()
 			api.puts = append(api.puts, string(body))
+			api.mu.Unlock()
+			_, _ = io.WriteString(w, `{"id":1,"name":"n","isDefault":false,"totalDomains":0,"totalIps":0,"totalApplications":3}`)
+		case r.Method == http.MethodGet && r.URL.Path == "/policies/v2/doNotDecryptLists/1":
+			api.mu.Lock()
+			api.gets++
 			api.mu.Unlock()
 			_, _ = io.WriteString(w, `{"id":1,"name":"n","isDefault":false,"totalDomains":0,"totalIps":0,"totalApplications":3}`)
 		default:
@@ -1075,9 +1085,18 @@ func TestDoNotDecryptListUpdateGuard(t *testing.T) {
 		if resp.Diagnostics.HasError() {
 			t.Fatalf("an update that only adds must go through: %v", resp.Diagnostics)
 		}
+		if warnings := resp.Diagnostics.Warnings(); len(warnings) > 0 {
+			t.Errorf("the read after the update must succeed, got warnings: %v", warnings)
+		}
 		puts := api.bodies()
 		if len(puts) != 1 {
 			t.Fatalf("got %d requests, want 1: %v", len(puts), puts)
+		}
+		api.mu.Lock()
+		gets := api.gets
+		api.mu.Unlock()
+		if gets != 1 {
+			t.Errorf("got %d reads of the object after the update, want 1 (it gives the ids of the destinations)", gets)
 		}
 		if got := gjson.Get(puts[0], "addApplications").Raw; got != `[3]` {
 			t.Errorf("addApplications = %s in %s", got, puts[0])
@@ -1508,6 +1527,9 @@ func TestDoNotDecryptListUpdateRemovals(t *testing.T) {
 			"GET /policies/v2/destinationlists/777/destinations ",
 			"DELETE /policies/v2/destinationlists/777/destinations/remove [12]",
 			"GET /policies/v2/doNotDecryptLists/1 ",
+			// the object and the destinations once more, to get the ids of the destinations
+			"GET /policies/v2/doNotDecryptLists/1 ",
+			"GET /policies/v2/destinationlists/777/destinations ",
 		}
 		if !slices.Equal(got, want) {
 			t.Errorf("requests = %v, want %v", got, want)
@@ -1520,9 +1542,10 @@ func TestDoNotDecryptListUpdateRemovals(t *testing.T) {
 		if resp.Diagnostics.HasError() {
 			t.Fatal(resp.Diagnostics)
 		}
-		if len(got) != 4 || !strings.Contains(got[0], `"removeDestinations":[{"destination":"b.com"}]`) ||
+		if len(got) != 6 || !strings.Contains(got[0], `"removeDestinations":[{"destination":"b.com"}]`) ||
 			got[1] != "GET /policies/v2/doNotDecryptLists/1 " || got[2] != "GET /policies/v2/destinationlists/777/destinations " ||
-			strings.Contains(got[3], "removeDestinations") {
+			strings.Contains(got[3], "removeDestinations") ||
+			got[4] != "GET /policies/v2/doNotDecryptLists/1 " || got[5] != "GET /policies/v2/destinationlists/777/destinations " {
 			t.Errorf("requests = %v", got)
 		}
 	})

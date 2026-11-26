@@ -4,6 +4,7 @@
 # -> Create(): at most 500 destinations are accepted on create, the rest is added with updates
 # -> Read(): the destinations are read from the destination list `exceptiondomainlistId` with destinationListReadDestinations() and put into the body as `destinations` before fromBody() and fromBodyPartial(), like the destination list does, the same in the data source.
 #    A `comment` that is null or empty is dropped from them first: the configuration cannot hold an empty comment and the generated fromBody() would read a null as an empty string (how the API returns a missing comment is not known)
+# -> Create(), Update(): at the end the object and the destination list are read again, to fill the `id` of every destination (the PUT and POST answers have no destinations)
 # -> Update(): PUT takes `add*`/`remove*` lists instead of full lists, Update() builds them from state vs. plan (applications and categories can only be added, see below)
 # -> ModifyPlan(): warns about a plan that removes applications or categories, Update() refuses it, the API cannot do it
 # -> ValidateConfig(): a destination that is listed more than once is rejected, a set cannot express that (the same destination with two comments)
@@ -47,6 +48,13 @@ attributes:
     type: Set
     description: Destinations that are excluded from decryption, domain names (in lowercase), IPv4 addresses or CIDR blocks. URLs are not supported. Large lists are split into multiple requests automatically.
     attributes:
+      - model_name: id
+        type: Int64
+        description: Unique identifier for the destination.
+        computed: true
+        computed_refresh_value: true
+        exclude_example: true
+        exclude_test: true
       - model_name: destination
         type: String
         description: The destination value, a domain name in lowercase, an IPv4 address or an IPv4 CIDR block. URLs, whitespace and a trailing dot are not allowed.

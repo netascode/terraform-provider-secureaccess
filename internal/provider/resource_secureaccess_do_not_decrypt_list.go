@@ -89,6 +89,10 @@ func (r *DoNotDecryptListResource) Schema(ctx context.Context, req resource.Sche
 				Optional:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
+						"id": schema.Int64Attribute{
+							MarkdownDescription: helpers.NewAttributeDescription("Unique identifier for the destination.").String,
+							Computed:            true,
+						},
 						"destination": schema.StringAttribute{
 							MarkdownDescription: helpers.NewAttributeDescription("The destination value, a domain name in lowercase, an IPv4 address or an IPv4 CIDR block. URLs, whitespace and a trailing dot are not allowed.").String,
 							Required:            true,
@@ -197,7 +201,12 @@ func (r *DoNotDecryptListResource) Create(ctx context.Context, req resource.Crea
 			return
 		}
 	}
-	plan.fromBodyUnknowns(ctx, res.Result)
+	current, err := r.readBack(ctx, plan.getPath()+"/"+url.QueryEscape(plan.Id.ValueString()), reqMods...)
+	if err != nil {
+		resp.Diagnostics.AddWarning("Destinations not read back", doNotDecryptListNotReadBack(err))
+		current = res.Result.Raw
+	}
+	plan.fromBodyUnknowns(ctx, gjson.Parse(current))
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Create finished successfully", plan.Id.ValueString()))
 
@@ -328,7 +337,12 @@ func (r *DoNotDecryptListResource) Update(ctx context.Context, req resource.Upda
 		interim.fromBodyUnknowns(ctx, res.Result)
 	}
 	warnSkipped()
-	plan.fromBodyUnknowns(ctx, res.Result)
+	current, err := r.readBack(ctx, objectPath, reqMods...)
+	if err != nil {
+		resp.Diagnostics.AddWarning("Destinations not read back", doNotDecryptListNotReadBack(err))
+		current = res.Result.Raw
+	}
+	plan.fromBodyUnknowns(ctx, gjson.Parse(current))
 
 	tflog.Debug(ctx, fmt.Sprintf("%s: Update finished successfully", plan.Id.ValueString()))
 
@@ -403,6 +417,21 @@ func (r *DoNotDecryptListResource) readDestinationList(ctx context.Context, obje
 		return object, listId, nil, err
 	}
 	return object, listId, destinations.Array(), nil
+}
+
+// readBack reads the object and the destinations of the destination list behind it again, like Read() does, to fill the values
+// that are unknown after Create() and Update(): the `id` of every destination, which neither the POST nor the PUT answer has,
+// and the totals. It returns the object with the destinations as JSON.
+func (r *DoNotDecryptListResource) readBack(ctx context.Context, objectPath string, reqMods ...func(*secureaccess.Req)) (string, error) {
+	object, err := r.client.Get(ctx, objectPath, reqMods...)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve object (GET): %w, %s", err, object.String())
+	}
+	body, err := doNotDecryptListWithDestinations(ctx, r.client, object.Result, reqMods...)
+	if err != nil {
+		return "", err
+	}
+	return body.Raw, nil
 }
 
 // putSkippingMissing sends the PUT request of a step. If the API refuses it because a destination that is to be removed

@@ -43,3 +43,4 @@ Read-Only:
 
 - `comment` (String) Comment for the destination.
 - `destination` (String) The destination value, a domain name in lowercase, an IPv4 address or an IPv4 CIDR block. URLs, whitespace and a trailing dot are not allowed.
+- `id` (Number) Unique identifier for the destination.

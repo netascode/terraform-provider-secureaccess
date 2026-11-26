@@ -58,6 +58,10 @@ Optional:
 
 - `comment` (String) Comment for the destination.
 
+Read-Only:
+
+- `id` (Number) Unique identifier for the destination.
+
 ## Import
 
 Import is supported using the following syntax:

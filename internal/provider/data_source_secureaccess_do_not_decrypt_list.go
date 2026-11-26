@@ -77,6 +77,10 @@ func (d *DoNotDecryptListDataSource) Schema(ctx context.Context, req datasource.
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
+						"id": schema.Int64Attribute{
+							MarkdownDescription: "Unique identifier for the destination.",
+							Computed:            true,
+						},
 						"destination": schema.StringAttribute{
 							MarkdownDescription: "The destination value, a domain name in lowercase, an IPv4 address or an IPv4 CIDR block. URLs, whitespace and a trailing dot are not allowed.",
 							Computed:            true,
