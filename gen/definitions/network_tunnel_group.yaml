@@ -1,8 +1,13 @@
+# adjustBody appends the nat_source_csa_to_site_cidr source rule (sourceTranslation) to routing.data.routingRules
+# adjustRead reads nat_source_csa_to_site_cidr from that rule
+# ValidateConfig requires nat_source_csa_to_site_cidr when routing_type is nat
 ---
 name: Network Tunnel Group
 rest_endpoint: /deployments/v2/networktunnelgroups
 doc_category: Connect
 skip_minimum_test: true
+adjust_body: true
+adjust_read: true
 attributes:
   - model_name: name
     type: String
@@ -132,6 +137,46 @@ attributes:
     tf_name: ipv6_routing
     description: Indicates if IPv6 is enabled for the network tunnel in addition to IPv4.
     example: "true"
+  # NAT routing configuration
+  - tf_name: nat_source_csa_to_site_cidr
+    tf_only: true
+    description: Translate All source IP addresses to provided range for CSA to Site communication.
+    type: String
+    exclude_example: true
+    exclude_test: true
+  - model_name: routingRules
+    data_path: ["routing", "data"]
+    tf_name: nat_destination_mappings
+    type: List
+    description: NAT destination mappings.
+    exclude_example: true
+    exclude_test: true
+    attributes:
+      - model_name: name
+        type: String
+        id: true
+        mandatory: true
+        description: Name of the routing rule.
+        example: "rule1"
+      - model_name: direction
+        type: String
+        mandatory: true
+        description: Direction of the routing rule.
+        enum_values: ["cloud-to-branch", "branch-to-cloud"]
+      - model_name: real
+        data_path: ["destinationTranslation"]
+        mandatory: true
+        tf_name: original_cidr
+        type: String
+        description: Original CIDR.
+        example: "192.168.0.0/24"
+      - model_name: mapped
+        data_path: ["destinationTranslation"]
+        mandatory: true
+        tf_name: translated_cidr
+        type: String
+        description: Translated CIDR.
+        example: "192.168.10.0/24"
   # After Creation read-only values
   - model_name: hubs
     type: List

@@ -49,6 +49,8 @@ resource "secureaccess_network_tunnel_group" "example" {
 - `bgp_override_summarization` (Boolean) Indicates if BGP summarization should be overridden.
 - `bgp_peering_types` (Set of String) - Choices: `ipv4`, `ipv6`
 - `ipv6_routing` (Boolean) Indicates if IPv6 is enabled for the network tunnel in addition to IPv4.
+- `nat_destination_mappings` (Attributes List) NAT destination mappings. (see [below for nested schema](#nestedatt--nat_destination_mappings))
+- `nat_source_csa_to_site_cidr` (String) Translate All source IP addresses to provided range for CSA to Site communication.
 - `static_network_cidrs` (Set of String) List of network CIDRs for the static routing.
 - `tunnel_id_format_email` (String) Prefix for the authentication ID in email format (<tunnel_id_format_email>@<org><hub>.sse.cisco.com). The string should not have any special characters besides the period(.), underscore(_), and dash(-) characters.
 - `tunnel_id_format_ip_addresses` (List of String) List of IP addresses for the authentication ID in IP address format. Include exactly two IP addresses for primary region and two for backup region (if used).
@@ -57,6 +59,18 @@ resource "secureaccess_network_tunnel_group" "example" {
 
 - `hubs` (Attributes List) Remote connection endpoints for connecting network tunnel group (see [below for nested schema](#nestedatt--hubs))
 - `id` (String) Id of the object
+
+<a id="nestedatt--nat_destination_mappings"></a>
+### Nested Schema for `nat_destination_mappings`
+
+Required:
+
+- `direction` (String) Direction of the routing rule.
+  - Choices: `cloud-to-branch`, `branch-to-cloud`
+- `name` (String) Name of the routing rule.
+- `original_cidr` (String) Original CIDR.
+- `translated_cidr` (String) Translated CIDR.
+
 
 <a id="nestedatt--hubs"></a>
 ### Nested Schema for `hubs`

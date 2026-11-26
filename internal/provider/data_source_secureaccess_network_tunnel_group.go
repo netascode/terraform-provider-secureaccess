@@ -128,6 +128,34 @@ func (d *NetworkTunnelGroupDataSource) Schema(ctx context.Context, req datasourc
 				MarkdownDescription: helpers.NewAttributeDescription("Indicates if IPv6 is enabled for the network tunnel in addition to IPv4.").String,
 				Computed:            true,
 			},
+			"nat_source_csa_to_site_cidr": schema.StringAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Translate All source IP addresses to provided range for CSA to Site communication.").String,
+				Computed:            true,
+			},
+			"nat_destination_mappings": schema.ListNestedAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("NAT destination mappings.").String,
+				Computed:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							MarkdownDescription: "Name of the routing rule.",
+							Computed:            true,
+						},
+						"direction": schema.StringAttribute{
+							MarkdownDescription: "Direction of the routing rule.",
+							Computed:            true,
+						},
+						"original_cidr": schema.StringAttribute{
+							MarkdownDescription: "Original CIDR.",
+							Computed:            true,
+						},
+						"translated_cidr": schema.StringAttribute{
+							MarkdownDescription: "Translated CIDR.",
+							Computed:            true,
+						},
+					},
+				},
+			},
 			"hubs": schema.ListNestedAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Remote connection endpoints for connecting network tunnel group").String,
 				Computed:            true,

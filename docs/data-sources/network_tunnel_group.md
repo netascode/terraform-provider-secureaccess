@@ -37,6 +37,8 @@ data "secureaccess_network_tunnel_group" "example" {
 - `hubs` (Attributes List) Remote connection endpoints for connecting network tunnel group (see [below for nested schema](#nestedatt--hubs))
 - `ipv6_routing` (Boolean) Indicates if IPv6 is enabled for the network tunnel in addition to IPv4.
 - `name` (String) Name of the Network Tunnel Group. It cannot exceed 50 characters, and can only contain alphanumeric characters, spaces, and hyphens.
+- `nat_destination_mappings` (Attributes List) NAT destination mappings. (see [below for nested schema](#nestedatt--nat_destination_mappings))
+- `nat_source_csa_to_site_cidr` (String) Translate All source IP addresses to provided range for CSA to Site communication.
 - `preshared_key` (String, Sensitive) Passphrase for the network tunnel. It must include at least one upper case letter, one lower case letter, one number, and cannot include any special characters.
 - `region` (String) The name of the region that the system uses to obtain the primary and secondary data centers for the Hubs.
 - `routing_type` (String) Type of routing for the network tunnel.
@@ -54,3 +56,14 @@ Read-Only:
 - `id` (Number) ID of the hub.
 - `is_primary` (Boolean) Indicates if the hub is the primary hub.
 - `tunnel_id` (String) Tunnel ID
+
+
+<a id="nestedatt--nat_destination_mappings"></a>
+### Nested Schema for `nat_destination_mappings`
+
+Read-Only:
+
+- `direction` (String) Direction of the routing rule.
+- `name` (String) Name of the routing rule.
+- `original_cidr` (String) Original CIDR.
+- `translated_cidr` (String) Translated CIDR.

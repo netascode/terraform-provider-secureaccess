@@ -178,6 +178,37 @@ func (r *NetworkTunnelGroupResource) Schema(ctx context.Context, req resource.Sc
 				MarkdownDescription: helpers.NewAttributeDescription("Indicates if IPv6 is enabled for the network tunnel in addition to IPv4.").String,
 				Optional:            true,
 			},
+			"nat_source_csa_to_site_cidr": schema.StringAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("Translate All source IP addresses to provided range for CSA to Site communication.").String,
+				Optional:            true,
+			},
+			"nat_destination_mappings": schema.ListNestedAttribute{
+				MarkdownDescription: helpers.NewAttributeDescription("NAT destination mappings.").String,
+				Optional:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							MarkdownDescription: helpers.NewAttributeDescription("Name of the routing rule.").String,
+							Required:            true,
+						},
+						"direction": schema.StringAttribute{
+							MarkdownDescription: helpers.NewAttributeDescription("Direction of the routing rule.").AddStringEnumDescription("cloud-to-branch", "branch-to-cloud").String,
+							Required:            true,
+							Validators: []validator.String{
+								stringvalidator.OneOf("cloud-to-branch", "branch-to-cloud"),
+							},
+						},
+						"original_cidr": schema.StringAttribute{
+							MarkdownDescription: helpers.NewAttributeDescription("Original CIDR.").String,
+							Required:            true,
+						},
+						"translated_cidr": schema.StringAttribute{
+							MarkdownDescription: helpers.NewAttributeDescription("Translated CIDR.").String,
+							Required:            true,
+						},
+					},
+				},
+			},
 			"hubs": schema.ListNestedAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Remote connection endpoints for connecting network tunnel group").String,
 				Computed:            true,
@@ -223,6 +254,20 @@ func (r *NetworkTunnelGroupResource) Configure(_ context.Context, req resource.C
 
 // End of section. //template:end model
 
+var _ resource.ResourceWithValidateConfig = &NetworkTunnelGroupResource{}
+
+// ValidateConfig requires `nat_source_csa_to_site_cidr` when `routing_type` is `nat`.
+func (r *NetworkTunnelGroupResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var config NetworkTunnelGroup
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() || config.RoutingType.IsUnknown() || config.NatSourceCsaToSiteCidr.IsUnknown() {
+		return
+	}
+	if config.RoutingType.ValueString() == "nat" && config.NatSourceCsaToSiteCidr.ValueString() == "" {
+		resp.Diagnostics.AddAttributeError(path.Root("nat_source_csa_to_site_cidr"), "Missing Attribute", "`nat_source_csa_to_site_cidr` is required when `routing_type` is `nat`.")
+	}
+}
+
 // Section below is generated&owned by "gen/generator.go". //template:begin create
 
 func (r *NetworkTunnelGroupResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -241,6 +286,7 @@ func (r *NetworkTunnelGroupResource) Create(ctx context.Context, req resource.Cr
 
 	// Create object
 	body := plan.toBody(ctx, NetworkTunnelGroup{})
+	body = plan.adjustBody(ctx, body)
 	res, err := r.client.Post(ctx, plan.getPath(), body, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to configure object (POST/PUT), got error: %s, %s", err, res.String()))

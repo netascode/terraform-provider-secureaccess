@@ -21,6 +21,8 @@ package provider
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -35,23 +37,32 @@ import (
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
 type NetworkTunnelGroup struct {
-	Id                        types.String `tfsdk:"id"`
-	Name                      types.String `tfsdk:"name"`
-	DeviceType                types.String `tfsdk:"device_type"`
-	Region                    types.String `tfsdk:"region"`
-	BackupRegion              types.String `tfsdk:"backup_region"`
-	TunnelIdFormatEmail       types.String `tfsdk:"tunnel_id_format_email"`
-	TunnelIdFormatIpAddresses types.List   `tfsdk:"tunnel_id_format_ip_addresses"`
-	PresharedKey              types.String `tfsdk:"preshared_key"`
-	RoutingType               types.String `tfsdk:"routing_type"`
-	StaticNetworkCidrs        types.Set    `tfsdk:"static_network_cidrs"`
-	BgpAsNumber               types.String `tfsdk:"bgp_as_number"`
-	BgpMultihopCount          types.Int64  `tfsdk:"bgp_multihop_count"`
-	BgpMultihopIpRanges       types.Set    `tfsdk:"bgp_multihop_ip_ranges"`
-	BgpPeeringTypes           types.Set    `tfsdk:"bgp_peering_types"`
-	BgpOverrideSummarization  types.Bool   `tfsdk:"bgp_override_summarization"`
-	Ipv6Routing               types.Bool   `tfsdk:"ipv6_routing"`
-	Hubs                      types.List   `tfsdk:"hubs"`
+	Id                        types.String                               `tfsdk:"id"`
+	Name                      types.String                               `tfsdk:"name"`
+	DeviceType                types.String                               `tfsdk:"device_type"`
+	Region                    types.String                               `tfsdk:"region"`
+	BackupRegion              types.String                               `tfsdk:"backup_region"`
+	TunnelIdFormatEmail       types.String                               `tfsdk:"tunnel_id_format_email"`
+	TunnelIdFormatIpAddresses types.List                                 `tfsdk:"tunnel_id_format_ip_addresses"`
+	PresharedKey              types.String                               `tfsdk:"preshared_key"`
+	RoutingType               types.String                               `tfsdk:"routing_type"`
+	StaticNetworkCidrs        types.Set                                  `tfsdk:"static_network_cidrs"`
+	BgpAsNumber               types.String                               `tfsdk:"bgp_as_number"`
+	BgpMultihopCount          types.Int64                                `tfsdk:"bgp_multihop_count"`
+	BgpMultihopIpRanges       types.Set                                  `tfsdk:"bgp_multihop_ip_ranges"`
+	BgpPeeringTypes           types.Set                                  `tfsdk:"bgp_peering_types"`
+	BgpOverrideSummarization  types.Bool                                 `tfsdk:"bgp_override_summarization"`
+	Ipv6Routing               types.Bool                                 `tfsdk:"ipv6_routing"`
+	NatSourceCsaToSiteCidr    types.String                               `tfsdk:"nat_source_csa_to_site_cidr"`
+	NatDestinationMappings    []NetworkTunnelGroupNatDestinationMappings `tfsdk:"nat_destination_mappings"`
+	Hubs                      types.List                                 `tfsdk:"hubs"`
+}
+
+type NetworkTunnelGroupNatDestinationMappings struct {
+	Name           types.String `tfsdk:"name"`
+	Direction      types.String `tfsdk:"direction"`
+	OriginalCidr   types.String `tfsdk:"original_cidr"`
+	TranslatedCidr types.String `tfsdk:"translated_cidr"`
 }
 
 type NetworkTunnelGroupHubs struct {
@@ -140,6 +151,33 @@ func (data NetworkTunnelGroup) toBody(ctx context.Context, state NetworkTunnelGr
 	if !data.Ipv6Routing.IsNull() {
 		body, _ = sjson.Set(body, "routing.data.enableIPv6", data.Ipv6Routing.ValueBool())
 	}
+	if len(data.NatDestinationMappings) > 0 {
+		var natDestinationMappingsBody strings.Builder
+		natDestinationMappingsBody.WriteString("[")
+		for _, item := range data.NatDestinationMappings {
+			itemBody := ""
+			if !item.Name.IsNull() {
+				itemBody, _ = sjson.Set(itemBody, "name", item.Name.ValueString())
+			}
+			if !item.Direction.IsNull() {
+				itemBody, _ = sjson.Set(itemBody, "direction", item.Direction.ValueString())
+			}
+			if !item.OriginalCidr.IsNull() {
+				itemBody, _ = sjson.Set(itemBody, "destinationTranslation.real", item.OriginalCidr.ValueString())
+			}
+			if !item.TranslatedCidr.IsNull() {
+				itemBody, _ = sjson.Set(itemBody, "destinationTranslation.mapped", item.TranslatedCidr.ValueString())
+			}
+			if itemBody != "" {
+				if natDestinationMappingsBody.Len() > 1 {
+					natDestinationMappingsBody.WriteString(",")
+				}
+				natDestinationMappingsBody.WriteString(itemBody)
+			}
+		}
+		natDestinationMappingsBody.WriteString("]")
+		body, _ = sjson.SetRaw(body, "routing.data.routingRules", natDestinationMappingsBody.String())
+	}
 	return body
 }
 
@@ -151,8 +189,8 @@ var networkTunnelGroupPatchPaths = []string{"name", "authIdPrefix", "passphrase"
 // toBodyPatch builds JSON Patch "replace" operations for the paths which differ between data and state.
 // Returns an empty string if there is nothing to update.
 func (data NetworkTunnelGroup) toBodyPatch(ctx context.Context, state NetworkTunnelGroup) string {
-	planBody := data.toBody(ctx, NetworkTunnelGroup{})
-	stateBody := state.toBody(ctx, NetworkTunnelGroup{})
+	planBody := data.adjustBody(ctx, data.toBody(ctx, NetworkTunnelGroup{}))
+	stateBody := state.adjustBody(ctx, state.toBody(ctx, NetworkTunnelGroup{}))
 	ops := "[]"
 	for _, p := range networkTunnelGroupPatchPaths {
 		planValue := gjson.Get(planBody, p)
@@ -241,7 +279,37 @@ func (data *NetworkTunnelGroup) fromBody(ctx context.Context, res gjson.Result) 
 	} else {
 		data.Ipv6Routing = types.BoolNull()
 	}
+	if value := res.Get("routing.data.routingRules"); value.Exists() {
+		data.NatDestinationMappings = make([]NetworkTunnelGroupNatDestinationMappings, 0, int(value.Get("#").Int()))
+		value.ForEach(func(k, res gjson.Result) bool {
+			parent := &data
+			data := NetworkTunnelGroupNatDestinationMappings{}
+			if value := res.Get("name"); value.Exists() {
+				data.Name = types.StringValue(value.String())
+			} else {
+				data.Name = types.StringNull()
+			}
+			if value := res.Get("direction"); value.Exists() {
+				data.Direction = types.StringValue(value.String())
+			} else {
+				data.Direction = types.StringNull()
+			}
+			if value := res.Get("destinationTranslation.real"); value.Exists() {
+				data.OriginalCidr = types.StringValue(value.String())
+			} else {
+				data.OriginalCidr = types.StringNull()
+			}
+			if value := res.Get("destinationTranslation.mapped"); value.Exists() {
+				data.TranslatedCidr = types.StringValue(value.String())
+			} else {
+				data.TranslatedCidr = types.StringNull()
+			}
+			(*parent).NatDestinationMappings = append((*parent).NatDestinationMappings, data)
+			return true
+		})
+	}
 	data.fromBodyHubs(ctx, res)
+	data.adjustRead(ctx, res, nil)
 }
 
 // fromBodyHubs replaces the computed only hubs list with the values from a JSON.
@@ -299,6 +367,7 @@ func (data *NetworkTunnelGroup) fromBodyHubs(ctx context.Context, res gjson.Resu
 // easily change across versions of the backend API.) For List/Set/Map attributes, the func only updates the
 // "managed" elements, instead of all elements.
 func (data *NetworkTunnelGroup) fromBodyPartial(ctx context.Context, res gjson.Result) {
+	prior := *data
 	if value := res.Get("name"); value.Exists() && !data.Name.IsNull() {
 		data.Name = types.StringValue(value.String())
 	} else {
@@ -359,7 +428,66 @@ func (data *NetworkTunnelGroup) fromBodyPartial(ctx context.Context, res gjson.R
 	} else {
 		data.Ipv6Routing = types.BoolNull()
 	}
+	natDestinationMappingsArray := res.Get("routing.data.routingRules")
+	for i := 0; i < len(data.NatDestinationMappings); i++ {
+		keys := [...]string{"name"}
+		keyValues := [...]string{data.NatDestinationMappings[i].Name.ValueString()}
+
+		parent := &data
+		data := (*parent).NatDestinationMappings[i]
+		var res gjson.Result
+
+		natDestinationMappingsArray.ForEach(
+			func(_, v gjson.Result) bool {
+				found := false
+				for ik := range keys {
+					if helpers.GetKeyValue(v.Get(keys[ik])) != keyValues[ik] {
+						found = false
+						break
+					}
+					found = true
+				}
+				if found {
+					res = v
+					return false
+				}
+				return true
+			},
+		)
+		if !res.Exists() {
+			tflog.Debug(ctx, fmt.Sprintf("removing NatDestinationMappings[%d] = %+v",
+				i,
+				(*parent).NatDestinationMappings[i],
+			))
+			(*parent).NatDestinationMappings = slices.Delete((*parent).NatDestinationMappings, i, i+1)
+			i--
+
+			continue
+		}
+		if value := res.Get("name"); value.Exists() && !data.Name.IsNull() {
+			data.Name = types.StringValue(value.String())
+		} else {
+			data.Name = types.StringNull()
+		}
+		if value := res.Get("direction"); value.Exists() && !data.Direction.IsNull() {
+			data.Direction = types.StringValue(value.String())
+		} else {
+			data.Direction = types.StringNull()
+		}
+		if value := res.Get("destinationTranslation.real"); value.Exists() && !data.OriginalCidr.IsNull() {
+			data.OriginalCidr = types.StringValue(value.String())
+		} else {
+			data.OriginalCidr = types.StringNull()
+		}
+		if value := res.Get("destinationTranslation.mapped"); value.Exists() && !data.TranslatedCidr.IsNull() {
+			data.TranslatedCidr = types.StringValue(value.String())
+		} else {
+			data.TranslatedCidr = types.StringNull()
+		}
+		(*parent).NatDestinationMappings[i] = data
+	}
 	data.fromBodyHubs(ctx, res)
+	data.adjustRead(ctx, res, &prior)
 }
 
 // End of section. //template:end fromBodyPartial
@@ -380,6 +508,28 @@ func (data *NetworkTunnelGroup) fromBodyUnknowns(ctx context.Context, res gjson.
 
 // End of section. //template:end toBodyPutDelete
 
-// Section below is generated&owned by "gen/generator.go". //template:begin adjustBody
+func (data NetworkTunnelGroup) adjustBody(ctx context.Context, req string) string {
 
-// End of section. //template:end adjustBody
+	if data.NatSourceCsaToSiteCidr.ValueString() != "" {
+		sourceRule := ""
+		sourceRule, _ = sjson.Set(sourceRule, "name", "source rule")
+		sourceRule, _ = sjson.Set(sourceRule, "direction", "cloud-to-branch")
+		sourceRule, _ = sjson.Set(sourceRule, "sourceTranslation.real", "0.0.0.0/0")
+		sourceRule, _ = sjson.Set(sourceRule, "sourceTranslation.mapped", data.NatSourceCsaToSiteCidr.ValueString())
+		req, _ = sjson.SetRaw(req, "routing.data.routingRules.-1", sourceRule)
+	}
+
+	return req
+}
+
+// adjustRead reads nat_source_csa_to_site_cidr from the routing rule with `sourceTranslation`.
+func (data *NetworkTunnelGroup) adjustRead(ctx context.Context, res gjson.Result, prior *NetworkTunnelGroup) {
+	data.NatSourceCsaToSiteCidr = types.StringNull()
+	res.Get("routing.data.routingRules").ForEach(func(_, rule gjson.Result) bool {
+		if value := rule.Get("sourceTranslation.mapped"); value.Exists() {
+			data.NatSourceCsaToSiteCidr = types.StringValue(value.String())
+			return false
+		}
+		return true
+	})
+}
