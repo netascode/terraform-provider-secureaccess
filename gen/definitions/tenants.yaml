@@ -1,0 +1,35 @@
+# APIBEHAVIOUR: `organizationName` is returned only when requested with `optionalFields=["organizationName"]`
+---
+name: Tenants
+rest_endpoint: /admin/v2/tenants/lists?optionalFields=[\"organizationName\"]
+doc_category: Multi-Tenant
+no_resource: true
+no_import: true
+no_id: true
+is_bulk: true
+ds_description: >-
+  This data source reads Tenants (organizations) managed by the Cisco Secure Access organization.\n
+  If `items` is empty, all Tenants are returned, otherwise only the listed ones.\n
+  If `filter` is provided, only Tenants matching the filter are returned.
+attributes:
+  - model_name: filter
+    tf_only: true
+    type: String
+    data_source_optional_parameter: true
+    description: Case-insensitive substring used to filter tenants by organization name.
+    exclude_example: true
+    exclude_test: true
+  - tf_name: items
+    type: Map
+    description: >-
+      Map of Tenants. The key of the map is the organization name of the individual Tenant.
+    map_key_example: My Organization
+    map_key_model_name: organizationName
+    attributes:
+      - model_name: organizationId
+        tf_name: id
+        type: Int64
+        resource_id: true
+        description: Organization Id of the Tenant.
+        exclude_example: true
+        exclude_test: true
