@@ -347,6 +347,7 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewNotificationPageDataSource,
 		NewPrivateResourceDataSource,
 		NewPrivateResourceGroupDataSource,
+		NewRegionsDataSource,
 		NewRegisteredNetworkDataSource,
 		NewResourceConnectorDataSource,
 		NewResourceConnectorGroupDataSource,
