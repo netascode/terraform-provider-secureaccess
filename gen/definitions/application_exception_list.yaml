@@ -38,15 +38,15 @@ attributes:
     example: 0
   - model_name: applications
     type: List
-    description: Applications of the list, in the order of the API (ascending by `application_id` on the lists observed).
+    description: Applications of the list, in the order of the API (ascending by `id` on the lists observed).
     attributes:
       - model_name: applicationId
-        tf_name: application_id
+        tf_name: id
         type: Int64
         description: Id of the application. It is the id of an application of the type AVC of the `secureaccess_applications` data source.
         example: 445719
       - model_name: applicationName
-        tf_name: application_name
+        tf_name: name
         type: String
         description: Name of the application.
         example: 4everproxy

@@ -39,12 +39,12 @@ type ApplicationExceptionList struct {
 }
 
 type ApplicationExceptionListApplications struct {
-	ApplicationId   types.Int64  `tfsdk:"application_id"`
-	ApplicationName types.String `tfsdk:"application_name"`
-	GroupId         types.Int64  `tfsdk:"group_id"`
-	GroupName       types.String `tfsdk:"group_name"`
-	HasUrls         types.Bool   `tfsdk:"has_urls"`
-	Action          types.String `tfsdk:"action"`
+	Id        types.Int64  `tfsdk:"id"`
+	Name      types.String `tfsdk:"name"`
+	GroupId   types.Int64  `tfsdk:"group_id"`
+	GroupName types.String `tfsdk:"group_name"`
+	HasUrls   types.Bool   `tfsdk:"has_urls"`
+	Action    types.String `tfsdk:"action"`
 }
 
 // End of section. //template:end types
@@ -90,14 +90,14 @@ func (data *ApplicationExceptionList) fromBody(ctx context.Context, res gjson.Re
 			parent := &data
 			data := ApplicationExceptionListApplications{}
 			if value := res.Get("applicationId"); value.Exists() {
-				data.ApplicationId = types.Int64Value(value.Int())
+				data.Id = types.Int64Value(value.Int())
 			} else {
-				data.ApplicationId = types.Int64Null()
+				data.Id = types.Int64Null()
 			}
 			if value := res.Get("applicationName"); value.Exists() {
-				data.ApplicationName = types.StringValue(value.String())
+				data.Name = types.StringValue(value.String())
 			} else {
-				data.ApplicationName = types.StringNull()
+				data.Name = types.StringNull()
 			}
 			if value := res.Get("groupId"); value.Exists() {
 				data.GroupId = types.Int64Value(value.Int())

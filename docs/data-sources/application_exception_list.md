@@ -28,7 +28,7 @@ data "secureaccess_application_exception_list" "example" {
 ### Read-Only
 
 - `allowed_count` (Number) Number of allowed applications in the full list.
-- `applications` (Attributes List) Applications of the list, in the order of the API (ascending by `application_id` on the lists observed). (see [below for nested schema](#nestedatt--applications))
+- `applications` (Attributes List) Applications of the list, in the order of the API (ascending by `id` on the lists observed). (see [below for nested schema](#nestedatt--applications))
 - `blocked_count` (Number) Number of blocked applications in the full list. 0 on every list observed.
 - `name` (String) Name of the exception application list.
 - `warned_count` (Number) Number of warned applications in the full list. 0 on every list observed.
@@ -39,8 +39,8 @@ data "secureaccess_application_exception_list" "example" {
 Read-Only:
 
 - `action` (String) Action of the application, `no_decrypt` on the lists observed (displayed as Allow).
-- `application_id` (Number) Id of the application. It is the id of an application of the type AVC of the `secureaccess_applications` data source.
-- `application_name` (String) Name of the application.
 - `group_id` (Number) Id of the group of the application, the id of an application category of the `secureaccess_application_categories` data source.
 - `group_name` (String) Name of the group of the application, the name of an application category.
 - `has_urls` (Boolean) The `hasUrls` of the application as the API returns it.
+- `id` (Number) Id of the application. It is the id of an application of the type AVC of the `secureaccess_applications` data source.
+- `name` (String) Name of the application.

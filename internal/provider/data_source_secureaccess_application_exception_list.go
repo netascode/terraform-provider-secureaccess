@@ -81,15 +81,15 @@ func (d *ApplicationExceptionListDataSource) Schema(ctx context.Context, req dat
 				Computed:            true,
 			},
 			"applications": schema.ListNestedAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Applications of the list, in the order of the API (ascending by `application_id` on the lists observed).").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Applications of the list, in the order of the API (ascending by `id` on the lists observed).").String,
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"application_id": schema.Int64Attribute{
+						"id": schema.Int64Attribute{
 							MarkdownDescription: "Id of the application. It is the id of an application of the type AVC of the `secureaccess_applications` data source.",
 							Computed:            true,
 						},
-						"application_name": schema.StringAttribute{
+						"name": schema.StringAttribute{
 							MarkdownDescription: "Name of the application.",
 							Computed:            true,
 						},
@@ -142,15 +142,15 @@ func (d *ApplicationExceptionListDataSource) Read(ctx context.Context, req datas
 	tflog.Debug(ctx, fmt.Sprintf("%s: Beginning Read", config.Id.String()))
 
 	// The settings of the list are in `data`, the answer has no applications
-	urlPath := config.getPath() + "/" + url.QueryEscape(config.Id.ValueString())
+	urlPath := exceptionApplicationListPath(config.Id.ValueString())
 	res, err := d.client.Get(ctx, urlPath, reqMods...)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, got error: %s", err))
 		return
 	}
-	settings := res.Get("data")
-	if !settings.IsObject() {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, expected an object in `data`, got: %s", settings.Type))
+	settings, err := exceptionApplicationListSettings(res.Result)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve object, %s", err))
 		return
 	}
 
@@ -160,16 +160,9 @@ func (d *ApplicationExceptionListDataSource) Read(ctx context.Context, req datas
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve the applications of the object, got error: %s", exceptionApplicationListError(err, applications)))
 		return
 	}
-	// the generated fromBody() would read an item that is not an object as an application without any value
-	for i, application := range applications.Array() {
-		if !application.IsObject() {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve the applications of the object, expected an object as application %d, got: %s", i, application.Type))
-			return
-		}
-	}
-	body, err := sjson.SetRaw(settings.Raw, "applications", applications.Raw)
+	body, err := exceptionApplicationListBody(settings, applications.Result)
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to build the object, got error: %s", err))
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve the applications of the object, %s", err))
 		return
 	}
 
@@ -179,6 +172,35 @@ func (d *ApplicationExceptionListDataSource) Read(ctx context.Context, req datas
 
 	diags = resp.State.Set(ctx, &config)
 	resp.Diagnostics.Append(diags...)
+}
+
+// exceptionApplicationListPath is the path of an exception application list. The id is escaped: a slash, a ? or a # in it stays in the one path segment.
+func exceptionApplicationListPath(id string) string {
+	return ApplicationExceptionList{}.getPath() + "/" + url.QueryEscape(id)
+}
+
+// exceptionApplicationListSettings returns the settings of the list, the object in `data` of the answer of GET by id.
+func exceptionApplicationListSettings(res gjson.Result) (gjson.Result, error) {
+	settings := res.Get("data")
+	if !settings.IsObject() {
+		return gjson.Result{}, fmt.Errorf("expected an object in `data`, got: %s", settings.Type)
+	}
+	return settings, nil
+}
+
+// exceptionApplicationListBody puts the applications of all pages into the settings as `applications`: the body that fromBody() reads.
+// Every application must be an object, the generated fromBody() would read anything else as an application without any value.
+func exceptionApplicationListBody(settings, applications gjson.Result) (string, error) {
+	for i, application := range applications.Array() {
+		if !application.IsObject() {
+			return "", fmt.Errorf("expected an object as application %d, got: %s", i, application.Type)
+		}
+	}
+	body, err := sjson.SetRaw(settings.Raw, "applications", applications.Raw)
+	if err != nil {
+		return "", fmt.Errorf("failed to build the object, got error: %w", err)
+	}
+	return body, nil
 }
 
 // exceptionApplicationListError adds the answer of the API to the error of the client, which carries only the status code.

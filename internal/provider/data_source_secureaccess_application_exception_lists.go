@@ -100,7 +100,23 @@ func (d *ApplicationExceptionListsDataSource) Read(ctx context.Context, req data
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, got error: %s", exceptionApplicationListError(err, ids)))
 		return
 	}
-	// The ids are numbers: the generated fromBody() would read anything else as 0
+	body, err := exceptionApplicationListIds(ids.Result)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, %s", err))
+		return
+	}
+
+	config.fromBody(ctx, gjson.Parse(body))
+
+	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", "Application Exception Lists"))
+
+	diags = resp.State.Set(ctx, &config)
+	resp.Diagnostics.Append(diags...)
+}
+
+// exceptionApplicationListIds puts the ids into a body as `ids`, the body that fromBody() reads.
+// The ids are numbers (the generated fromBody() would read anything else as 0) and the API lists an id once.
+func exceptionApplicationListIds(ids gjson.Result) (string, error) {
 	var invalid gjson.Result
 	var duplicate string
 	seen := map[string]bool{}
@@ -117,23 +133,14 @@ func (d *ApplicationExceptionListsDataSource) Read(ctx context.Context, req data
 		return true
 	})
 	if invalid.Exists() {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, expected a number as id, got: %s", invalid.Type))
-		return
+		return "", fmt.Errorf("expected a number as id, got: %s", invalid.Type)
 	}
 	if duplicate != "" {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to retrieve objects, the id %s is listed more than once", duplicate))
-		return
+		return "", fmt.Errorf("the id %s is listed more than once", duplicate)
 	}
 	body, err := sjson.SetRaw("{}", "ids", ids.Raw)
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Failed to build the object, got error: %s", err))
-		return
+		return "", fmt.Errorf("failed to build the object, got error: %w", err)
 	}
-
-	config.fromBody(ctx, gjson.Parse(body))
-
-	tflog.Debug(ctx, fmt.Sprintf("%s: Read finished successfully", "Application Exception Lists"))
-
-	diags = resp.State.Set(ctx, &config)
-	resp.Diagnostics.Append(diags...)
+	return body, nil
 }
