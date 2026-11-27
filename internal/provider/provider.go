@@ -337,6 +337,7 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewDLPFileTypeGroupsDataSource,
 		NewDLPFileTypesDataSource,
 		NewDLPRealTimeRuleDataSource,
+		NewDoNotDecryptListApplicationExceptionListDataSource,
 		NewIdentitiesDataSource,
 		NewIdentityTypesDataSource,
 		NewInternalDomainDataSource,
