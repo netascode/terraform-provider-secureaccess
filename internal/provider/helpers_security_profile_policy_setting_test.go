@@ -25,6 +25,9 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+// policySettingMask is a mask of 54 digits, with the given first digit and 53 zeros.
+func policySettingMask(first string) string { return first + strings.Repeat("0", 53) }
+
 // The mask of aiSupplyChainCategories is read by the first digit only when it is "0" or 54 hexadecimal digits, anything else is
 // unknown and gives null for the three options, not false: false would claim that nothing is blocked.
 func TestAiSupplyChainOption(t *testing.T) {
@@ -127,11 +130,12 @@ func TestAiSupplyChainOption(t *testing.T) {
 		}
 	})
 
-	// The characters next to the ranges 0-9, A-F and a-f in the ASCII table, in several positions: a comparison that is off by one would
-	// accept one of them. The first digit is rejected by ParseUint anyway, so the later positions are the ones that count.
+	// The characters next to the ranges 0-9, A-F and a-f in the ASCII table and two that are in no range (_ and x), in every position: a
+	// comparison that is off by one or a check that skips a position would accept one of them. The first digit is rejected by ParseUint
+	// anyway, so the later positions are the ones that count.
 	t.Run("the characters next to the hexadecimal ranges are not digits, in any position", func(t *testing.T) {
-		for _, bad := range []string{"/", ":", "@", "G", "`", "g"} {
-			for _, pos := range []int{0, 1, 26, 53} {
+		for _, bad := range []string{"/", ":", "@", "G", "`", "g", "_", "x"} {
+			for pos := 0; pos < aiSupplyChainMaskLength; pos++ {
 				mask := []byte(policySettingMask("2"))
 				mask[pos] = bad[0]
 				if got := pattern(quote(string(mask))); got != "NNN" {

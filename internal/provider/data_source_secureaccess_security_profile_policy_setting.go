@@ -70,16 +70,12 @@ func (d *SecurityProfilePolicySettingDataSource) Schema(ctx context.Context, req
 				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether Decryption is enabled (Web UI Decryption, Enabled).").String,
 				Computed:            true,
 			},
-			"intelligent_proxy": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the intelligent proxy is enabled.").String,
-				Computed:            true,
-			},
 			"end_user_notification": schema.BoolAttribute{
 				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether the Block page mode of the End-User Notifications is enabled (Web UI End-User Notifications, Block page mode).").String,
 				Computed:            true,
 			},
 			"single_sign_on": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether Single Sign-On (SSO) is enabled. The API returns 0 or 1, which is read as `false` or `true`.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether Single Sign-On (SSO) is enabled.").String,
 				Computed:            true,
 			},
 			"safe_search": schema.BoolAttribute{
@@ -99,11 +95,7 @@ func (d *SecurityProfilePolicySettingDataSource) Schema(ctx context.Context, req
 				Computed:            true,
 			},
 			"ai_semantic_inspection": schema.BoolAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether AI Semantic Inspection is enabled (Web UI AI Semantic Inspection). The Security Profiles API guide does not describe this setting. It is matched to the Web UI option by the name of the API field (`mcpSemanticInspection`), and this match has not been confirmed.").String,
-				Computed:            true,
-			},
-			"reporting": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Reporting setting of the Policy Setting.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Specifies whether AI Semantic Inspection is enabled (Web UI AI Semantic Inspection).").String,
 				Computed:            true,
 			},
 		},

@@ -27,14 +27,12 @@ data "secureaccess_security_profile_policy_setting" "example" {
 
 ### Read-Only
 
-- `ai_semantic_inspection` (Boolean) Specifies whether AI Semantic Inspection is enabled (Web UI AI Semantic Inspection). The Security Profiles API guide does not describe this setting. It is matched to the Web UI option by the name of the API field (`mcpSemanticInspection`), and this match has not been confirmed.
+- `ai_semantic_inspection` (Boolean) Specifies whether AI Semantic Inspection is enabled (Web UI AI Semantic Inspection).
 - `ai_supply_chain_code_execution` (Boolean) Specifies whether blocking of Code Execution is enabled (Web UI AI Supply Chain Blocking, Code Execution).
 - `ai_supply_chain_copyleft_license` (Boolean) Specifies whether blocking of Copyleft License is enabled (Web UI AI Supply Chain Blocking, Copyleft License).
 - `ai_supply_chain_prohibited_suppliers` (Boolean) Specifies whether blocking of Prohibited Suppliers is enabled (Web UI AI Supply Chain Blocking, Prohibited Suppliers).
 - `decryption_enabled` (Boolean) Specifies whether Decryption is enabled (Web UI Decryption, Enabled).
 - `end_user_notification` (Boolean) Specifies whether the Block page mode of the End-User Notifications is enabled (Web UI End-User Notifications, Block page mode).
-- `intelligent_proxy` (Boolean) Specifies whether the intelligent proxy is enabled.
 - `name` (String) Name of the Policy Setting.
-- `reporting` (String) Reporting setting of the Policy Setting.
 - `safe_search` (Boolean) Specifies whether SafeSearch is enabled.
-- `single_sign_on` (Boolean) Specifies whether Single Sign-On (SSO) is enabled. The API returns 0 or 1, which is read as `false` or `true`.
+- `single_sign_on` (Boolean) Specifies whether Single Sign-On (SSO) is enabled.

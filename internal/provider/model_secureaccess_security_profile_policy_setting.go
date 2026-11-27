@@ -33,7 +33,6 @@ type SecurityProfilePolicySetting struct {
 	Id                               types.String `tfsdk:"id"`
 	Name                             types.String `tfsdk:"name"`
 	DecryptionEnabled                types.Bool   `tfsdk:"decryption_enabled"`
-	IntelligentProxy                 types.Bool   `tfsdk:"intelligent_proxy"`
 	EndUserNotification              types.Bool   `tfsdk:"end_user_notification"`
 	SingleSignOn                     types.Bool   `tfsdk:"single_sign_on"`
 	SafeSearch                       types.Bool   `tfsdk:"safe_search"`
@@ -41,7 +40,6 @@ type SecurityProfilePolicySetting struct {
 	AiSupplyChainCodeExecution       types.Bool   `tfsdk:"ai_supply_chain_code_execution"`
 	AiSupplyChainCopyleftLicense     types.Bool   `tfsdk:"ai_supply_chain_copyleft_license"`
 	AiSemanticInspection             types.Bool   `tfsdk:"ai_semantic_inspection"`
-	Reporting                        types.String `tfsdk:"reporting"`
 }
 
 // End of section. //template:end types
@@ -71,11 +69,6 @@ func (data *SecurityProfilePolicySetting) fromBody(ctx context.Context, res gjso
 	} else {
 		data.DecryptionEnabled = types.BoolNull()
 	}
-	if value := res.Get("intelligentProxy"); value.Exists() {
-		data.IntelligentProxy = types.BoolValue(value.Bool())
-	} else {
-		data.IntelligentProxy = types.BoolNull()
-	}
 	if value := res.Get("swgDisplayBlockPage"); value.Exists() {
 		data.EndUserNotification = types.BoolValue(value.Bool())
 	} else {
@@ -95,11 +88,6 @@ func (data *SecurityProfilePolicySetting) fromBody(ctx context.Context, res gjso
 		data.AiSemanticInspection = types.BoolValue(value.Bool())
 	} else {
 		data.AiSemanticInspection = types.BoolNull()
-	}
-	if value := res.Get("reporting"); value.Exists() {
-		data.Reporting = types.StringValue(value.String())
-	} else {
-		data.Reporting = types.StringNull()
 	}
 	data.adjustRead(ctx, res, nil)
 }
