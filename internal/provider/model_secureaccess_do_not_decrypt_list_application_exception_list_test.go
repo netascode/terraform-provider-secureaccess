@@ -33,7 +33,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-// This file is not generated. It tests our own code of the data source application_exception_list by calling it directly: the schema, the mapping
+// This file is not generated. It tests our own code of the data source do_not_decrypt_list_application_exception_list by calling it directly: the schema, the mapping
 // of a body to the model (the generated fromBody()), what Read() does with the answers of the API (the check of the settings, the check and the merge
 // of the applications), the path of the request and the text of an error.
 // There is no test with a fake of the API here. Such a test only shows that Read() understands what we think the API answers, so it cannot notice that the API changed.
@@ -46,12 +46,12 @@ const excAppJSON = `{"applicationId":1000,"applicationName":"App 0","action":"no
 // excSettingsJSON is the `data` of the answer of GET by id (made up), without the applications.
 const excSettingsJSON = `{"id":5001,"organizationId":2222222,"isDefault":null,"name":"my_do_not_decrypt_list","type":"application","markedForDeletion":false,"blockedCount":0,"allowedCount":2,"warnedCount":0,"applicationsCategories":[]}`
 
-func TestApplicationExceptionListSchema(t *testing.T) {
+func TestDoNotDecryptListApplicationExceptionListSchema(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("the attributes of a list", func(t *testing.T) {
-		ds := &ApplicationExceptionListDataSource{}
-		const typeName = "secureaccess_application_exception_list"
+		ds := &DoNotDecryptListApplicationExceptionListDataSource{}
+		const typeName = "secureaccess_do_not_decrypt_list_application_exception_list"
 		var meta datasource.MetadataResponse
 		ds.Metadata(ctx, datasource.MetadataRequest{ProviderTypeName: "secureaccess"}, &meta)
 		if meta.TypeName != typeName {
@@ -95,7 +95,7 @@ func TestApplicationExceptionListSchema(t *testing.T) {
 
 	t.Run("the nested attributes of an application", func(t *testing.T) {
 		var resp datasource.SchemaResponse
-		(&ApplicationExceptionListDataSource{}).Schema(ctx, datasource.SchemaRequest{}, &resp)
+		(&DoNotDecryptListApplicationExceptionListDataSource{}).Schema(ctx, datasource.SchemaRequest{}, &resp)
 		objType := resp.Schema.Type().TerraformType(ctx).(tftypes.Object)
 		list, ok := objType.AttributeTypes["applications"].(tftypes.List)
 		if !ok {
@@ -121,12 +121,12 @@ func TestApplicationExceptionListSchema(t *testing.T) {
 	})
 }
 
-func TestApplicationExceptionListFromBody(t *testing.T) {
+func TestDoNotDecryptListApplicationExceptionListFromBody(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("every count and every field of an application is read from its own key", func(t *testing.T) {
 		// every value is different, so that a field read from the key of another one is noticed
-		var got ApplicationExceptionList
+		var got DoNotDecryptListApplicationExceptionList
 		got.fromBody(ctx, gjson.Parse(`{"name":"list","allowedCount":4,"blockedCount":2,"warnedCount":3,"applications":[
 			{"applicationId":11,"applicationName":"name","groupId":22,"groupName":"group","hasUrls":true,"action":"action_x",
 			 "selectedAction":{"name":"name_y","displayName":"display_z","actionId":33}}]}`))
@@ -143,7 +143,7 @@ func TestApplicationExceptionListFromBody(t *testing.T) {
 	})
 
 	t.Run("a field that the API leaves out is null, not zero", func(t *testing.T) {
-		var got ApplicationExceptionList
+		var got DoNotDecryptListApplicationExceptionList
 		got.fromBody(ctx, gjson.Parse(`{"id":5001,"applications":[{"applicationId":11}]}`))
 		if !got.Name.IsNull() || !got.AllowedCount.IsNull() || !got.BlockedCount.IsNull() || !got.WarnedCount.IsNull() {
 			t.Errorf("settings = %s %s %s %s, want null", got.Name, got.AllowedCount, got.BlockedCount, got.WarnedCount)
@@ -159,7 +159,7 @@ func TestApplicationExceptionListFromBody(t *testing.T) {
 
 	t.Run("a null in a field is read as the zero value", func(t *testing.T) {
 		// said in the YAML: the generated fromBody() reads a JSON null as 0, "" or false. Not seen on the int environment.
-		var got ApplicationExceptionList
+		var got DoNotDecryptListApplicationExceptionList
 		got.fromBody(ctx, gjson.Parse(`{"applications":[{"applicationId":11,"groupId":null,"groupName":null,"hasUrls":null}]}`))
 		a := got.Applications[0]
 		if a.GroupId.IsNull() || a.GroupId.ValueInt64() != 0 || a.GroupName.IsNull() || a.GroupName.ValueString() != "" || a.HasUrls.IsNull() || a.HasUrls.ValueBool() {
@@ -168,7 +168,7 @@ func TestApplicationExceptionListFromBody(t *testing.T) {
 	})
 
 	t.Run("a list without applications is an empty list, not a null", func(t *testing.T) {
-		var got ApplicationExceptionList
+		var got DoNotDecryptListApplicationExceptionList
 		got.fromBody(ctx, gjson.Parse(`{"name":"list","applications":[]}`))
 		if got.Applications == nil || len(got.Applications) != 0 {
 			t.Errorf("applications = %#v, want an empty list", got.Applications)
@@ -176,7 +176,7 @@ func TestApplicationExceptionListFromBody(t *testing.T) {
 	})
 
 	t.Run("the applications are in the order of the API", func(t *testing.T) {
-		var got ApplicationExceptionList
+		var got DoNotDecryptListApplicationExceptionList
 		got.fromBody(ctx, gjson.Parse(`{"applications":[{"applicationId":30},{"applicationId":10},{"applicationId":20}]}`))
 		var ids []int64
 		for _, a := range got.Applications {
@@ -188,7 +188,7 @@ func TestApplicationExceptionListFromBody(t *testing.T) {
 	})
 
 	t.Run("the id is the id of the config, not the id in the answer", func(t *testing.T) {
-		got := ApplicationExceptionList{Id: types.StringValue("5001")}
+		got := DoNotDecryptListApplicationExceptionList{Id: types.StringValue("5001")}
 		got.fromBody(ctx, gjson.Parse(`{"id":7777,"name":"list"}`))
 		if got.Id.ValueString() != "5001" {
 			t.Errorf("id = %q, want the id of the config", got.Id.ValueString())
@@ -285,7 +285,7 @@ func TestExceptionApplicationListBody(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var got ApplicationExceptionList
+		var got DoNotDecryptListApplicationExceptionList
 		got.fromBody(ctx, gjson.Parse(body))
 		if got.Name.ValueString() != "my_do_not_decrypt_list" || got.AllowedCount.ValueInt64() != 2 || got.BlockedCount.ValueInt64() != 0 || got.WarnedCount.ValueInt64() != 0 {
 			t.Errorf("name=%s allowed=%s blocked=%s warned=%s", got.Name, got.AllowedCount, got.BlockedCount, got.WarnedCount)

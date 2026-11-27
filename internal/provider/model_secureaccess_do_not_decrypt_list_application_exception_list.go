@@ -29,16 +29,16 @@ import (
 
 // Section below is generated&owned by "gen/generator.go". //template:begin types
 
-type ApplicationExceptionList struct {
-	Id           types.String                           `tfsdk:"id"`
-	Name         types.String                           `tfsdk:"name"`
-	AllowedCount types.Int64                            `tfsdk:"allowed_count"`
-	BlockedCount types.Int64                            `tfsdk:"blocked_count"`
-	WarnedCount  types.Int64                            `tfsdk:"warned_count"`
-	Applications []ApplicationExceptionListApplications `tfsdk:"applications"`
+type DoNotDecryptListApplicationExceptionList struct {
+	Id           types.String                                           `tfsdk:"id"`
+	Name         types.String                                           `tfsdk:"name"`
+	AllowedCount types.Int64                                            `tfsdk:"allowed_count"`
+	BlockedCount types.Int64                                            `tfsdk:"blocked_count"`
+	WarnedCount  types.Int64                                            `tfsdk:"warned_count"`
+	Applications []DoNotDecryptListApplicationExceptionListApplications `tfsdk:"applications"`
 }
 
-type ApplicationExceptionListApplications struct {
+type DoNotDecryptListApplicationExceptionListApplications struct {
 	Id        types.Int64  `tfsdk:"id"`
 	Name      types.String `tfsdk:"name"`
 	GroupId   types.Int64  `tfsdk:"group_id"`
@@ -51,7 +51,7 @@ type ApplicationExceptionListApplications struct {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin getPath
 
-func (data ApplicationExceptionList) getPath() string {
+func (data DoNotDecryptListApplicationExceptionList) getPath() string {
 	return "/policies/v2/exceptionApplicationLists"
 }
 
@@ -63,7 +63,7 @@ func (data ApplicationExceptionList) getPath() string {
 
 // Section below is generated&owned by "gen/generator.go". //template:begin fromBody
 
-func (data *ApplicationExceptionList) fromBody(ctx context.Context, res gjson.Result) {
+func (data *DoNotDecryptListApplicationExceptionList) fromBody(ctx context.Context, res gjson.Result) {
 	if value := res.Get("name"); value.Exists() {
 		data.Name = types.StringValue(value.String())
 	} else {
@@ -85,10 +85,10 @@ func (data *ApplicationExceptionList) fromBody(ctx context.Context, res gjson.Re
 		data.WarnedCount = types.Int64Null()
 	}
 	if value := res.Get("applications"); value.Exists() {
-		data.Applications = make([]ApplicationExceptionListApplications, 0, int(value.Get("#").Int()))
+		data.Applications = make([]DoNotDecryptListApplicationExceptionListApplications, 0, int(value.Get("#").Int()))
 		value.ForEach(func(k, res gjson.Result) bool {
 			parent := &data
-			data := ApplicationExceptionListApplications{}
+			data := DoNotDecryptListApplicationExceptionListApplications{}
 			if value := res.Get("applicationId"); value.Exists() {
 				data.Id = types.Int64Value(value.Int())
 			} else {

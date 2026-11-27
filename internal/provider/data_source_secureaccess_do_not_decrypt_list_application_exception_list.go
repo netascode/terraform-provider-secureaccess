@@ -38,26 +38,26 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ datasource.DataSource              = &ApplicationExceptionListDataSource{}
-	_ datasource.DataSourceWithConfigure = &ApplicationExceptionListDataSource{}
+	_ datasource.DataSource              = &DoNotDecryptListApplicationExceptionListDataSource{}
+	_ datasource.DataSourceWithConfigure = &DoNotDecryptListApplicationExceptionListDataSource{}
 )
 
-func NewApplicationExceptionListDataSource() datasource.DataSource {
-	return &ApplicationExceptionListDataSource{}
+func NewDoNotDecryptListApplicationExceptionListDataSource() datasource.DataSource {
+	return &DoNotDecryptListApplicationExceptionListDataSource{}
 }
 
-type ApplicationExceptionListDataSource struct {
+type DoNotDecryptListApplicationExceptionListDataSource struct {
 	client *secureaccess.Client
 }
 
-func (d *ApplicationExceptionListDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_application_exception_list"
+func (d *DoNotDecryptListApplicationExceptionListDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_do_not_decrypt_list_application_exception_list"
 }
 
-func (d *ApplicationExceptionListDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *DoNotDecryptListApplicationExceptionListDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: helpers.NewAttributeDescription("This data source reads an exception application list, found by its `id`.").String,
+		MarkdownDescription: helpers.NewAttributeDescription("This data source reads the application exception list of a Do Not Decrypt list, found by its `id`. The Secure Access API creates this list when the first application is added to a Do Not Decrypt list and returns its id as `exceptionapplicationlistId` of that Do Not Decrypt list.").String,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -65,7 +65,7 @@ func (d *ApplicationExceptionListDataSource) Schema(ctx context.Context, req dat
 				Required:            true,
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: helpers.NewAttributeDescription("Name of the exception application list.").String,
+				MarkdownDescription: helpers.NewAttributeDescription("Name of the application exception list.").String,
 				Computed:            true,
 			},
 			"allowed_count": schema.Int64Attribute{
@@ -116,7 +116,7 @@ func (d *ApplicationExceptionListDataSource) Schema(ctx context.Context, req dat
 	}
 }
 
-func (d *ApplicationExceptionListDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
+func (d *DoNotDecryptListApplicationExceptionListDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -126,8 +126,8 @@ func (d *ApplicationExceptionListDataSource) Configure(_ context.Context, req da
 
 // End of section. //template:end model
 
-func (d *ApplicationExceptionListDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var config ApplicationExceptionList
+func (d *DoNotDecryptListApplicationExceptionListDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var config DoNotDecryptListApplicationExceptionList
 
 	// Read config
 	diags := req.Config.Get(ctx, &config)
@@ -176,7 +176,7 @@ func (d *ApplicationExceptionListDataSource) Read(ctx context.Context, req datas
 
 // exceptionApplicationListPath is the path of an exception application list. The id is escaped: a slash, a ? or a # in it stays in the one path segment.
 func exceptionApplicationListPath(id string) string {
-	return ApplicationExceptionList{}.getPath() + "/" + url.QueryEscape(id)
+	return DoNotDecryptListApplicationExceptionList{}.getPath() + "/" + url.QueryEscape(id)
 }
 
 // exceptionApplicationListSettings returns the settings of the list, the object in `data` of the answer of GET by id.
