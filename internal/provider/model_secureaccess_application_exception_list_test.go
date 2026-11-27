@@ -33,9 +33,9 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-// This file is not generated. It tests our own code of the data sources application_exception_list and application_exception_lists by calling it
-// directly: the schema, the mapping of a body to the model (the generated fromBody()), what Read() does with the answers of the API (the check of the settings, the
-// check and the merge of the applications, the check of the ids), the path of the request and the text of an error.
+// This file is not generated. It tests our own code of the data source application_exception_list by calling it directly: the schema, the mapping
+// of a body to the model (the generated fromBody()), what Read() does with the answers of the API (the check of the settings, the check and the merge
+// of the applications), the path of the request and the text of an error.
 // There is no test with a fake of the API here. Such a test only shows that Read() understands what we think the API answers, so it cannot notice that the API changed.
 // Paging and the answers of the API belong to the client (go-secureaccess). Whether Read() works against a real organization is for an acceptance test,
 // which needs a way to create an exception application list (the API has only GET routes for them).
@@ -49,57 +49,49 @@ const excSettingsJSON = `{"id":5001,"organizationId":2222222,"isDefault":null,"n
 func TestApplicationExceptionListSchema(t *testing.T) {
 	ctx := context.Background()
 
-	for _, tc := range []struct {
-		name     string
-		ds       datasource.DataSource
-		typeName string
-		want     string
-	}{
-		{"single list", &ApplicationExceptionListDataSource{}, "secureaccess_application_exception_list", "allowed_count,applications,blocked_count,id,name,warned_count"},
-		{"ids", &ApplicationExceptionListsDataSource{}, "secureaccess_application_exception_lists", "ids"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			var meta datasource.MetadataResponse
-			tc.ds.Metadata(ctx, datasource.MetadataRequest{ProviderTypeName: "secureaccess"}, &meta)
-			if meta.TypeName != tc.typeName {
-				t.Errorf("type name = %q, want %q", meta.TypeName, tc.typeName)
-			}
-			var resp datasource.SchemaResponse
-			tc.ds.Schema(ctx, datasource.SchemaRequest{}, &resp)
-			var names []string
-			for name, a := range resp.Schema.Attributes {
-				names = append(names, name)
-				if name == "id" {
-					if !a.IsRequired() || a.IsComputed() {
-						t.Errorf("id must be required (lookup by id only), required=%t computed=%t", a.IsRequired(), a.IsComputed())
-					}
-					continue
+	t.Run("the attributes of a list", func(t *testing.T) {
+		ds := &ApplicationExceptionListDataSource{}
+		const typeName = "secureaccess_application_exception_list"
+		var meta datasource.MetadataResponse
+		ds.Metadata(ctx, datasource.MetadataRequest{ProviderTypeName: "secureaccess"}, &meta)
+		if meta.TypeName != typeName {
+			t.Errorf("type name = %q, want %q", meta.TypeName, typeName)
+		}
+		var resp datasource.SchemaResponse
+		ds.Schema(ctx, datasource.SchemaRequest{}, &resp)
+		var names []string
+		for name, a := range resp.Schema.Attributes {
+			names = append(names, name)
+			if name == "id" {
+				if !a.IsRequired() || a.IsComputed() {
+					t.Errorf("id must be required (lookup by id only), required=%t computed=%t", a.IsRequired(), a.IsComputed())
 				}
-				if !a.IsComputed() || a.IsRequired() || a.IsOptional() {
-					t.Errorf("%s must be read-only, required=%t optional=%t computed=%t", name, a.IsRequired(), a.IsOptional(), a.IsComputed())
-				}
+				continue
 			}
-			sort.Strings(names)
-			if got := strings.Join(names, ","); got != tc.want {
-				t.Errorf("attributes = %s\nwant       %s", got, tc.want)
+			if !a.IsComputed() || a.IsRequired() || a.IsOptional() {
+				t.Errorf("%s must be read-only, required=%t optional=%t computed=%t", name, a.IsRequired(), a.IsOptional(), a.IsComputed())
 			}
-			// a lookup by name would need a read of every list, there is none
-			if _, ok := tc.ds.(datasource.DataSourceWithConfigValidators); ok {
-				t.Errorf("there must be no config validators")
+		}
+		sort.Strings(names)
+		if got, want := strings.Join(names, ","), "allowed_count,applications,blocked_count,id,name,warned_count"; got != want {
+			t.Errorf("attributes = %s\nwant       %s", got, want)
+		}
+		// a lookup by name would need a read of every list, there is none
+		if _, ok := datasource.DataSource(ds).(datasource.DataSourceWithConfigValidators); ok {
+			t.Errorf("there must be no config validators")
+		}
+		var registered bool
+		for _, factory := range New("test")().DataSources(ctx) {
+			var m datasource.MetadataResponse
+			factory().Metadata(ctx, datasource.MetadataRequest{ProviderTypeName: "secureaccess"}, &m)
+			if m.TypeName == typeName {
+				registered = true
 			}
-			var registered bool
-			for _, factory := range New("test")().DataSources(ctx) {
-				var m datasource.MetadataResponse
-				factory().Metadata(ctx, datasource.MetadataRequest{ProviderTypeName: "secureaccess"}, &m)
-				if m.TypeName == tc.typeName {
-					registered = true
-				}
-			}
-			if !registered {
-				t.Error("the data source is not registered in the provider")
-			}
-		})
-	}
+		}
+		if !registered {
+			t.Error("the data source is not registered in the provider")
+		}
+	})
 
 	t.Run("the nested attributes of an application", func(t *testing.T) {
 		var resp datasource.SchemaResponse
@@ -125,19 +117,6 @@ func TestApplicationExceptionListSchema(t *testing.T) {
 			if !a.IsComputed() || a.IsRequired() || a.IsOptional() {
 				t.Errorf("applications.%s must be read-only, required=%t optional=%t computed=%t", name, a.IsRequired(), a.IsOptional(), a.IsComputed())
 			}
-		}
-	})
-
-	t.Run("the ids are a set of numbers", func(t *testing.T) {
-		var resp datasource.SchemaResponse
-		(&ApplicationExceptionListsDataSource{}).Schema(ctx, datasource.SchemaRequest{}, &resp)
-		objType := resp.Schema.Type().TerraformType(ctx).(tftypes.Object)
-		set, ok := objType.AttributeTypes["ids"].(tftypes.Set)
-		if !ok {
-			t.Fatalf("ids is a %T, want a set (the API lists an id once, the order does not matter)", objType.AttributeTypes["ids"])
-		}
-		if !set.ElementType.Is(tftypes.Number) {
-			t.Errorf("the elements of ids are %s, want numbers", set.ElementType)
 		}
 	})
 }
@@ -213,36 +192,6 @@ func TestApplicationExceptionListFromBody(t *testing.T) {
 		got.fromBody(ctx, gjson.Parse(`{"id":7777,"name":"list"}`))
 		if got.Id.ValueString() != "5001" {
 			t.Errorf("id = %q, want the id of the config", got.Id.ValueString())
-		}
-	})
-}
-
-func TestApplicationExceptionListsFromBody(t *testing.T) {
-	ctx := context.Background()
-	ids := func(t *testing.T, body string) []int64 {
-		t.Helper()
-		var got ApplicationExceptionLists
-		got.fromBody(ctx, gjson.Parse(body))
-		if got.Ids.IsNull() {
-			t.Fatalf("ids = %s, want a set", got.Ids)
-		}
-		var out []int64
-		if diags := got.Ids.ElementsAs(ctx, &out, false); diags.HasError() {
-			t.Fatal(diags)
-		}
-		sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
-		return out
-	}
-
-	t.Run("the ids are a set of numbers", func(t *testing.T) {
-		if got := ids(t, `{"ids":[17000001,16708649,16708650]}`); fmt.Sprint(got) != "[16708649 16708650 17000001]" {
-			t.Errorf("ids = %v", got)
-		}
-	})
-
-	t.Run("no list is an empty set, not a null", func(t *testing.T) {
-		if got := ids(t, `{"ids":[]}`); len(got) != 0 {
-			t.Errorf("ids = %v, want an empty set", got)
 		}
 	})
 }
@@ -375,49 +324,6 @@ func TestExceptionApplicationListBody(t *testing.T) {
 		items[120] = `"x"`
 		_, err := exceptionApplicationListBody(settings, gjson.Parse("["+strings.Join(items, ",")+"]"))
 		if want := "expected an object as application 120, got: String"; err == nil || err.Error() != want {
-			t.Errorf("error = %v, want %q", err, want)
-		}
-	})
-}
-
-func TestExceptionApplicationListIds(t *testing.T) {
-	t.Run("the ids are put into a body as ids", func(t *testing.T) {
-		body, err := exceptionApplicationListIds(gjson.Parse(`[16708649,16708650,17000001]`))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := `{"ids":[16708649,16708650,17000001]}`; body != want {
-			t.Errorf("body = %s, want %s", body, want)
-		}
-	})
-
-	t.Run("no ids are an empty array, not a missing key", func(t *testing.T) {
-		body, err := exceptionApplicationListIds(gjson.Parse(`[]`))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := `{"ids":[]}`; body != want {
-			t.Errorf("body = %s, want %s", body, want)
-		}
-	})
-
-	for _, tc := range []struct{ name, bad, got string }{
-		{"a string", `"x"`, "String"}, {"a bool", `true`, "True"}, {"null", `null`, "Null"}, {"an object", `{"id":1}`, "JSON"}, {"a list", `[1]`, "JSON"},
-	} {
-		t.Run("an id that is "+tc.name+" is an error, it is not read as 0", func(t *testing.T) {
-			// the bad one is the first of two and the last of two
-			for _, ids := range []string{`[` + tc.bad + `,16708649]`, `[16708649,` + tc.bad + `]`} {
-				_, err := exceptionApplicationListIds(gjson.Parse(ids))
-				if want := "expected a number as id, got: " + tc.got; err == nil || err.Error() != want {
-					t.Errorf("%s: error = %v, want %q", ids, err, want)
-				}
-			}
-		})
-	}
-
-	t.Run("an id that the API lists twice is an error", func(t *testing.T) {
-		_, err := exceptionApplicationListIds(gjson.Parse(`[16708649,16708650,16708649]`))
-		if want := "the id 16708649 is listed more than once"; err == nil || err.Error() != want {
 			t.Errorf("error = %v, want %q", err, want)
 		}
 	})

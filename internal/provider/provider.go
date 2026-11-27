@@ -320,7 +320,6 @@ func (p *SecureAccessProvider) DataSources(ctx context.Context) []func() datasou
 		NewAccessRuleDataSource,
 		NewApplicationCategoriesDataSource,
 		NewApplicationExceptionListDataSource,
-		NewApplicationExceptionListsDataSource,
 		NewApplicationListDataSource,
 		NewApplicationsDataSource,
 		NewContentCategoriesDataSource,
