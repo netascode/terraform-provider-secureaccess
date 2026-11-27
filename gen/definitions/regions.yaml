@@ -1,0 +1,35 @@
+# APIBEHAVIOUR: the response is a single JSON object, `regions` is a list in it and `bgp` is an object next to it
+# Not exposed: `bgp` (`asNumber`, `peerIPs` and `peerRange`), a Network Tunnel Group needs only the `region` of a region
+# APIBEHAVIOUR: the endpoint is read-only and needs the `deployments.regions:read` scope
+# APIBEHAVIOUR: the API also takes a `filters` query parameter (JSON object as a string), it is not used by this data source
+---
+name: Regions
+rest_endpoint: /deployments/v2/regions
+doc_category: Connect
+no_resource: true
+no_import: true
+no_id: true
+ds_description: >-
+  This data source reads the regions that Secure Access offers for Network Tunnel Groups.
+  It requires an API key with the `deployments.regions:read` scope.
+attributes:
+  - model_name: regions
+    type: List
+    description: The regions, in the order in which the API returns them.
+    attributes:
+      - model_name: name
+        type: String
+        description: Display name of the region. To select a region for a Network Tunnel Group use `region`, not `name`.
+        example: US East 1
+      - model_name: region
+        type: String
+        description: Identifier of the region. This is the value to use for the `region` of a Network Tunnel Group.
+        example: us-east-1
+      - model_name: description
+        type: String
+        description: Country and location of the region.
+        example: US East (N. Virginia)
+      - model_name: continent
+        type: String
+        description: Continent of the region.
+        example: North America
